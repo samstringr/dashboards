@@ -1,0 +1,146 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   tokens.css — the design system, extracted ONCE.
+   Source: design-system.md (iCloud Claude folder). That file is BINDING.
+   v2 values applied throughout; the v1 figures it supersedes are noted inline.
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Five artifacts each carried their own copy of these. Extracting them once is
+   what makes the second app cheap and the fifth nearly free. Do not redeclare
+   a colour anywhere else in this repo.
+
+   ✅ WHAT THE NEW ARCHITECTURE UNLOCKS: the artifact sandbox allowed only three
+   allowlisted CDN scripts, so design-system.md records "Google Fonts cannot be
+   loaded" and falls back to a system stack. On GitHub Pages that limit is gone
+   — Inter can now be loaded properly, which is what the type scale was designed
+   against. The @font-face import is left commented below: turn it on
+   deliberately, and check it against a cold load on mobile data first.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'); */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces ─────────────────────────────────────────────── */
+  --bg:         #0c0c0f;   /* page.     v1 was #0b0b0d */
+  --s1:         #131316;   /* card */
+  --s2:         #1a1a1f;   /* raised / hover */
+  --s3:         #22222a;   /* input, track */
+  --line:       #232329;   /* hairline. v1 was #26262e — v2 pulls it back so
+                              structure is felt rather than drawn */
+  --line-2:     #33333d;   /* emphasis border */
+
+  /* ── Ink ──────────────────────────────────────────────────── */
+  --ink:        #e8e6e1;   /* primary.  v1 was #f2f1ee — pure white on near-black
+                              was the single largest source of "looks harsh" */
+  --muted:      #8d8d97;   /* secondary */
+  --dim:        #5c5c66;   /* tertiary, axis labels */
+
+  /* ── One accent. Amber-clay. Used ONLY for the thing that matters most
+        on the page. If two things are accented, one of them is wrong. ── */
+  --accent:     #e07b45;
+  --accent-dim: #3a2318;
+
+  /* ── States. Loud only when true: red means a real problem, not a small one ── */
+  --good:       #7fb069;   --good-dim:   #1c2a19;   /* on plan, target met */
+  --bad:        #e2585a;   --bad-dim:    #2e1719;   /* breached, overdue */
+  --warn:       #d9a441;   --warn-dim:   #2c2314;   /* approaching a limit */
+  --cool:       #6a9bd1;   --cool-dim:   #16202c;   /* committed / neutral */
+
+  /* ── Geometry ─────────────────────────────────────────────── */
+  --r:          14px;      /* cards.    v1 was 12px — 12 on dense cards read tight */
+  --r-sm:       8px;       /* controls */
+  --gap:        12px;      /* between cards */
+  --pad:        18px;      /* page */
+
+  --font: 'Inter', 'SF Pro Text', -apple-system, 'Segoe UI Variable Text',
+          'Segoe UI', system-ui, sans-serif;
+
+  --ease: .18s cubic-bezier(.4, 0, .2, 1);
+
+  /* ── Safe areas. New for the phone: without these the bottom row of a
+        home-screen PWA sits under the iOS home indicator. ── */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.6;              /* v1 was 1.5 */
+  letter-spacing: -.006em;       /* v1 was 0 */
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;     /* kill rubber-banding in the installed PWA */
+}
+
+/* ── Type. TWO WEIGHTS ONLY: 400 and 600. Never 700.
+      Sentence case everywhere. Never Title Case. ───────────────── */
+
+.hero    { font-size: 44px; font-weight: 600; letter-spacing: -.03em;
+           font-variant-numeric: tabular-nums; }
+.metric  { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.caption { font-size: 11.5px; font-weight: 400; color: var(--dim); }
+
+/* v1 was 13px / uppercase / .06em tracking. Uppercase at small sizes is the
+   single biggest source of harshness — this is the most important v2 change. */
+.panel-heading {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  text-transform: none; color: var(--muted);
+}
+
+/* Numbers are the design. Tabular figures, tight tracking, space around them. */
+.num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+/* ── Cards. Every card is a drill-down target: click expands it to fill the
+      grid, click again to collapse. Nothing navigates away. ────── */
+.card {
+  background: var(--s1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  transition: var(--ease);
+}
+
+/* ── Motion. No entrance animations. The page is just there.
+      Expand/collapse changes grid-area, never transform — no layout jump. ── */
+* { transition-timing-function: cubic-bezier(.4, 0, .2, 1); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⚠ ONE PAGE, NO SCROLL — AND THE ONE PLACE IT HAS TO BEND.
+   design-system.md principle 1: "If it scrolls, something on it hasn't earned
+   its place." That was written for a desktop artifact at ~1400×900. A phone is
+   ~390×844 — a third of the area. Holding no-scroll literally on mobile means
+   6px type, which fails the principle it is trying to serve.
+
+   THE RULE FOR THIS REPO: no-scroll is BINDING at >=900px. Below that, the
+   page becomes a single scrolling column and the drill-down becomes a sheet.
+   Raised in MIGRATION.md as an open question — this is the working answer
+   until Sam says otherwise, not a decision taken on his behalf.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 900px) {
+  html, body { height: 100%; overflow: hidden; }
+  .page { height: 100vh; display: grid; gap: var(--gap); padding: var(--pad); }
+}
+
+@media (max-width: 899px) {
+  .page {
+    min-height: 100dvh;                        /* dvh, not vh — iOS Safari's
+                                                  toolbar makes vh lie */
+    display: flex; flex-direction: column; gap: var(--gap);
+    padding: calc(var(--pad) + var(--safe-t)) 14px calc(var(--pad) + var(--safe-b));
+  }
+  .hero { font-size: 38px; }
+  /* Touch targets: 44px is the iOS minimum and the log buttons are the whole
+     point of the phone build. */
+  button, .preset, .tap { min-height: 44px; }
+}
