@@ -98,6 +98,15 @@ ok("goal strip shows 75 kg, not 67", /75 kg/.test(goal) && !/67 kg/.test(goal), 
 ok("goal strip shows the derivation", /BMR\s*1\d{3}\s*×/.test(goal));
 ok("fallback weight is flagged, not hidden", /weight not in the log/i.test(goal));
 
+console.log("\n── an empty day is not a gap ─────────────────────────────");
+/* Caught on the live site, not here: before the guard, a blank day read as a
+   155 g / 2,780 kcal shortfall and the planner proposed "14x protein yoghurt". */
+ok("no routes offered before anything is logged",
+   (await page.locator("#rec-body .opt-card").count()) === 0);
+ok("it says what the day needs instead",
+   /log breakfast/i.test(await page.locator("#rec-why").innerText()),
+   (await page.locator("#rec-why").innerText()).slice(0, 58));
+
 console.log("\n── logging ───────────────────────────────────────────────");
 await page.locator("#presets .p", { hasText: "Standard overnight oats" }).first().click();
 await page.waitForTimeout(150);
@@ -119,6 +128,10 @@ const dens = await page.locator("#rec-body .opt-card .od").allInnerTexts();
 const nums = dens.map(s => parseFloat(s));
 ok("ranked by protein per 100 kcal, descending",
    nums.every((v, i) => i === 0 || nums[i - 1] >= v), dens.join(" · "));
+const counts = (await page.locator("#rec-body .opt-card .g").allInnerTexts())
+  .map(s => parseInt(s)).filter(Number.isFinite);
+ok("no route proposes more than 3 of one item", counts.every(c => c <= 3 || c > 10),
+   counts.join(", "));
 
 console.log("\n── composite meal builder (T10) ──────────────────────────");
 await page.locator("#presets .addnew.build").click();
