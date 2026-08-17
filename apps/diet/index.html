@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diet">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<title>Diet</title>
+<link rel="stylesheet" href="../../shared/tokens.css">
+<link rel="stylesheet" href="./diet.css">
+<!-- Chart.js 4.5.0 is VENDORED, not loaded from a CDN.
+     The artifact had to use a CDN — the sandbox allowed exactly three external
+     scripts and no filesystem. A GitHub Pages app has no such limit, and the
+     dependency was costing three things worth more than 200 KB:
+       · the PWA could not truly open offline until the SW had cached a third party
+       · a CDN outage or a yanked version takes the app down
+       · one more remote origin able to run code against the GitHub token in storage
+     Vendored copy: node_modules/chart.js@4.5.0/dist/chart.umd.min.js, verbatim. -->
+<script src="../../shared/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<h2 class="sr">Diet: consistency history with drill-down, today's totals and log,
+what to eat now, click-to-log presets and live batch inventory.</h2>
+
+<div class="wrap">
+  <div class="head">
+    <h1>Diet</h1>
+    <span class="when" id="when"></span>
+    <div class="spacer"></div>
+    <span class="sync" id="sync"></span>
+    <div class="seg" role="group" aria-label="Day type">
+      <button id="d-rest" aria-pressed="true">Rest</button>
+      <button id="d-gym" aria-pressed="false">Gym</button>
+      <button id="d-football" aria-pressed="false">Football</button>
+    </div>
+    <button class="btn p2" id="close" disabled>Close and save</button>
+    <button class="btn" id="clear">Clear</button>
+    <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card grow">
+        <div class="ph">Consistency
+          <div class="seg mini2" role="group" aria-label="Chart series">
+            <button id="c-both" aria-pressed="true">Both</button>
+            <button id="c-p" aria-pressed="false">P</button>
+            <button id="c-k" aria-pressed="false">E</button>
+          </div>
+        </div>
+        <div class="chartbox"><canvas id="ch"></canvas></div>
+        <div class="lg" id="legend"></div>
+        <div class="stats" id="stats"></div>
+        <div class="drill" id="drill"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="rec" id="rec">
+        <div class="rh">Close the day</div>
+        <div class="why" id="rec-why"></div>
+        <div id="rec-body"></div>
+      </div>
+
+      <div class="card grow">
+        <div class="ph">Today <span class="n" id="saved"></span></div>
+        <div class="mets">
+          <div class="met lead" id="m-prot">
+            <div class="v" id="v-prot">0</div><div class="k" id="k-prot">protein g</div>
+            <div class="pbar"><i id="p-bar"></i></div>
+          </div>
+          <div class="met" id="m-kcal"><div class="v" id="v-kcal">0</div><div class="k" id="k-kcal">kcal</div></div>
+          <div class="met" id="m-carb"><div class="v" id="v-carb">0</div><div class="k">carbs g</div></div>
+          <div class="met" id="m-fat"><div class="v" id="v-fat">0</div><div class="k">fat g</div></div>
+        </div>
+        <div class="goal" id="goal"></div>
+        <div class="fl" id="flags"></div>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Item</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div class="empty" id="empty"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card grow">
+        <div class="ph">Log an item <span class="n" id="pin-n"></span></div>
+        <div id="editor"></div>
+        <div class="scroll"><div class="chips" id="presets"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="ph">In the fridge</div>
+        <div id="fridge"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- risk check before saving -->
+<div class="ov" id="ov"><div class="mdl">
+  <h3 id="mdl-h"></h3>
+  <div class="msub" id="mdl-s"></div>
+  <div class="fl" id="mdl-flags"></div>
+  <div class="acts">
+    <button class="btn p2" id="mdl-go">Save it anyway</button>
+    <button class="btn" id="mdl-back">Go back and fix it</button>
+  </div>
+</div></div>
+
+<!-- settings / first run -->
+<div class="ov" id="setup"><div class="mdl">
+  <h3>Where the log lives</h3>
+  <div class="msub">This app commits every closed day to <b>data/health-daily-log.csv</b>
+    in a GitHub repo. The repo is the database — each logged day is a commit, so the
+    history is the audit trail and nothing can be silently overwritten.</div>
+  <div class="er"><label>Owner</label><input id="s-owner" type="text" placeholder="your-github-username" autocomplete="off"></div>
+  <div class="er"><label>Data repo</label><input id="s-repo" type="text" placeholder="dashboards-data" autocomplete="off"></div>
+  <div class="er"><label>Token</label><input id="s-token" type="password" placeholder="paste to set or replace" autocomplete="off"></div>
+  <div class="warnbox">⚠ Use a <b>fine-grained personal access token</b> scoped to this one
+    repository, with <b>Contents: read and write</b> and nothing else. It is stored in this
+    browser only, on this device. It is a real secret sitting in browser storage — that is
+    the weak point of this design, and it is not pretended otherwise.</div>
+  <div class="msub" id="s-has" style="margin:0"></div>
+  <div class="msub" id="setup-msg" style="margin:6px 0 0;color:var(--warn)"></div>
+  <div class="acts">
+    <button class="btn p2" id="setup-save">Save and connect</button>
+    <button class="btn" id="setup-cancel">Close</button>
+  </div>
+</div></div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
