@@ -1,0 +1,24 @@
+# ── Secrets ─────────────────────────────────────────────────────────────────
+# ⚠ This list does NOT protect you from pasting a token into a source file.
+# The GitHub PAT lives in browser localStorage on each device and is typed in
+# at runtime. It must never appear in this repo in any form.
+.env
+.env.*
+*.token
+secrets.json
+
+# ── OS / editor junk ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ── Node ────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Scratch ─────────────────────────────────────────────────────────────────
+tmp/
+*.local.*
