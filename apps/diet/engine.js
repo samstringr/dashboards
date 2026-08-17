@@ -16,6 +16,9 @@ import { S, r1, scale, targets, DAYS, FAT_WARN, FAT_BAD, UNDER, ISO } from "./st
 import { BATCH } from "./data.js";
 import { PRESETS, presetMacros, density } from "./presets.js";
 
+/* Most anyone eats of one item in a single sitting. Keeps a route a plate. */
+const MAX_PORTIONS = 3;
+
 export function totals() {
   if (S.closed && S.fileToday) {
     const f = S.fileToday;
@@ -92,6 +95,16 @@ export function closeOptions() {
   if (kGap <= -250) return { options: [], why:
     "Over the band by <b>" + Math.round(-kGap - 250) + " kcal</b>. Nothing more — close it out." };
 
+  /* 🚩 An empty day is not a gap to be closed — it is a day that has not started.
+     Before this guard the engine treated a blank day as a 155 g / 2,780 kcal
+     shortfall and dutifully proposed "14× protein yoghurt". Arithmetically
+     correct, useless as advice, and it was the first thing on screen when the
+     app was opened for the first time. The smoke test missed it because it only
+     ever ran the planner AFTER logging something. */
+  if (!S.log.length) return { options: [], why:
+    "<b>" + T.kcal.toLocaleString() + " kcal</b> and <b>" + T.protein +
+    " g protein</b> for the day. Log breakfast and this fills in with routes to close it." };
+
   /* Route 1 — the fridge. Highest-protein batch first, then carbs, then greens. */
   const fridgeRoute = fridgePlan(t, T, pGap, kGap);
   if (fridgeRoute) out.push(fridgeRoute);
@@ -110,6 +123,9 @@ export function closeOptions() {
     const byCal     = kGap / per[0];
     let n = Math.round(Math.min(byProtein > 0 ? byProtein : byCal, byCal));
     if (!Number.isFinite(n) || n < 1) n = kGap > per[0] * 0.6 ? 1 : 0;
+    /* ⚠ Cap the count. A route is a plate, not a challenge — "6× Greggs sausage
+       roll" is a number the maths supports and a human never would. */
+    n = Math.min(n, MAX_PORTIONS);
     if (n < 1) return;
     const m = per.map(v => v * n);
     if (t[0] + m[0] > T.kcal_hi) return;
