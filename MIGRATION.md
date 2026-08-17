@@ -61,11 +61,21 @@ Work top to bottom. **One app per 5-hour window.** Tick as you go.
       target in the app rests on `FALLBACK_WEIGHT_KG` in `targets.js`. **Remove that
       constant once the row is in.** ⚠ Confirm the exact figure with Sam before writing —
       this is an append to the knowledge base, not a code change.
-- [ ] **T2b · Push, then enable Pages** on the app repo. Confirm the URL loads on Sam's
-      phone before building anything on top of it — an app nobody can open is not worth
-      debugging in week three.
-- [ ] **T3 · Fine-grained PAT**, scoped to `dashboards-data` only, **Contents: read+write,
-      nothing else.** Paste it into the app's settings pane on each device. Never commit it.
+- [x] **T2b · Pushed and Pages enabled, 17 Aug 2026.**
+      **The app is live: https://samstringr.github.io/dashboards/apps/diet/**
+      26 files in `dashboards`, `data/health-daily-log.csv` seeded into `dashboards-data`.
+      Verified loading in a browser. ⚠ **Still unverified on Sam's actual iPhone** — do that
+      before building anything on top of it.
+- [ ] **T3 · 🚩 SAM MUST DO THIS ONE — the app does nothing until it is done.**
+      Create a **fine-grained personal access token** at
+      *Settings → Developer settings → Personal access tokens → Fine-grained*:
+      **Repository access: only `samstringr/dashboards-data`. Permissions: Contents →
+      Read and write. Nothing else. Expiry: 1 year.**
+      Then open the app, hit ⚙, enter owner `samstringr`, repo `dashboards-data`, paste the
+      token, Save and connect. Repeat on each device you want to WRITE from.
+      ⚠ **Claude did not and will not create or handle this token** — that is a credential,
+      and it stays between Sam and GitHub. It is also why the read path has only been
+      verified against a stubbed API, never against the real repo.
 - [ ] **T4 · Round-trip test.** Read the CSV from GitHub, append one throwaway row, confirm
       the commit appears, then void it with a `confidence=void` append. **Do not delete it**
       — that is the append-only rule proving itself.
@@ -184,6 +194,7 @@ and every hardcoded target constant (334–348).
 
 | Date | Session | Done | Next |
 |---|---|---|---|
+| 17 Aug 2026 | Ship | **Live at https://samstringr.github.io/dashboards/apps/diet/** — both repos created and populated, Pages enabled. Live-site check found a flaw the harness missed: on an empty day the planner proposed *14× protein yoghurt*. Guarded, portions capped at 3, smoke test extended to cover it — **34/34** | **T3 — Sam creates the token.** Nothing works until then |
 | 17 Aug 2026 | Build | **The diet app is built.** 1,339-line artifact split into 10 modules under `apps/diet/`, largest 400 lines. Targets wired to `targets.js`. `sendPrompt` hand-off deleted; the app commits to GitHub itself. PWA shell, offline queue, T10 composite builder, T11 multi-option close. Chart.js **vendored**, CDN dependency removed. **`tools/smoke.mjs` runs the real app in Chromium: 31/31.** Repos `dashboards` (public) + `dashboards-data` (private) created | T0 · git init and push · T1 · the weigh-in · T3 · token |
 | 17 Aug 2026 | Seed | Architecture rewritten for phone/GitHub. `store.js`, `targets.js`, `tokens.css`, `verify.js` written and **28/28 checks passing in node**. Diet artifact captured to `reference/` | — |
 
@@ -199,6 +210,10 @@ and every hardcoded target constant (334–348).
   found the first match. Renamed to `pop` in the port. Nobody had noticed in eight days.
 - **`node --check` passed the whole app before it could render at all.** The Chromium smoke
   test caught a dead CDN on the first run. Parse is not run — again.
+- **A test suite that only runs the happy path is a test suite with a blind spot.** 31/31
+  green, and the first thing on screen when the app was actually opened was nonsense,
+  because every assertion ran *after* logging something. **Open the thing in the state a
+  new user meets it in.**
 - **The stats the app now computes off the real CSV are worse than the file claims:**
   **5% of logged days land inside the 2,780 ± 250 band (2 of 41)** and the mean is
   **1,882 kcal against a 2,780 target — 898/day short.** `health-targets.md` §3.5 predicted
