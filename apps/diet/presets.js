@@ -1,54 +1,75 @@
 /* presets.js — the click-to-log board.
    Items and macros come from domains/recipes.md. Recipes live there and only there. */
 
-import { S, r1, scale } from "./state.js";
+import { S, r1, scale, targets } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
+import { oats, oatsTotal, oatsName, prepProtein, prepSide,
+         frecency, useCount, PREP_PROTEINS } from "./recipes.js";
 
 export const BASE_PRESETS = [
-  { id: "oats",  n: "Standard overnight oats", m: [650, 57.5, 86.5, 8.8], cls: "lock" },
-  { id: "plate", n: "Meal prep plate",         kind: "plate" },
-  { id: "assen", n: "Assenheims",              kind: "assen" },
+  /* Renamed 17 Aug 2026: "Standard overnight oats" → "Overnight oats", and it is
+     now an INGREDIENT recipe rather than a frozen macro block. */
+  { id: "oats",  n: "Overnight oats",           kind: "recipe", cls: "lock" },
+  { id: "plate", n: "Meal prep plate",          kind: "plate" },
+  { id: "assen", n: "Assenheims",               kind: "assen" },
   { id: "bfc",   n: "Birds Eye southern fried chicken", m: [238, 13, 20, 12], cls: "fat" },
-  { id: "whey",  n: "Whey scoop 35 g",         m: [132, 30, 1.2, 0.4] },
-  { id: "chick", n: "Bulk chicken 100 g",      m: [190, 31, 0, 6.4] },
-  { id: "yog",   n: "Protein yoghurt 100 g",   m: [58, 11, 3.5, 0.2] },
-  { id: "ban",   n: "Banana",                  m: [105, 1.3, 27, 0.4] },
-  { id: "vegq",  n: "Frozen veg 150 g",        m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
-  { id: "swpot", n: "Air-fried sweet potato",  kind: "gram", gk: "swpot" },
-  { id: "chips", n: "Thick-cut chips",         kind: "gram", gk: "chips", cls: "unv" },
-  { id: "ched",  n: "Cheddar cheese",          kind: "gram", gk: "ched",  cls: "fat" },
-  { id: "ket",   n: "Heinz ketchup",           kind: "gram", gk: "ket" },
-  { id: "mayo",  n: "Mayo 30 g",               m: [87, 0.2, 2.4, 8.4], cls: "fat" },
-  { id: "sri",   n: "Sriracha 15 g",           m: [8, 0, 1.5, 0] },
+  { id: "whey",  n: "Protein powder scoop 35 g", m: [132, 30, 1.2, 0.4] },
+  { id: "chick", n: "Bulk chicken 100 g",       m: [190, 31, 0, 6.4] },
+  { id: "yog",   n: "Protein yoghurt 100 g",    m: [58, 11, 3.5, 0.2] },
+  { id: "ban",   n: "Banana",                   m: [105, 1.3, 27, 0.4] },
+  { id: "rice",  n: "White rice 150 g cooked",  m: [195, 4.1, 42.3, 0.5], cls: "unv" },
+  { id: "vegq",  n: "Frozen veg 150 g",         m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
+  { id: "swpot", n: "Air-fried sweet potato",   kind: "gram", gk: "swpot" },
+  { id: "chips", n: "Thick-cut chips",          kind: "gram", gk: "chips", cls: "unv" },
+  { id: "ched",  n: "Cheddar cheese",           kind: "gram", gk: "ched",  cls: "fat" },
+  { id: "ket",   n: "Heinz ketchup",            kind: "gram", gk: "ket" },
+  { id: "mayo",  n: "Mayo 30 g",                m: [87, 0.2, 2.4, 8.4], cls: "fat" },
+  { id: "sri",   n: "Sriracha 15 g",            m: [8, 0, 1.5, 0] },
   /* 10 g soy · 10 g rice wine vinegar · 5 g honey. The honey is 15 of the 24 kcal. */
   { id: "dip",   n: "Soy, vinegar & honey dip", m: [24, 0.8, 5.3, 0] },
-  { id: "gyoza", n: "Itsu chicken gyoza, 12",  m: [372, 19.7, 48, 10.6] },
-  { id: "coco",  n: "Coconut bean rice 100 g", m: [135, 2.9, 22, 3.5], cls: "unv" },
-  { id: "gast",  n: "Gastro chicken ½ bag",    m: [526, 28.5, 38, 28.5], cls: "fat" },
-  { id: "pop",   n: "Pop chips, one bag",      m: [100, 2.8, 14, 2.8], cls: "unv" },
-  { id: "dom",   n: "Domino's slice",          m: [300, 13.5, 29, 14.5], cls: "fat" },
-  /* Greggs Sausage Roll, 103 g. 348 kcal / 10.2 P / 24.1 C / 22.2 F, 10.2 g saturated,
-     1.3 g salt. Published June 2026. 2.9 g protein per 100 kcal — the lowest-density
-     item on this board bar the dips, and 57% of its calories are fat. Added 13 Aug 2026. */
-  { id: "greg",  n: "Greggs sausage roll",     m: [348, 10.2, 24.1, 22.2], cls: "fat" }
+  { id: "gyoza", n: "Itsu chicken gyoza, 12",   m: [372, 19.7, 48, 10.6] },
+  { id: "coco",  n: "Coconut bean rice 100 g",  m: [135, 2.9, 22, 3.5], cls: "unv" },
+  { id: "gast",  n: "Gastro chicken ½ bag",     m: [526, 28.5, 38, 28.5], cls: "fat" },
+  { id: "pop",   n: "Pop chips, one bag",       m: [100, 2.8, 14, 2.8], cls: "unv" },
+  { id: "dom",   n: "Domino's slice",           m: [300, 13.5, 29, 14.5], cls: "fat" },
+  /* Greggs Sausage Roll, 103 g. 348 kcal / 10.2 P / 24.1 C / 22.2 F, 10.2 g saturated.
+     2.9 g protein per 100 kcal — the lowest-density item here bar the dips. */
+  { id: "greg",  n: "Greggs sausage roll",      m: [348, 10.2, 24.1, 22.2], cls: "fat" }
 ];
 
 /* ⚠ FIXED IN THE PORT: the artifact had TWO presets with id "chips" — the gram
    editor and the Pop chips bag. Duplicate ids broke pin, edit and archive for
    both, because every lookup found the first one. Pop chips is now "pop". */
 
-/* Overrides let any item — built-in or custom — be renamed or re-costed without
-   losing the original, so a reset is always possible. */
 export const PRESETS = () => BASE_PRESETS.concat(S.customs).map(p => {
   const o = S.overrides[p.id];
   return o ? Object.assign({}, p, { n: o.n || p.n, m: o.m || p.m, edited: true }) : p;
 });
 
+/* ── ORDERING ─────────────────────────────────────────────────────────────
+   "The more often I use a certain item, the more preference it is at the top."
+   Pins still win — an explicit choice outranks an inferred one — then frecency,
+   then the shipped order as a stable tiebreak so the board never jitters. */
+export function ordered(list) {
+  const base = new Map(BASE_PRESETS.map((p, i) => [p.id, i]));
+  return [...list].sort((a, b) => {
+    const pa = S.pins[a.id] ? 1 : 0, pb = S.pins[b.id] ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+    const fa = frecency(a.id), fb = frecency(b.id);
+    if (Math.abs(fa - fb) > 0.01) return fb - fa;
+    return (base.get(a.id) ?? 99) - (base.get(b.id) ?? 99);
+  });
+}
+
 export function presetLabel(p) {
+  if (p.kind === "recipe") {
+    const t = oatsTotal();
+    return oats().filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(" ")[0].toLowerCase()).join(" · ") +
+           " · " + Math.round(t[0]) + " kcal";
+  }
   if (p.kind === "plate") {
-    const tot = Object.keys(BATCH).reduce(
-      (a, k) => a + BATCH[k].per[0] * Math.min(S.pState[k], S.fridge[k] ?? 0) / 100, 0);
-    return "from the fridge · " + Math.round(tot) + " kcal";
+    const pr = prepProtein(S.prepPick);
+    return pr.n.toLowerCase() + " " + pr.g + "g · " + Math.round(pr.per[0] * pr.g / 100) + " kcal · pick & edit";
   }
   if (p.kind === "assen") return "size, bases, sauce · editable";
   if (p.kind === "gram") {
@@ -60,9 +81,13 @@ export function presetLabel(p) {
   return Math.round(p.m[0]) + " kcal · " + r1(p.m[1]) + " g P";
 }
 
-/* Macros for a preset at a given multiplier. Used by the composite builder,
-   which needs a number for anything selectable — including the editor kinds. */
+/* Macros for a preset at a given multiplier. */
 export function presetMacros(p, mult = 1) {
+  if (p.kind === "recipe") return oatsTotal().map(v => v * mult);
+  if (p.kind === "plate") {
+    const pr = prepProtein(S.prepPick);
+    return pr.per.map(v => v * pr.g / 100 * mult);
+  }
   if (p.m) return p.m.map(v => v * mult);
   if (p.kind === "gram") {
     const G = GRAM[p.gk], s = S.gState[p.gk], o = [0, 0, 0, 0];
@@ -73,6 +98,57 @@ export function presetMacros(p, mult = 1) {
   return [0, 0, 0, 0];
 }
 
-/* Protein per 100 kcal — the ranking used by the close-the-day options (T11)
-   so the leanest route is the default rather than whichever generated first. */
+export const displayName = p =>
+  p.kind === "recipe" ? oatsName() :
+  p.kind === "plate"  ? "Meal prep plate · " + prepProtein(S.prepPick).n.toLowerCase() : p.n;
+
+/* Protein per 100 kcal — ranks the close-the-day routes so the leanest is first. */
 export const density = m => m[0] > 0 ? m[1] / m[0] * 100 : 0;
+
+/* ── HOW MUCH OF *THIS* ITEM WOULD CLOSE THE DAY ───────────────────────────
+   Sam, 17 Aug 2026: "it would be nice if you can… have, like, on that item, how
+   much of that one item would I need to get to close the day."
+
+   This is what replaced the separate close-the-day card. Every row on the board
+   now carries its own answer, so the question is answered where the decision is
+   actually made rather than in a panel two columns away.
+
+   The binding constraint is whichever runs out first — protein floor or the top
+   of the calorie band. Returns null when the item can't sensibly get there. */
+export function closeHint(p, totals) {
+  const T = targets();
+  const per = presetMacros(p, 1);
+  if (!per[0] || !S.log.length && !totals[0]) return null;
+
+  const pGap = T.protein - totals[1];
+  const kRoom = T.kcal_hi - totals[0];
+  if (kRoom <= 0) return null;
+
+  /* If protein is already covered, the useful answer is calories to the target. */
+  const wantK = T.kcal - totals[0];
+  if (pGap <= 0) {
+    if (wantK <= 0) return null;
+    const n = wantK / per[0];
+    return fmt(p, n, per, "to target");
+  }
+  if (per[1] <= 0) return null;
+  const nP = pGap / per[1];
+  const nK = kRoom / per[0];
+  if (nP > nK) return { text: "can't close it — " + fmt(p, nK, per, "").text + " fills the band first", weak: true };
+  return fmt(p, nP, per, "clears the floor");
+}
+
+function fmt(p, n, per, suffix) {
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (p.kind === "gram") {
+    const G = GRAM[p.gk], s = S.gState[p.gk];
+    return { text: Math.round(s.g * n / 5) * 5 + " " + G.unit + " " + suffix };
+  }
+  if (p.kind === "plate") {
+    const pr = prepProtein(S.prepPick);
+    return { text: Math.round(pr.g * n / 10) * 10 + " g " + suffix };
+  }
+  if (p.batch) return { text: Math.round(p.g * n / 10) * 10 + " g " + suffix };
+  const r = n < 1 ? Math.round(n * 10) / 10 : Math.round(n * 2) / 2;
+  return { text: r + "× " + suffix };
+}

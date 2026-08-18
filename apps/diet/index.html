@@ -23,8 +23,21 @@
 <script src="../../shared/vendor/chart.umd.min.js"></script>
 </head>
 <body>
-<h2 class="sr">Diet: consistency history with drill-down, today's totals and log,
-what to eat now, click-to-log presets and live batch inventory.</h2>
+<h2 class="sr">Diet: today's totals and log, click-to-log presets with the amount that
+would close the day, batch inventory, and a consistency history with drill-down.</h2>
+
+<!-- ═══ LAYOUT, 17 Aug 2026 ═══════════════════════════════════════════════
+     Rebuilt to Sam's instructions. Three changes, all his words:
+       · "the graph… is not fully fitting in the designated space, it's clipping"
+       · "today's target is kind of clipping into the bottom, so let's move that
+          to the top"
+       · "combine close of the day and log an item, and then have in the fridge
+          in the bottom right"
+     So: two columns. Today sits at the top of the left column with the chart
+     beneath it in a box with a resolved height, which is what stops the clipping
+     — the old chart lived in a flex child with no floor and got squeezed. The
+     separate "Close the day" card is GONE; what's left of it is one line at the
+     top of the log panel plus a per-item amount on every row.              ═══ -->
 
 <div class="wrap">
   <div class="head">
@@ -39,34 +52,15 @@ what to eat now, click-to-log presets and live batch inventory.</h2>
     </div>
     <button class="btn p2" id="close" disabled>Close and save</button>
     <button class="btn" id="clear">Clear</button>
+    <button class="gear" id="goalbtn" title="Goal and measurements" aria-label="Goal">🎯</button>
     <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
   </div>
 
   <div class="grid">
-    <div class="col">
-      <div class="card grow">
-        <div class="ph">Consistency
-          <div class="seg mini2" role="group" aria-label="Chart series">
-            <button id="c-both" aria-pressed="true">Both</button>
-            <button id="c-p" aria-pressed="false">P</button>
-            <button id="c-k" aria-pressed="false">E</button>
-          </div>
-        </div>
-        <div class="chartbox"><canvas id="ch"></canvas></div>
-        <div class="lg" id="legend"></div>
-        <div class="stats" id="stats"></div>
-        <div class="drill" id="drill"></div>
-      </div>
-    </div>
 
+    <!-- LEFT: Today on top, then the chart -->
     <div class="col">
-      <div class="rec" id="rec">
-        <div class="rh">Close the day</div>
-        <div class="why" id="rec-why"></div>
-        <div id="rec-body"></div>
-      </div>
-
-      <div class="card grow">
+      <div class="card today">
         <div class="ph">Today <span class="n" id="saved"></span></div>
         <div class="mets">
           <div class="met lead" id="m-prot">
@@ -79,7 +73,7 @@ what to eat now, click-to-log presets and live batch inventory.</h2>
         </div>
         <div class="goal" id="goal"></div>
         <div class="fl" id="flags"></div>
-        <div class="scroll">
+        <div class="scroll tbl">
           <table>
             <thead><tr><th>Item</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead>
             <tbody id="rows"></tbody>
@@ -87,16 +81,36 @@ what to eat now, click-to-log presets and live batch inventory.</h2>
           <div class="empty" id="empty"></div>
         </div>
       </div>
+
+      <div class="card chartcard">
+        <div class="ph">Consistency
+          <div class="seg mini2" role="group" aria-label="Chart series">
+            <button id="c-both" aria-pressed="true">Both</button>
+            <button id="c-p" aria-pressed="false">P</button>
+            <button id="c-k" aria-pressed="false">E</button>
+          </div>
+        </div>
+        <div class="chartbox" id="chartbox"><canvas id="ch"></canvas></div>
+        <div class="lg" id="legend"></div>
+        <div class="stats" id="stats"></div>
+        <div class="drill" id="drill"></div>
+      </div>
     </div>
 
-    <div class="col">
+    <!-- RIGHT: log (with close-the-day folded in) on top, fridge at the bottom -->
+    <div class="col right">
       <div class="card grow">
-        <div class="ph">Log an item <span class="n" id="pin-n"></span></div>
+        <div class="ph">Log an item
+          <button class="mic" id="mic" title="Say what you ate">🎙</button>
+          <span class="n" id="pin-n"></span>
+        </div>
+        <div class="leftline" id="left"></div>
+        <div id="heard" class="heard"></div>
         <div id="editor"></div>
         <div class="scroll"><div class="chips" id="presets"></div></div>
       </div>
 
-      <div class="card">
+      <div class="card fridge">
         <div class="ph">In the fridge</div>
         <div id="fridge"></div>
       </div>
@@ -112,6 +126,39 @@ what to eat now, click-to-log presets and live batch inventory.</h2>
   <div class="acts">
     <button class="btn p2" id="mdl-go">Save it anyway</button>
     <button class="btn" id="mdl-back">Go back and fix it</button>
+  </div>
+</div></div>
+
+<!-- ═══ GOAL ═══════════════════════════════════════════════════════════════
+     "a tab in here called goal, where I can put in and change my goal — my
+      target weight, my body fat percentage, any stats relevant to tweak my goal."
+     ⚠ Weight and waist WRITE TO THE CSV, not to localStorage. They are
+     measurements with a date, and the CSV already has a weight_kg column. A
+     measurement kept in browser storage is a second home for a fact that
+     already has one — the exact failure this base has hit three times.   ═══ -->
+<div class="ov" id="goalov"><div class="mdl wide">
+  <h3>Goal and measurements</h3>
+  <div class="msub" id="goal-derive"></div>
+
+  <div class="gsec">Measured — these go into the log, dated</div>
+  <div class="er"><label>Weight</label><input id="g-weight" type="number" step="0.1" placeholder="fasted, kg"><span class="bu">kg</span></div>
+  <div class="er"><label>Waist</label><input id="g-waist" type="number" step="0.5" placeholder="at the navel"><span class="bu">cm</span></div>
+  <div class="er"><label>Body fat</label><input id="g-bf" type="number" step="0.5" placeholder="if you have a figure"><span class="bu">%</span></div>
+  <div class="warnbox" id="goal-waist-note"></div>
+
+  <div class="gsec">The target</div>
+  <div class="er"><label>Goal weight</label><input id="g-gw" type="number" step="0.5"><span class="bu">kg</span></div>
+  <div class="er"><label>Goal body fat</label><input id="g-gbf" type="number" step="0.5"><span class="bu">%</span></div>
+  <div class="er"><label>By</label><input id="g-when" type="text" placeholder="2028-10"></div>
+
+  <div class="gsec">Calories</div>
+  <div class="er"><label>Multiplier</label><input id="g-mult" type="number" step="0.01"><span class="bu">× BMR</span></div>
+  <div class="er"><label>Protein</label><input id="g-prot" type="number" step="1"><span class="bu">g floor</span></div>
+  <div class="msub" id="goal-preview" style="margin:8px 0 0"></div>
+
+  <div class="acts">
+    <button class="btn p2" id="goal-save">Save</button>
+    <button class="btn" id="goal-close">Close</button>
   </div>
 </div></div>
 

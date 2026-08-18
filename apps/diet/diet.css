@@ -22,11 +22,22 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
 .seg.mini2{margin-left:auto}
 .seg.mini2 button{padding:4px 10px;font-size:10.5px}
 
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.62fr 1.12fr .82fr;gap:10px}
+/* Two columns, 17 Aug 2026. Was three (chart · today · log) at 1.62/1.12/.82.
+   The log panel is wider because every row now carries a close-the-day amount,
+   and the chart got a resolved height instead of sharing a flex column with
+   three siblings — which is what was squeezing and clipping it. */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.32fr 1fr;gap:10px}
 .col{display:flex;flex-direction:column;gap:10px;min-height:0}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
   display:flex;flex-direction:column;min-height:0}
 .card.grow{flex:1}
+.card.today{flex:none}
+.card.today .tbl{max-height:190px}
+/* The chart card owns the rest of the column and gives the canvas a floor.
+   A flex child with no min-height collapses under pressure — that was the clip. */
+.card.chartcard{flex:1;min-height:330px}
+.card.fridge{flex:none}
+.col.right{min-height:0}
 .ph{font:600 11px/1.3 var(--font);letter-spacing:.02em;color:var(--muted);margin-bottom:9px;
   display:flex;align-items:center;gap:8px;flex:none}
 .ph .n{margin-left:auto;font-weight:400;color:var(--dim);font-size:10.5px;font-variant-numeric:tabular-nums}
@@ -126,7 +137,17 @@ button.expand .cnt{margin-left:auto;color:var(--dim);font-variant-numeric:tabula
 .hintline{font-size:10px;color:var(--dim);margin-top:6px;line-height:1.45}
 
 /* table */
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:fixed}
+/* ⚠ table-layout:fixed and explicit widths. Without them the item column takes
+   whatever it wants and the four numeric cells collapse into each other — the
+   closed-day Total row rendered as "96473.210727.6". */
+col.c-item{width:auto}
+th:nth-child(2),td:nth-child(2){width:58px}
+th:nth-child(3),td:nth-child(3){width:48px}
+th:nth-child(4),td:nth-child(4){width:48px}
+th:nth-child(5),td:nth-child(5){width:44px}
+th:nth-child(6),td:nth-child(6){width:22px}
+td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
 th{font:600 10px/1 var(--font);letter-spacing:.02em;color:var(--dim);text-align:right;padding:0 0 7px;
   position:sticky;top:0;background:var(--s1);z-index:1}
 th:first-child{text-align:left}
@@ -200,8 +221,9 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .bm{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:92px;text-align:right}
 
 /* chart */
-.chartbox{flex:1;min-height:170px;position:relative}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px;flex:none}
+.chartbox{flex:1;min-height:150px;position:relative;cursor:crosshair;touch-action:pan-y}
+.chartbox canvas{display:block}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px;flex:none}
 .st{background:var(--s2);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 8px}
 .st .v{font:600 16px/1.2 var(--font);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .st .k{font-size:9.5px;color:var(--dim);margin-top:2px;line-height:1.35}
@@ -217,6 +239,8 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .lg{display:flex;gap:12px;font-size:10px;color:var(--dim);margin-top:7px;flex-wrap:wrap;flex:none;align-items:center}
 .lg span{display:flex;align-items:center;gap:5px}
 .lg i{width:11px;height:2px;border-radius:2px;display:block}
+.lg i.dash{background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px)}
+.eranote{grid-column:1/-1;font-size:9.5px;color:var(--dim);line-height:1.5;margin-top:2px}
 
 .scroll{overflow-y:auto;min-height:0;flex:1;scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
 .scroll::-webkit-scrollbar{width:7px}
@@ -264,4 +288,62 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
   .p{padding-top:10px;padding-bottom:10px}
   .btick{width:26px;height:26px}
   .brow{padding:7px 5px}
+}
+
+
+/* ═══ 17 Aug 2026 additions ═══════════════════════════════════════════════ */
+
+/* One line replacing the whole close-the-day card. */
+.leftline{font-size:11px;line-height:1.5;color:var(--muted);padding:0 0 8px;
+  border-bottom:1px solid var(--line);margin-bottom:8px;flex:none}
+.leftline b{color:var(--ink);font-weight:600}
+.leftline .acc{color:var(--accent)}
+.leftline .ok{color:var(--good)}
+.leftline .warn{color:var(--warn)}
+
+/* How much of THIS item closes the day, on the row itself. */
+.p{padding-right:66px}
+.phint{font-size:10px;color:var(--accent);font-variant-numeric:tabular-nums;margin-top:1px}
+.phint.weak{color:var(--dim)}
+.p.pinned .phint{color:var(--accent-lt,#f0a878)}
+
+/* Voice */
+.mic{background:none;border:1px solid var(--line-2);border-radius:99px;color:var(--muted);
+  cursor:pointer;font-size:11px;line-height:1;padding:4px 9px;transition:var(--ease)}
+.mic:hover{color:var(--ink);border-color:var(--accent)}
+.mic.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.heard{display:none}
+.heard.on{display:block;background:var(--s2);border:1px solid var(--line-2);
+  border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;flex:none}
+.heard .ht{font-size:11.5px;line-height:1.5;color:var(--ink);margin-bottom:7px}
+.heard .ht i{color:var(--dim);font-style:normal}
+.hrow{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;border-top:1px solid var(--line)}
+.hrow:first-of-type{border-top:none}
+.hrow .hn{flex:1;min-width:0}
+.hrow .hm{color:var(--dim);font-variant-numeric:tabular-nums}
+.hrow.miss .hn{color:var(--warn)}
+.hopts{display:flex;flex-direction:column;gap:4px;margin:5px 0 0;padding-left:10px;
+  border-left:1px solid var(--line)}
+.hopt{text-align:left;background:var(--s3);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink);font:400 10.5px/1.4 var(--font);padding:6px 8px;cursor:pointer}
+.hopt:hover{border-color:var(--accent)}
+.hopt b{font-weight:600}
+.hopt span{color:var(--dim)}
+
+/* Goal pane */
+.mdl.wide{width:min(560px,94vw)}
+.gsec{font:600 10.5px/1.3 var(--font);letter-spacing:.02em;color:var(--muted);
+  margin:14px 0 6px;padding-top:10px;border-top:1px solid var(--line)}
+.gsec:first-of-type{border-top:none;padding-top:0;margin-top:8px}
+.mdl .er input[type=number]{width:96px;flex:none}
+.mdl .bu{color:var(--dim);font-size:10.5px}
+
+@media (max-width:899px){
+  .grid{grid-template-columns:none}
+  .card.today{flex:none}
+  .card.today .tbl{max-height:none}
+  .card.chartcard{min-height:300px}
+  .chartbox{min-height:210px}
+  .stats{grid-template-columns:1fr 1fr}
+  .mic{min-height:32px}
 }

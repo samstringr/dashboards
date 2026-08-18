@@ -4,10 +4,11 @@
    failure this base has hit three times. Offline writes go to the queue in
    store.js instead, and drain when the network returns. */
 
-const CACHE = "diet-v1";
+const CACHE = "diet-v2";   // bumped 17 Aug 2026 — layout rebuild, new modules
 const SHELL = [
   "./", "./index.html", "./diet.css", "./app.js", "./state.js", "./data.js",
   "./presets.js", "./engine.js", "./editors.js", "./render.js", "./chart.js",
+  "./recipes.js", "./assistant.js",
   "./manifest.json", "../../shared/tokens.css", "../../shared/store.js",
   "../../shared/targets.js",
   "../../shared/vendor/chart.umd.min.js"

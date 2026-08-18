@@ -9,7 +9,9 @@
 
 import { S, el, r1, scale, persist, targets } from "./state.js";
 import { BATCH, GRAM, ASSEN } from "./data.js";
-import { PRESETS, BASE_PRESETS, presetMacros, presetLabel } from "./presets.js";
+import { PRESETS, BASE_PRESETS, presetMacros, presetLabel, displayName } from "./presets.js";
+import { oats, oatsTotal, setOatsGrams, resetOats, prepProtein, prepSide, setPrep,
+         setSide, resetPrep, PREP_PROTEINS, PREP_SIDES, sumIngredients } from "./recipes.js";
 import { totals } from "./engine.js";
 
 let addItem, rerender;
@@ -26,6 +28,7 @@ export function renderEditor() {
   const box = document.createElement("div"); box.className = "ed";
 
   if (S.editing === "basket")  return basketEditor(host, box);
+  if (S.editing === "recipe")  return recipeEditor(host, box);
   if (S.editing === "assen")   assenEditor(box);
   if (S.editing === "plate")   plateEditor(box);
   if (S.editing === "gram")    return gramEditor(host, box);
@@ -178,42 +181,146 @@ function assenEditor(box) {
   box.appendChild(acts);
 }
 
-/* ═══════════ MEAL PREP PLATE ═══════════ */
+/* ═══════════ OVERNIGHT OATS — EDIT THE INGREDIENTS, NOT THE MACROS ═══════════
+   "I'd rather edit the individual ingredient amounts as opposed to the macros
+    themselves because that's easier for me to measure. I weigh out oats. I
+    weigh out protein."
+   So the inputs are grams of real things and the macros are the OUTPUT. Nobody
+   weighs a calorie. Defaults reproduce recipes.md §1 exactly: 650 / 57.5 / 86.5 / 8.8. */
+function recipeEditor(host, box) {
+  box.innerHTML = '<div class="et">Overnight oats ' +
+    '<span style="font-weight:400;color:var(--dim);font-size:10.5px">weigh it, don\'t guess it</span></div>';
+  const tt = document.createElement("div"); tt.className = "tot2";
+
+  function recalc() {
+    const t = oatsTotal();
+    tt.innerHTML = Math.round(t[0]) + " kcal · " + r1(t[1]) + " g P · " + r1(t[2]) + " g C · " + r1(t[3]) + " g F" +
+      '<div style="color:var(--dim);margin-top:4px;font-size:10px;line-height:1.45">' +
+      'Defaults are recipes.md §1, LOCKED and confirmed 5 Aug 2026 — 650 / 57.5 / 86.5 / 8.8. ' +
+      '<b style="color:var(--warn)">⚠ The protein powder is no longer the whey isolate</b> and its ' +
+      'macros still are. Read the Bulk pack and correct the row.</div>';
+  }
+
+  oats().forEach(ing => {
+    const row = document.createElement("div"); row.className = "er";
+    const l = document.createElement("label"); l.textContent = ing.n;
+    l.style.minWidth = "170px";
+    if (ing.unv) l.innerHTML += ' <span style="color:var(--warn)">⚠</span>';
+    const inp = document.createElement("input");
+    inp.type = "number"; inp.min = "0"; inp.step = String(ing.step); inp.value = String(ing.g);
+    inp.oninput = () => { setOatsGrams(ing.id, +inp.value || 0); recalc(); };
+    const u = document.createElement("span"); u.className = "bu"; u.textContent = "g";
+    const m = document.createElement("span"); m.className = "bm";
+    const paint = () => { const g = +inp.value || 0;
+      m.textContent = Math.round(ing.per[0] * g / 100) + " kcal · " + r1(ing.per[1] * g / 100) + " P"; };
+    inp.addEventListener("input", paint); paint();
+    row.append(l, inp, u, m); box.appendChild(row);
+  });
+
+  recalc(); box.appendChild(tt);
+  const acts = document.createElement("div"); acts.className = "acts";
+  acts.appendChild(mkBtn("btn p2", "Add", () => {
+    addItem({ n: displayName({ kind: "recipe" }), m: oatsTotal(), u: true, veg: false, fat: false });
+    S.editing = null; rerender();
+  }));
+  acts.appendChild(mkBtn("btn", "Reset to the locked recipe", () => { resetOats(); renderEditor(); }));
+  acts.appendChild(mkBtn("btn", "Cancel", closeEditor));
+  box.appendChild(acts);
+  host.appendChild(box);
+}
+
+/* ═══════════ MEAL PREP PLATE — PICK THE PROTEIN, EDIT ITS MACROS ═══════════
+   "I want to be able to decide between the protein I've prepped — chicken
+    breast, lean steak mince, salmon fillet — and click into those and edit the
+    macros for those ones, because when I do my big meal preps, say I cook the
+    lean steak mince, I might add ten of red kidney beans, or I might add some
+    cabbage, and that slightly adjusts the macros themselves."
+
+   ⚠ NOTE THE DIFFERENCE FROM OATS, IT IS THE WHOLE DESIGN.
+   Oats: fixed components, editable GRAMS. Prep: fixed grams-per-portion,
+   editable PER-100 g MACROS. Two shapes, because he measures them differently. */
 function plateEditor(box) {
   box.innerHTML = '<div class="et">Meal prep plate</div>';
-  const inputs = {}; const tt = document.createElement("div"); tt.className = "tot2";
-  function recalc() {
-    const m = [0, 0, 0, 0];
-    Object.keys(BATCH).forEach(k =>
-      scale(BATCH[k].per, Math.min(S.pState[k] || 0, S.fridge[k] ?? 0)).forEach((v, i) => m[i] += v));
-    tt.textContent = Math.round(m[0]) + " kcal · " + r1(m[1]) + " g P · " + r1(m[2]) + " g C · " + r1(m[3]) + " g F";
-  }
-  Object.keys(BATCH).forEach(k => {
-    if (S.fridge[k] == null) return;
-    const row = document.createElement("div"); row.className = "er";
-    const lab = document.createElement("label");
-    lab.textContent = BATCH[k].n.replace("Lidl frozen ", "").replace(" prep", "");
-    const inp = document.createElement("input");
-    inp.type = "number"; inp.min = "0"; inp.step = "10";
-    inp.max = String(Math.floor(S.fridge[k]));
-    inp.value = String(Math.min(S.pState[k], Math.floor(S.fridge[k])));
-    inputs[k] = inp;
-    inp.oninput = () => { S.pState[k] = Math.max(0, +inp.value || 0); recalc(); };
-    inp.onblur  = () => { S.pState[k] = Math.max(0, Math.min(+inp.value || 0, Math.floor(S.fridge[k])));
-                          inp.value = String(S.pState[k]); recalc(); };
-    const av = document.createElement("span"); av.className = "bu";
-    av.textContent = "of " + Math.round(S.fridge[k]) + " g";
-    row.append(lab, inp, av); box.appendChild(row);
+
+  const pickRow = document.createElement("div"); pickRow.className = "er";
+  pickRow.innerHTML = '<label>Protein</label>';
+  const opts = document.createElement("div"); opts.className = "opts";
+  PREP_PROTEINS.forEach(pr => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = pr.n;
+    b.setAttribute("aria-pressed", String(S.prepPick === pr.id));
+    b.onclick = () => { S.prepPick = pr.id; persist(); renderEditor(); };
+    opts.appendChild(b);
   });
+  pickRow.appendChild(opts); box.appendChild(pickRow);
+
+  const pr = prepProtein(S.prepPick);
+  const tt = document.createElement("div"); tt.className = "tot2";
+
+  /* portion */
+  const gRow = document.createElement("div"); gRow.className = "er";
+  gRow.innerHTML = '<label>Portion</label>';
+  const gInp = document.createElement("input");
+  gInp.type = "number"; gInp.min = "0"; gInp.step = "10"; gInp.value = String(pr.g);
+  const gU = document.createElement("span"); gU.className = "bu"; gU.textContent = "g cooked";
+  gRow.append(gInp, gU); box.appendChild(gRow);
+
+  /* editable per-100 g macros */
+  const mRow = document.createElement("div"); mRow.className = "er";
+  mRow.innerHTML = '<label>Per 100 g</label>';
+  const mIn = [];
+  ["kcal", "P", "C", "F"].forEach((ph, i) => {
+    const x = document.createElement("input");
+    x.type = "number"; x.min = "0"; x.step = "0.1"; x.placeholder = ph;
+    x.style.width = "58px"; x.value = String(pr.per[i]);
+    mIn.push(x); mRow.appendChild(x);
+  });
+  box.appendChild(mRow);
+
+  const sideRows = [];
+  PREP_SIDES.forEach(sd => {
+    const cur = prepSide(sd.id);
+    const row = document.createElement("div"); row.className = "er";
+    const l = document.createElement("label"); l.textContent = cur.n;
+    const inp = document.createElement("input");
+    inp.type = "number"; inp.min = "0"; inp.step = "10"; inp.value = String(cur.g);
+    const u = document.createElement("span"); u.className = "bu"; u.textContent = "g";
+    row.append(l, inp, u); box.appendChild(row);
+    sideRows.push({ sd, inp });
+  });
+
+  function current() {
+    const per = mIn.map(x => +x.value || 0);
+    const g = +gInp.value || 0;
+    const m = per.map(v => v * g / 100);
+    sideRows.forEach(({ sd, inp }) => {
+      const sg = +inp.value || 0;
+      prepSide(sd.id).per.forEach((v, i) => m[i] += v * sg / 100);
+    });
+    return { per, g, m };
+  }
+  function recalc() {
+    const { m } = current();
+    tt.innerHTML = Math.round(m[0]) + " kcal · " + r1(m[1]) + " g P · " + r1(m[2]) + " g C · " + r1(m[3]) + " g F" +
+      '<div style="color:var(--dim);margin-top:4px;font-size:10px;line-height:1.45">' + pr.note + '</div>';
+  }
+  [gInp, ...mIn, ...sideRows.map(r => r.inp)].forEach(x => x.addEventListener("input", recalc));
   recalc(); box.appendChild(tt);
 
   const acts = document.createElement("div"); acts.className = "acts";
   acts.appendChild(mkBtn("btn p2", "Add plate", () => {
-    Object.keys(BATCH).forEach(k => {
-      if (S.pState[k] > 0 && S.fridge[k] != null) addBatchItem(k, Math.min(S.pState[k], S.fridge[k]));
-    });
+    const { per, g, m } = current();
+    setPrep(S.prepPick, { per, g });
+    sideRows.forEach(({ sd, inp }) => setSide(sd.id, { g: +inp.value || 0 }));
+    const names = [pr.n + " " + g + " g"]
+      .concat(sideRows.filter(r => +r.inp.value > 0).map(r => r.sd.n + " " + r.inp.value + " g"));
+    addItem({ n: names.join(" + "), m, u: true,
+              veg: sideRows.some(r => r.sd.veg && +r.inp.value > 0), fat: m[3] > 20 });
     S.editing = null; rerender();
   }));
+  acts.appendChild(mkBtn("btn", "Save macros only", () => {
+    const { per, g } = current(); setPrep(S.prepPick, { per, g }); renderEditor();
+  }));
+  acts.appendChild(mkBtn("btn", "Reset " + pr.n.toLowerCase(), () => { resetPrep(S.prepPick); renderEditor(); }));
   acts.appendChild(mkBtn("btn", "Cancel", closeEditor));
   box.appendChild(acts);
 }

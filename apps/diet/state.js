@@ -28,7 +28,7 @@ const K = {
   draft: () => "diet7-" + ISO(),
   fridge: "diet7-fridge", pins: "diet7-pins", customs: "diet7-customs",
   overrides: "diet7-overrides", archived: "diet7-archived", gram: "diet7-gram",
-  repo: "diet7-repo"
+  repo: "diet7-repo", recipes: "diet7-recipes", uses: "diet7-uses", goal: "diet7-goal"
 };
 
 export const S = {
@@ -48,6 +48,23 @@ export const S = {
 
   /* Composite meal builder (T10) — a basket of {presetId, grams|multiplier} */
   basket: null,
+
+  /* Recipe edits: ingredient grams for oats, per-100 g macros for prep proteins.
+     Everything shipped is a DEFAULT; what Sam edits lives here and wins. */
+  recipeOverrides: {},
+
+  /* Frecency: {id: {n, last, score}}. Drives preset order — see recipes.js. */
+  uses: {},
+
+  /* The goal pane's editable state. Weight is written to the CSV, not held here
+     — a weight in localStorage is a second home for a fact that already has one. */
+  goal: null,
+
+  /* Which prep protein is selected in the meal-prep plate. */
+  prepPick: "mince",
+
+  /* Voice assistant transcript and what it resolved to. */
+  heard: null,
 
   /* ── The file wins ──────────────────────────────────────────────────────
      Populated from health-daily-log.csv on load. If the CSV already contains
@@ -97,6 +114,10 @@ export function loadLocal(BATCH, GRAM) {
   Object.keys(GRAM).forEach(k => S.gState[k] = { g: GRAM[k].dflt, oil: GRAM[k].oilDflt });
   const g = read(K.gram, null);
   if (g) Object.keys(S.gState).forEach(k => { if (g[k] && typeof g[k].g === "number") S.gState[k] = g[k]; });
+
+  S.recipeOverrides = read(K.recipes, {});
+  S.uses = read(K.uses, {});
+  S.goal = read(K.goal, null);
 }
 
 export function persist() {
@@ -108,6 +129,9 @@ export function persist() {
     localStorage.setItem(K.overrides, JSON.stringify(S.overrides));
     localStorage.setItem(K.archived, JSON.stringify(S.archived));
     localStorage.setItem(K.gram, JSON.stringify(S.gState));
+    localStorage.setItem(K.recipes, JSON.stringify(S.recipeOverrides));
+    localStorage.setItem(K.uses, JSON.stringify(S.uses));
+    if (S.goal) localStorage.setItem(K.goal, JSON.stringify(S.goal));
   } catch { /* private browsing, quota — never let persistence kill a render */ }
 }
 

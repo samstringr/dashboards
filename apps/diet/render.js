@@ -2,8 +2,9 @@
 
 import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { PRESETS, presetLabel } from "./presets.js";
-import { totals, flags, closeOptions, hasDay, fileItems } from "./engine.js";
+import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint } from "./presets.js";
+import { noteUse, useCount } from "./recipes.js";
+import { totals, flags, hasDay, fileItems } from "./engine.js";
 import { renderEditor, addBatchItem } from "./editors.js";
 import * as TG from "../../shared/targets.js";
 
@@ -15,8 +16,10 @@ export function addItem(rec) { S.log.push(rec); S.justAdded = S.log.length - 1; 
 
 export function addPreset(p) {
   if (p.kind) { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; onChange(); return; }
+  noteUse(p.id);
   if (p.batch) { addBatchItem(p.batch, p.g); onChange(); return; }
-  addItem({ n: p.n, m: p.m.slice(), u: p.cls === "unv" || !!p.custom, veg: !!p.veg, fat: p.cls === "fat" });
+  addItem({ n: displayName(p), m: p.m.slice(), u: p.cls === "unv" || !!p.custom,
+            veg: !!p.veg, fat: p.cls === "fat" });
   onChange();
 }
 
@@ -62,48 +65,35 @@ function renderGoal() {
       : '') + '</span>';
 }
 
-/* ── close-the-day: SEVERAL routes, ranked leanest first (T11) ─────────────── */
-function renderRec() {
-  const res = closeOptions(), b = el("rec-body"); b.innerHTML = "";
-  el("rec-why").innerHTML = res.why;
+/* ── WHAT'S LEFT — one line, not a card ───────────────────────────────────
+   The separate "Close the day" panel is gone. Sam, 17 Aug 2026: "The close the
+   day box is way too big. I think this should just be combined with the log an
+   item part… have on that item, how much of that one item would I need to get
+   to close the day."
 
-  if (!res.options.length) {
-    b.innerHTML = '<div class="recempty">' +
-      (S.log.length || S.closed ? "Nothing more needed." : "Log breakfast and this fills in.") + '</div>';
+   So the question moves to where the decision is made: a single line of what's
+   left at the top of the log panel, and every row on the board carrying its own
+   answer. A panel two columns away was asking Sam to hold a number in his head
+   and walk it over. The board now does that for him, per item.               */
+function renderLeft() {
+  const host = el("left"); if (!host) return;
+  const t = totals(), T = targets();
+  if (S.closed) {
+    host.innerHTML = '<b class="ok">Day closed.</b> ' + Math.round(t[0]) + ' kcal · ' +
+      r1(t[1]) + ' g protein, committed to the CSV.';
     return;
   }
-
-  res.options.forEach((o, i) => {
-    const card = document.createElement("div");
-    card.className = "opt-card" + (i === 0 ? " lead" : "");
-    const head = document.createElement("div"); head.className = "oh";
-    head.innerHTML = (i === 0 ? '<span class="lean">leanest</span>' : "") +
-      '<span class="od">' + r1(o.density) + ' g P / 100 kcal</span>';
-    card.appendChild(head);
-
-    o.lines.forEach(l => {
-      const d = document.createElement("div"); d.className = "line";
-      const g = document.createElement("span"); g.className = "g"; g.textContent = l.g;
-      const n = document.createElement("div"); n.className = "nm";
-      n.innerHTML = l.n + '<div class="sub">' + l.sub + '</div>';
-      d.append(g, n); card.appendChild(d);
-    });
-
-    const why = document.createElement("div"); why.className = "owhy"; why.innerHTML = o.why;
-    card.appendChild(why);
-
-    const go = document.createElement("button"); go.className = "btn p2 osel"; go.textContent = "Log this";
-    go.onclick = () => {
-      if (o.kind === "fridge") Object.keys(o.plate).forEach(k => addBatchItem(k, o.plate[k]));
-      else {
-        const p = PRESETS().find(x => x.id === o.id);
-        for (let i = 0; i < o.n; i++) addPreset(p);
-      }
-      onChange();
-    };
-    card.appendChild(go);
-    b.appendChild(card);
-  });
+  const pLeft = Math.round(T.protein - t[1]), kLeft = Math.round(T.kcal - t[0]);
+  if (!S.log.length) {
+    host.innerHTML = '<b>' + T.kcal.toLocaleString() + '</b> kcal and <b>' + T.protein +
+      '</b> g protein for the day. Each item below shows how much of it would close that.';
+    return;
+  }
+  host.innerHTML =
+    (pLeft > 0 ? '<b class="acc">' + pLeft + ' g</b> protein' : '<b class="ok">floor cleared</b>') +
+    ' · ' + (kLeft > 0 ? '<b>' + kLeft.toLocaleString() + '</b> kcal to target'
+                       : '<b class="warn">' + Math.abs(kLeft) + '</b> kcal over target') +
+    ' <span style="color:var(--dim)">— amounts below close the gap</span>';
 }
 
 /* ── preset column ────────────────────────────────────────────────────────── */
@@ -111,9 +101,17 @@ function presetRow(p, mode) {
   const b = document.createElement("button");
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
     (mode === "arch" ? " archrow" : "") + (p.batch && (S.fridge[p.batch] ?? 0) <= 0 ? " gone" : "");
-  const t = document.createElement("span"); t.textContent = p.n + (p.edited ? " ·" : "");
+  const t = document.createElement("span"); t.textContent = displayName(p) + (p.edited ? " ·" : "");
   const m = document.createElement("span"); m.className = "pm"; m.textContent = presetLabel(p);
   b.append(t, m);
+  /* How much of THIS item closes the day. The answer where the decision is. */
+  const hint = closeHint(p, totals());
+  if (hint && !S.closed) {
+    const h = document.createElement("span");
+    h.className = "phint" + (hint.weak ? " weak" : "");
+    h.textContent = hint.text;
+    b.appendChild(h);
+  }
   b.onclick = e => { if (e.target.closest(".ctl")) return; if (mode === "arch") return; addPreset(p); };
 
   const ctl = document.createElement("div"); ctl.className = "ctl";
@@ -147,7 +145,7 @@ function expander(label, count, open, fn) {
 function renderPresets() {
   const host = el("presets"); host.innerHTML = "";
   const all = PRESETS();
-  const live = all.filter(p => !S.archived[p.id]);
+  const live = ordered(all.filter(p => !S.archived[p.id]));
   const pinned = live.filter(p => S.pins[p.id]);
   const rest = live.filter(p => !S.pins[p.id]);
   const arch = all.filter(p => S.archived[p.id]);
@@ -187,7 +185,8 @@ function renderPresets() {
   host.appendChild(nb);
 
   const hint = document.createElement("div"); hint.className = "hintline";
-  hint.innerHTML = "✎ edit · ● pin · ⌫ archive. Edits are yours and reversible; <b>·</b> marks a changed item.";
+  hint.innerHTML = "✎ edit · ● pin · ⌫ archive. <b>Order is by how often you log it</b>, " +
+    "decayed over ~3 weeks, so a new staple climbs and an old one drifts down. Pins always win.";
   host.appendChild(hint);
   el("pin-n").textContent = pinned.length + " pinned · " + live.length + " items";
 }
@@ -299,7 +298,7 @@ export function render() {
     "<b>Closed and committed to health-daily-log.csv.</b> Figures below are the file's, not a local draft — the file wins."]);
   renderFlagsInto(el("flags"), fl);
 
-  renderEditor(); renderPresets(); renderFridge(); renderRec(); renderGoal();
+  renderEditor(); renderPresets(); renderFridge(); renderLeft(); renderGoal();
 
   const cb = el("close");
   if (S.closed) { cb.disabled = true; cb.textContent = "Day closed"; }
