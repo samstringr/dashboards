@@ -330,6 +330,56 @@ console.log("\n── the assistant is gone ────────────
 ok("no mic button", (await page.locator("#mic").count()) === 0);
 ok("no transcript box", (await page.locator("#heard").count()) === 0);
 
+/* ═══ VERSION SKEW ═══
+   The failure that shipped a blank page on 18 Aug, reproduced. GitHub Pages
+   caches assets for 10 minutes, so a browser can pair a NEW index.html with a
+   CACHED OLD app.js. Any top-level `el(x).addEventListener` on an element the
+   other version lacks throws, and an ES module that throws at the top level
+   stops dead — every button, the chart and the board with it.
+
+   This serves an index.html with elements REMOVED and asserts the app still
+   boots. It is the only check here that spans two versions. */
+console.log("\n── survives a version skew ───────────────────────────────");
+const skewPage = await ctx.newPage();
+const skewErrors = [];
+skewPage.on("pageerror", e => skewErrors.push(e.message));
+await skewPage.addInitScript(() => {
+  localStorage.setItem("gh-token", "stub-token");
+  localStorage.setItem("diet7-repo", JSON.stringify(
+    { owner: "sam", repo: "dashboards-data", path: "data/health-daily-log.csv", branch: "main" }));
+});
+await skewPage.route("**/apps/diet/index.html*", async route => {
+  const html = await readFile(join(ROOT, "apps/diet/index.html"), "utf8");
+  /* Strip three elements a future version might drop. */
+  const cut = html
+    .replace(/<button class="gear" id="goalbtn"[\s\S]*?<\/button>/, "")
+    .replace(/<button class="btn" id="clear">Clear<\/button>/, "")
+    .replace(/<div class="seg mini2"[\s\S]*?<\/div>/, "");
+  route.fulfill({ status: 200, contentType: "text/html", body: cut });
+});
+await skewPage.goto(base + "/apps/diet/index.html", { waitUntil: "networkidle" });
+await skewPage.waitForTimeout(500);
+ok("no uncaught error when the HTML is missing elements", skewErrors.length === 0,
+   skewErrors[0] || "clean");
+ok("the board still renders", (await skewPage.locator("#presets .p").count()) > 0,
+   (await skewPage.locator("#presets .p").count()) + " preset rows");
+ok("the chart still draws", await skewPage.evaluate(() => !!Object.values(Chart.instances).length));
+/* Click the first plain (non-editor) row — which one it is depends on frecency,
+   and asserting a specific item here would be testing the ordering, not the skew. */
+ok("logging still works", await (async () => {
+  const rows = skewPage.locator("#presets .p");
+  const n = await rows.count();
+  for (let i = 0; i < n; i++) {
+    const label = await rows.nth(i).innerText();
+    if (/editable|pick & edit|set your own|weigh it/.test(label)) continue;
+    await rows.nth(i).click();
+    await skewPage.waitForTimeout(200);
+    if ((await skewPage.locator("#rows tr").count()) >= 1) return true;
+  }
+  return false;
+})());
+await skewPage.close();
+
 console.log("\n── chart geometry at three window shapes ─────────────────");
 for (const [w, h, label] of [[1440, 900, "laptop"], [1080, 1759, "tall"], [1920, 1080, "wide"]]) {
   await page.setViewportSize({ width: w, height: h });
