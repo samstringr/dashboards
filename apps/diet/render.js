@@ -4,6 +4,7 @@ import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER } from "./s
 import { BATCH, GRAM } from "./data.js";
 import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint } from "./presets.js";
 import { noteUse, useCount } from "./recipes.js";
+import { icon } from "./icons.js";
 import { totals, flags, hasDay, fileItems } from "./engine.js";
 import { renderEditor, addBatchItem } from "./editors.js";
 import * as TG from "../../shared/targets.js";
@@ -15,7 +16,12 @@ export function wireRender(fns) { onChange = fns.render; }
 export function addItem(rec) { S.log.push(rec); S.justAdded = S.log.length - 1; }
 
 export function addPreset(p) {
-  if (p.kind) { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; onChange(); return; }
+  if (p.kind) {
+    S.editing = p.kind;
+    if (p.gk) S.gTarget = p.gk;
+    if (p.rid) S.gTarget = p.rid;
+    onChange(); return;
+  }
   noteUse(p.id);
   if (p.batch) { addBatchItem(p.batch, p.g); onChange(); return; }
   addItem({ n: displayName(p), m: p.m.slice(), u: p.cls === "unv" || !!p.custom,
@@ -30,6 +36,68 @@ export function renderFlagsInto(host, arr) {
     d.innerHTML = "<span>" + (lv === "good" ? "✓" : lv === "info" ? "•" : "▲") + "</span><span>" + txt + "</span>";
     host.appendChild(d);
   });
+}
+
+/* ── FLAGS ARE TRANSIENT NOW — 18 Aug 2026 ──────────────────────────────────
+   Sam: "the more flags that come up, the more it pushes down the view of what
+   I've eaten in the day, and you can't actually see it… that's obviously a bug.
+   The flags are, like, not that important. I'd rather they flash on the screen
+   and persist for a bit and then disappear into, like, a small exclamation point
+   in the corner of that box."
+
+   He is right that it is a bug and right about the fix. Flags grew with the day —
+   by evening there could be five — and each one stole a row from the food table,
+   which is the thing he opens the app to look at. A warning that hides the data
+   it is warning about is worse than no warning.
+
+   So: show for 7s, then collapse to a badge carrying the count and the worst
+   severity. Click the badge to bring them back. Nothing is lost, and the table
+   keeps its height.
+   ⚠ The risk-check modal is NOT affected — that one has to block, and it does. */
+
+const FLAG_MS = 7000;
+let flagTimer = null, flagsOpen = false, lastKey = "";
+
+export function paintFlags(arr) {
+  const host = el("flags"), badge = el("flagbadge");
+  if (!host || !badge) return;
+
+  const key = arr.map(f => f[0] + f[1]).join("|");
+  const changed = key !== lastKey;
+  lastKey = key;
+
+  if (!arr.length) {
+    host.classList.remove("on"); host.innerHTML = ""; badge.hidden = true;
+    clearTimeout(flagTimer); flagsOpen = false; return;
+  }
+
+  const worst = arr.some(f => f[0] === "bad") ? "bad"
+              : arr.some(f => f[0] === "warn") ? "warn"
+              : arr.some(f => f[0] === "info") ? "info" : "good";
+  badge.hidden = false;
+  badge.className = "flagbadge " + worst;
+  badge.textContent = (worst === "good" ? "✓" : worst === "info" ? "•" : "!") +
+                      (arr.length > 1 ? " " + arr.length : "");
+  badge.title = arr.length + " flag" + (arr.length > 1 ? "s" : "") + " — click to show";
+
+  renderFlagsInto(host, arr);
+
+  /* Only restart the timer when the flags actually changed, or every render
+     would re-show them and they would never settle. */
+  if (changed) {
+    host.classList.add("on"); flagsOpen = true;
+    clearTimeout(flagTimer);
+    flagTimer = setTimeout(() => { host.classList.remove("on"); flagsOpen = false; }, FLAG_MS);
+  } else {
+    host.classList.toggle("on", flagsOpen);
+  }
+
+  badge.onclick = () => {
+    flagsOpen = !flagsOpen;
+    host.classList.toggle("on", flagsOpen);
+    clearTimeout(flagTimer);
+    if (flagsOpen) flagTimer = setTimeout(() => { host.classList.remove("on"); flagsOpen = false; }, FLAG_MS);
+  };
 }
 
 /* ── the goal strip ───────────────────────────────────────────────────────
@@ -101,7 +169,9 @@ function presetRow(p, mode) {
   const b = document.createElement("button");
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
     (mode === "arch" ? " archrow" : "") + (p.batch && (S.fridge[p.batch] ?? 0) <= 0 ? " gone" : "");
-  const t = document.createElement("span"); t.textContent = displayName(p) + (p.edited ? " ·" : "");
+  const t = document.createElement("span"); t.className = "pn";
+  t.innerHTML = (p.icon ? icon(p.icon) : "") +
+    "<span>" + displayName(p).replace(/[<>&]/g, "") + (p.edited ? " ·" : "") + "</span>";
   const m = document.createElement("span"); m.className = "pm"; m.textContent = presetLabel(p);
   b.append(t, m);
   /* How much of THIS item closes the day. The answer where the decision is. */
@@ -124,7 +194,8 @@ function presetRow(p, mode) {
   if (mode === "arch") {
     mk("↺", "Restore to the list", "", () => { delete S.archived[p.id]; persist(); onChange(); });
   } else {
-    if (p.kind) mk("⋯", "Open the editor", "", () => { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; onChange(); });
+    if (p.kind) mk("⋯", "Open the editor", "",
+      () => { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; if (p.rid) S.gTarget = p.rid; onChange(); });
     else        mk("✎", "Edit name and macros", "", () => { S.editTarget = p.id; S.editing = "new"; onChange(); });
     mk("●", S.pins[p.id] ? "Unpin" : "Pin to the top", S.pins[p.id] ? "on" : "",
        () => { S.pins[p.id] ? delete S.pins[p.id] : S.pins[p.id] = 1; persist(); onChange(); });
@@ -296,7 +367,7 @@ export function render() {
   const fl = flags();
   if (S.closed) fl.unshift(["good",
     "<b>Closed and committed to health-daily-log.csv.</b> Figures below are the file's, not a local draft — the file wins."]);
-  renderFlagsInto(el("flags"), fl);
+  paintFlags(fl);
 
   renderEditor(); renderPresets(); renderFridge(); renderLeft(); renderGoal();
 

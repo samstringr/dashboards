@@ -26,8 +26,12 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
    The log panel is wider because every row now carries a close-the-day amount,
    and the chart got a resolved height instead of sharing a flex column with
    three siblings — which is what was squeezing and clipping it. */
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.32fr 1fr;gap:10px}
-.col{display:flex;flex-direction:column;gap:10px;min-height:0}
+/* ⚠ minmax(0, …), not plain fr. A grid track defaults to min-width:auto, so any
+   wide child — the ingredient macro editor, a long item name — pushes the track
+   past its share and the column runs off the screen. Caught 18 Aug when the
+   per-100 g inputs shoved the whole right column out of the viewport. */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:10px}
+.col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
   display:flex;flex-direction:column;min-height:0}
 .card.grow{flex:1}
@@ -43,7 +47,10 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
    genuinely benefits from more room. clamp() means it can still shrink on a
    short laptop screen without collapsing. */
 .card.today{flex:1;min-height:0}
-.card.today .tbl{flex:1;min-height:0;max-height:none}
+/* ⚠ The table gets a FLOOR. The flag stack pushing it to a few unreadable
+   pixels was the bug; transient flags fix the cause, this stops the symptom
+   ever returning from some other direction. */
+.card.today .tbl{flex:1;min-height:132px;max-height:none}
 .card.chartcard{flex:none}
 .card.fridge{flex:none}
 .col.right{min-height:0}
@@ -69,8 +76,26 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
 .acc{color:var(--accent)}
 .dimcell{color:var(--dim)}
 
-.fl{display:flex;flex-direction:column;gap:5px;margin-bottom:9px;flex:none}
+/* ═══ FLAGS ARE TRANSIENT — 18 Aug 2026 ═══
+   They used to be a permanent stack that grew with the day and pushed the food
+   table off screen. Now they animate in, sit for 7s, and collapse to a badge.
+   `grid-template-rows: 0fr → 1fr` animates height without a magic pixel value
+   and without the table jumping. */
+.fl{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s cubic-bezier(.4,0,.2,1),
+  margin .22s,opacity .18s;opacity:0;margin-bottom:0;flex:none;overflow:hidden}
+.fl>*{min-height:0}
+.fl.on{grid-template-rows:1fr;opacity:1;margin-bottom:9px}
+.fl.on>*{display:flex;flex-direction:column;gap:5px}
 .fl:empty{display:none;margin:0}
+
+.flagbadge{margin-left:8px;border:1px solid var(--line-2);background:var(--s2);color:var(--muted);
+  border-radius:99px;font:600 10px/1 var(--font);padding:4px 8px;cursor:pointer;
+  font-variant-numeric:tabular-nums;transition:var(--ease)}
+.flagbadge:hover{color:var(--ink);border-color:var(--ink)}
+.flagbadge.bad{color:var(--bad);border-color:#4a2426;background:var(--bad-dim)}
+.flagbadge.warn{color:var(--warn);border-color:#4a3a1c;background:var(--warn-dim)}
+.flagbadge.good{color:var(--good);border-color:#33402c;background:var(--good-dim)}
+.flagbadge.info{color:var(--cool);border-color:#25384a;background:var(--cool-dim)}
 .fli{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.45;
   border-radius:8px;padding:6px 9px;border:1px solid}
 .fli.bad{background:var(--bad-dim);border-color:#4a2426;color:#f0a3a4}
@@ -197,7 +222,7 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .btn:disabled:hover{background:transparent;color:var(--muted)}
 
 /* editors */
-.ed{background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;flex:none}
+.ed{background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;flex:none;min-width:0;overflow:hidden}
 .ed .et{font:600 12px/1.3 var(--font);margin-bottom:8px}
 .ed .er{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px}
 .ed .er label{color:var(--muted);min-width:74px}
@@ -357,3 +382,33 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
   .stats{grid-template-columns:1fr 1fr}
   .mic{min-height:32px}
 }
+
+
+/* ═══ 18 Aug 2026 ═══════════════════════════════════════════════════════════ */
+
+/* Icons — 14px, currentColor, so a row turning amber takes its icon with it. */
+.ico{width:14px;height:14px;flex:none;vertical-align:-2px;margin-right:6px;opacity:.75}
+.p .pn{display:flex;align-items:center;gap:0;min-width:0}
+.p .pn>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p.pinned .ico{opacity:1}
+.ed .et .ico{opacity:1;margin-right:7px}
+
+/* Ingredient rows: grams always, macros behind ✎ */
+.ingblock{border-bottom:1px solid var(--line)}
+.ingblock:last-of-type{border-bottom:none}
+.ingrow{gap:6px}
+.inglabel{display:flex;align-items:center;min-width:0;flex:1;color:var(--ink) !important;font-size:11.5px}
+.inglabel>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed input.ig{width:62px;flex:none;min-width:0}
+.ingtog{background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  border-radius:5px;font-size:11px;line-height:1;padding:4px 6px;flex:none;transition:var(--ease)}
+.ingtog:hover{color:var(--ink);background:var(--s3)}
+.ingtog.on{color:var(--accent);border-color:var(--accent)}
+.ingmac{display:none;align-items:center;gap:5px;padding:2px 0 8px 20px;flex-wrap:wrap;max-width:100%}
+.ingmac.on{display:flex}
+.ingmac .pl{font-size:10px;color:var(--dim);margin-right:2px}
+.ed input.im{width:58px;flex:none;min-width:0}
+.ingrow .bm{min-width:0;text-align:right;white-space:nowrap}
+
+/* Chart window label — says what you are looking at */
+.lg .wlabel{color:var(--ink);font-variant-numeric:tabular-nums}

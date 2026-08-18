@@ -17,7 +17,6 @@ import { rebuildChart, drawStats, setSeries, wireChartGestures, stats as chartSt
 import { risks, buildRecord, totals } from "./engine.js";
 import * as store from "../../shared/store.js";
 import * as TG from "../../shared/targets.js";
-import * as A from "./assistant.js";
 import { noteUse } from "./recipes.js";
 import { PRESETS, presetMacros, displayName } from "./presets.js";
 
@@ -276,97 +275,24 @@ el("goal-save").addEventListener("click", async () => {
   refresh(); rebuildChart();
 });
 
-/* ═══════════ THE ASSISTANT ═══════════
-   Speech in, items out. See assistant.js for what does and does not need a key. */
+/* ═══════════ THE ASSISTANT — REMOVED 18 Aug 2026 ═══════════
+   Sam: "the login item via the chat function doesn't exist, or it doesn't work.
+   So let's remove that and just code it from here. That can be future functionality."
 
-let listening = false;
-const heardBox = () => el("heard");
+   Correct call, and worth recording WHY it did not work rather than just that it
+   didn't. Two reasons, and only one of them was a bug:
 
-el("mic").addEventListener("click", () => {
-  if (!A.speechAvailable()) {
-    showHeard("<div class='ht'><i>This browser has no speech recognition. " +
-      "Safari on iOS and Chrome do; Firefox does not. You can still type into the search-free board below.</i></div>");
-    return;
-  }
-  if (listening) { A.stopListening(); return; }
-  listening = true; el("mic").classList.add("on"); el("mic").textContent = "● listening";
-  showHeard("<div class='ht'><i>Listening — say what you ate.</i></div>");
-  A.listen({
-    onPartial: t => showHeard("<div class='ht'>" + escapeHtml(t) + "</div>"),
-    onFinal: t => { if (t) handleHeard(t); },
-    onEnd: () => { listening = false; el("mic").classList.remove("on"); el("mic").textContent = "🎙"; }
-  });
-});
+   1. Web Speech API on desktop Chrome routes audio to a Google endpoint and is
+      gated behind a permission prompt this page never surfaced properly, so the
+      mic button did nothing visible and gave no error.
+   2. Even with the transcript, the useful half — costing a food that is not on
+      the board — needs judgement, and judgement needs a model. Open Food Facts
+      covers branded packs and nothing else; it cannot cost "air-fried salmon
+      with honey and paprika", which is exactly the kind of thing Sam adds.
 
-const escapeHtml = s => String(s).replace(/[&<>"]/g, c =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-function showHeard(html) { heardBox().innerHTML = html; heardBox().classList.add("on"); }
-function hideHeard() { heardBox().classList.remove("on"); heardBox().innerHTML = ""; }
-
-async function handleHeard(text) {
-  const parsed = A.parse(text);
-  let html = '<div class="ht">' + escapeHtml(text) + '</div>';
-  const matched = parsed.filter(p => !p.unmatched);
-  const missing = parsed.filter(p => p.unmatched);
-
-  matched.forEach(p => {
-    const r = A.resolve(p);
-    html += '<div class="hrow"><span class="hn">' + escapeHtml(r.name) + '</span>' +
-      '<span class="hm">' + Math.round(r.macros[0]) + ' kcal · ' + r1(r.macros[1]) + ' P</span></div>';
-  });
-  missing.forEach(p => {
-    html += '<div class="hrow miss"><span class="hn">' + escapeHtml(p.query) +
-      ' — not on the board</span><span class="hm">looking up…</span></div>';
-  });
-  html += '<div class="acts" style="margin-top:9px">' +
-    (matched.length ? '<button class="btn p2" id="h-add">Log ' + matched.length + ' item' +
-      (matched.length > 1 ? 's' : '') + '</button>' : '') +
-    '<button class="btn" id="h-cancel">Dismiss</button></div>';
-  showHeard(html);
-
-  el("h-cancel").onclick = hideHeard;
-  const add = el("h-add");
-  if (add) add.onclick = () => {
-    matched.forEach(p => {
-      const r = A.resolve(p);
-      noteUse(p.preset.id);
-      addItem({ n: r.name, m: r.macros, u: true, veg: !!p.preset.veg, fat: p.preset.cls === "fat" });
-    });
-    hideHeard(); refresh();
-  };
-
-  /* Unknowns → Open Food Facts. No key, no account. */
-  for (const p of missing) {
-    try {
-      const hits = await A.lookup(p.query);
-      const host = document.createElement("div"); host.className = "hopts";
-      if (!hits.length) host.innerHTML = '<div style="font-size:10.5px;color:var(--dim)">' +
-        'Nothing found on Open Food Facts. Add it by hand with ＋ New item.</div>';
-      hits.forEach(h => {
-        const b = document.createElement("button"); b.className = "hopt";
-        const g = p.grams || 100;
-        b.innerHTML = '<b>' + escapeHtml(h.name) + '</b> — ' +
-          Math.round(h.per[0] * g / 100) + ' kcal · ' + r1(h.per[1] * g / 100) + ' g P per ' + g + ' g ' +
-          '<span>· ' + h.source + '</span>';
-        b.onclick = () => {
-          S.customs.push({ id: "off" + h.code, n: h.name + " " + g + " g",
-            m: h.per.map(v => v * g / 100), custom: true, cls: "unv",
-            src: h.source });
-          noteUse("off" + h.code);
-          addItem({ n: h.name + " " + g + " g", m: h.per.map(v => v * g / 100), u: true });
-          persist(); hideHeard(); refresh();
-        };
-        host.appendChild(b);
-      });
-      heardBox().appendChild(host);
-    } catch {
-      const d = document.createElement("div"); d.className = "hopts";
-      d.innerHTML = '<div style="font-size:10.5px;color:var(--warn)">Could not reach Open Food Facts.</div>';
-      heardBox().appendChild(d);
-    }
-  }
-}
+   The parser and the Open Food Facts client are kept in assistant.js, unwired,
+   because the matching logic is sound and it is the expensive part. Re-wire it
+   when there is a real answer to (2) — see MIGRATION.md.                       */
 
 /* ── service worker ───────────────────────────────────────────────────────── */
 if ("serviceWorker" in navigator) {

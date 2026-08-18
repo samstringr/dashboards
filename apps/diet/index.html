@@ -61,7 +61,9 @@ would close the day, batch inventory, and a consistency history with drill-down.
     <!-- LEFT: Today on top, then the chart -->
     <div class="col">
       <div class="card today">
-        <div class="ph">Today <span class="n" id="saved"></span></div>
+        <div class="ph">Today
+          <button class="flagbadge" id="flagbadge" hidden aria-label="Show flags"></button>
+          <span class="n" id="saved"></span></div>
         <div class="mets">
           <div class="met lead" id="m-prot">
             <div class="v" id="v-prot">0</div><div class="k" id="k-prot">protein g</div>
@@ -100,12 +102,8 @@ would close the day, batch inventory, and a consistency history with drill-down.
     <!-- RIGHT: log (with close-the-day folded in) on top, fridge at the bottom -->
     <div class="col right">
       <div class="card grow">
-        <div class="ph">Log an item
-          <button class="mic" id="mic" title="Say what you ate">🎙</button>
-          <span class="n" id="pin-n"></span>
-        </div>
+        <div class="ph">Log an item <span class="n" id="pin-n"></span></div>
         <div class="leftline" id="left"></div>
-        <div id="heard" class="heard"></div>
         <div id="editor"></div>
         <div class="scroll"><div class="chips" id="presets"></div></div>
       </div>

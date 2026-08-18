@@ -22,7 +22,20 @@
 import { S, el, r1, targets } from "./state.js";
 import { bandOn, PLAN_CHANGES } from "../../shared/targets.js";
 
-const FRAC = 0.42;
+/* 🚩 AXES REBUILT 18 Aug 2026 — THIRD ATTEMPT, and the first two were wrong in
+   the same way. Sam: "make the low bound zero or just… I just wanna see, like,
+   two flowing lines."
+
+   The old scheme centred each axis on its target with a ±42% half-range. The
+   idea was that an on-plan day puts the lines on top of each other — sound in
+   theory, awful in practice: a 90 g protein day fell BELOW the axis floor and
+   the line vanished off the bottom, which is why the chart read as jagged and
+   broken rather than as a trend.
+
+   Both axes now start at ZERO and top out at the same MULTIPLE of their target,
+   so the on-plan alignment property survives while every real value stays on
+   screen. Nothing clips, and the two series read as two flowing lines. */
+const HEAD = 1.35;   // axis max as a multiple of target, same for both series
 const grade = r => r >= 80 ? "#7fb069" : r >= 60 ? "#d9a441" : "#e2585a";
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const C_PROT = "#e07b45", C_KCAL = "#6a9bd1";
@@ -168,8 +181,13 @@ export function rebuildChart() {
 
   const d = windowed(all);
   const labels = d.map(r => r.date.slice(5));
-  const pLo = Math.round(T.protein * (1 - FRAC)), pHi = Math.round(T.protein * (1 + FRAC));
-  const kLo = Math.round(T.kcal * (1 - FRAC)), kHi = Math.round(T.kcal * (1 + FRAC));
+  /* Zero floor. Ceiling is target × HEAD, lifted if real data would clip it —
+     a chart that hides a day is worse than one with a little dead space. */
+  const pPeak = Math.max(...d.map(r => r.protein_g), T.protein);
+  const kPeak = Math.max(...d.map(r => r.kcal), T.kcal);
+  const head = Math.max(HEAD, pPeak / T.protein * 1.06, kPeak / T.kcal * 1.06);
+  const pLo = 0, pHi = Math.ceil(T.protein * head / 10) * 10;
+  const kLo = 0, kHi = Math.ceil(T.kcal * head / 100) * 100;
 
   /* Stepped target lines — the whole point of the era model made visible. */
   const targetLine = (pick, colour, axis) => ({
@@ -183,13 +201,15 @@ export function rebuildChart() {
   if (S.series !== "k") {
     sets.push({ label: "protein g", data: d.map(r => r.protein_g), yAxisID: "y",
       borderColor: C_PROT, backgroundColor: "rgba(224,123,69,.12)",
-      borderWidth: 2, pointRadius: 0, tension: .25, fill: true, order: 2 });
+      borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
+      fill: true, order: 2, spanGaps: true });
     sets.push(targetLine(e => e.protein, C_PROT, "y"));
   }
   if (S.series !== "p") {
     sets.push({ label: "kcal", data: d.map(r => r.kcal), yAxisID: "y2",
       borderColor: C_KCAL, backgroundColor: "rgba(106,155,209,.10)",
-      borderWidth: 2, pointRadius: 0, tension: .25, fill: true, order: 2 });
+      borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
+      fill: true, order: 2, spanGaps: true });
     sets.push(targetLine(e => e.kcal, C_KCAL, "y2"));
   }
 
@@ -200,6 +220,7 @@ export function rebuildChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       resizeDelay: 60,
+      animation: false,   // gestures redraw per frame; tweening would fight them
       layout: { padding: { top: 4, right: 2, bottom: 0, left: 0 } },
       interaction: { mode: "index", intersect: false },
       onClick: (e, els) => { if (els.length) showDay(els[0].index); },
@@ -236,37 +257,81 @@ export function rebuildChart() {
   el("legend").innerHTML =
     '<span><i style="background:' + C_PROT + '"></i>protein</span>' +
     '<span><i style="background:' + C_KCAL + '"></i>kcal</span>' +
-    '<span><i class="dash"></i>target, stepped at each plan change</span>' +
-    '<span style="color:var(--dim)">scroll to zoom · drag to pan · tap a point' +
+    '<span><i class="dash"></i>target</span>' +
+    '<span class="wlabel">' + windowLabel() + '</span>' +
+    '<span style="color:var(--dim)">scroll to zoom · drag to pan' +
       (win ? ' · <b id="zreset" style="color:var(--accent);cursor:pointer">reset</b>' : '') + '</span>';
   const zr = el("zreset"); if (zr) zr.onclick = () => { win = null; rebuildChart(); };
 }
 
-/* ── Wheel zoom and drag pan. Hand-rolled: chartjs-plugin-zoom is 30 KB to do
-      this one thing, and vendoring it would undo the CDN removal's whole point. */
+/* ── Wheel zoom and drag pan ──────────────────────────────────────────────
+   Sam: "the scrolling is, like, too violent, and it's not kind of intuitive
+   what you're scrolling or looking at."
+
+   Both complaints, fixed separately:
+
+   · VIOLENT — one wheel notch used to change the window by 25%, and a trackpad
+     emits notches in bursts, so a flick went from 40 days to 6. Steps are now
+     ~4% per notch and normalised across deltaMode, so a mouse wheel and a
+     trackpad feel the same.
+   · NOT INTUITIVE — nothing told you what you were looking at. The legend now
+     names the visible range and its day count, live, and Chart.js redraws are
+     coalesced into one per animation frame so the motion is continuous rather
+     than stepped. */
+
+/* 1.08 per notch. 1.25 was violent — a flick went from 40 days to 6. 1.04 was
+   the overcorrection: 36 notches to get from 40 days down to 10, which is its
+   own kind of unusable. 1.08 makes that journey ~18 notches, about one
+   comfortable scroll. Scroll UP zooms IN, matching every map you have used. */
+const ZOOM_PER_NOTCH = 1.08;
+let raf = null;
+const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = null; rebuildChart(); }); };
+
+export function windowLabel() {
+  const all = solidDays(); if (!all.length) return "";
+  const d = windowed(all);
+  const fmt = iso => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return win
+    ? fmt(d[0].date) + " → " + fmt(d[d.length - 1].date) + " · " + d.length + " of " + all.length + " days"
+    : fmt(d[0].date) + " → " + fmt(d[d.length - 1].date) + " · all " + all.length + " days";
+}
+
 export function wireChartGestures() {
   const box = el("chartbox"); if (!box) return;
+
+  /* Normalise wheel deltas: deltaMode 0 = pixels (trackpad), 1 = lines, 2 = pages. */
+  const notches = e => {
+    const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    return px / 100;
+  };
 
   box.addEventListener("wheel", e => {
     const n = solidDays().length; if (n < 8) return;
     e.preventDefault();
     const cur = win || { a: 0, b: n };
     const span = cur.b - cur.a;
-    const frac = Math.min(1, Math.max(0, (e.clientX - box.getBoundingClientRect().left) / box.clientWidth));
-    const next = Math.round(span * (e.deltaY > 0 ? 1.25 : 0.8));
-    const clamped = Math.max(6, Math.min(n, next));
-    if (clamped >= n) { win = null; rebuildChart(); return; }
-    const anchor = cur.a + span * frac;
+    const rect = box.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+
+    const next = span * Math.pow(ZOOM_PER_NOTCH, notches(e));
+    const clamped = Math.max(5, Math.min(n, Math.round(next)));
+    if (clamped >= n) { if (win) { win = null; schedule(); } return; }
+    if (clamped === span && win) return;          // below one day of change, do nothing
+
+    const anchor = cur.a + span * frac;           // keep the day under the cursor put
     let a = Math.round(anchor - clamped * frac);
     a = Math.max(0, Math.min(n - clamped, a));
     win = { a, b: a + clamped };
-    rebuildChart();
+    schedule();
   }, { passive: false });
 
+  /* Drag to pan. Works at any zoom; at full view there is nowhere to go, so the
+     cursor stays a crosshair rather than promising something it cannot do. */
   let drag = null;
   box.addEventListener("pointerdown", e => {
     if (!win) return;
-    drag = { x: e.clientX, a: win.a }; box.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, a: win.a, moved: false };
+    box.setPointerCapture(e.pointerId);
     box.style.cursor = "grabbing";
   });
   box.addEventListener("pointermove", e => {
@@ -275,11 +340,12 @@ export function wireChartGestures() {
     const perPx = span / box.clientWidth;
     let a = Math.round(drag.a - (e.clientX - drag.x) * perPx);
     a = Math.max(0, Math.min(n - span, a));
-    if (a !== win.a) { win = { a, b: a + span }; rebuildChart(); }
+    if (a !== win.a) { win = { a, b: a + span }; drag.moved = true; schedule(); }
   });
   const end = () => { drag = null; box.style.cursor = ""; };
   box.addEventListener("pointerup", end);
   box.addEventListener("pointercancel", end);
+  box.addEventListener("dblclick", () => { if (win) { win = null; schedule(); } });
 }
 
 export function setSeries(s) {

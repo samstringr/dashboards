@@ -3,38 +3,40 @@
 
 import { S, r1, scale, targets } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { oats, oatsTotal, oatsName, prepProtein, prepSide,
+import { RECIPES, recipe, recipeTotal, recipeName, prepProtein, prepSide,
          frecency, useCount, PREP_PROTEINS } from "./recipes.js";
 
 export const BASE_PRESETS = [
   /* Renamed 17 Aug 2026: "Standard overnight oats" → "Overnight oats", and it is
      now an INGREDIENT recipe rather than a frozen macro block. */
-  { id: "oats",  n: "Overnight oats",           kind: "recipe", cls: "lock" },
-  { id: "plate", n: "Meal prep plate",          kind: "plate" },
-  { id: "assen", n: "Assenheims",               kind: "assen" },
-  { id: "bfc",   n: "Birds Eye southern fried chicken", m: [238, 13, 20, 12], cls: "fat" },
-  { id: "whey",  n: "Protein powder scoop 35 g", m: [132, 30, 1.2, 0.4] },
-  { id: "chick", n: "Bulk chicken 100 g",       m: [190, 31, 0, 6.4] },
-  { id: "yog",   n: "Protein yoghurt 100 g",    m: [58, 11, 3.5, 0.2] },
-  { id: "ban",   n: "Banana",                   m: [105, 1.3, 27, 0.4] },
-  { id: "rice",  n: "White rice 150 g cooked",  m: [195, 4.1, 42.3, 0.5], cls: "unv" },
-  { id: "vegq",  n: "Frozen veg 150 g",         m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
-  { id: "swpot", n: "Air-fried sweet potato",   kind: "gram", gk: "swpot" },
-  { id: "chips", n: "Thick-cut chips",          kind: "gram", gk: "chips", cls: "unv" },
-  { id: "ched",  n: "Cheddar cheese",           kind: "gram", gk: "ched",  cls: "fat" },
-  { id: "ket",   n: "Heinz ketchup",            kind: "gram", gk: "ket" },
-  { id: "mayo",  n: "Mayo 30 g",                m: [87, 0.2, 2.4, 8.4], cls: "fat" },
-  { id: "sri",   n: "Sriracha 15 g",            m: [8, 0, 1.5, 0] },
+  { id: "oats",   n: "Overnight oats",      kind: "recipe", rid: "oats",   icon: "grain", cls: "lock" },
+  /* NEW 18 Aug 2026 — salmon, honey, paprika, soy, air fried. */
+  { id: "salmonr", n: "Air-fried salmon",  kind: "recipe", rid: "salmon", icon: "fish" },
+  { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
+  { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
+  { id: "bfc",   n: "Birds Eye southern fried chicken", icon: "chicken", m: [238, 13, 20, 12], cls: "fat" },
+  { id: "whey",  n: "Protein powder scoop 35 g", icon: "tub", m: [132, 30, 1.2, 0.4] },
+  { id: "chick", n: "Bulk chicken 100 g", icon: "chicken",       m: [190, 31, 0, 6.4] },
+  { id: "yog",   n: "Protein yoghurt 100 g", icon: "pot",    m: [58, 11, 3.5, 0.2] },
+  { id: "ban",   n: "Banana", icon: "berry",                   m: [105, 1.3, 27, 0.4] },
+  { id: "rice",  n: "White rice 150 g cooked", icon: "grain",  m: [195, 4.1, 42.3, 0.5], cls: "unv" },
+  { id: "vegq",  n: "Frozen veg 150 g", icon: "leaf",         m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
+  { id: "swpot", n: "Air-fried sweet potato", icon: "potato",   kind: "gram", gk: "swpot" },
+  { id: "chips", n: "Thick-cut chips", icon: "potato",          kind: "gram", gk: "chips", cls: "unv" },
+  { id: "ched",  n: "Cheddar cheese", icon: "cheese",           kind: "gram", gk: "ched",  cls: "fat" },
+  { id: "ket",   n: "Heinz ketchup", icon: "sauce",            kind: "gram", gk: "ket" },
+  { id: "mayo",  n: "Mayo 30 g", icon: "sauce",                m: [87, 0.2, 2.4, 8.4], cls: "fat" },
+  { id: "sri",   n: "Sriracha 15 g", icon: "sauce",            m: [8, 0, 1.5, 0] },
   /* 10 g soy · 10 g rice wine vinegar · 5 g honey. The honey is 15 of the 24 kcal. */
-  { id: "dip",   n: "Soy, vinegar & honey dip", m: [24, 0.8, 5.3, 0] },
-  { id: "gyoza", n: "Itsu chicken gyoza, 12",   m: [372, 19.7, 48, 10.6] },
-  { id: "coco",  n: "Coconut bean rice 100 g",  m: [135, 2.9, 22, 3.5], cls: "unv" },
-  { id: "gast",  n: "Gastro chicken ½ bag",     m: [526, 28.5, 38, 28.5], cls: "fat" },
-  { id: "pop",   n: "Pop chips, one bag",       m: [100, 2.8, 14, 2.8], cls: "unv" },
-  { id: "dom",   n: "Domino's slice",           m: [300, 13.5, 29, 14.5], cls: "fat" },
+  { id: "dip",   n: "Soy, vinegar & honey dip", icon: "sauce", m: [24, 0.8, 5.3, 0] },
+  { id: "gyoza", n: "Itsu chicken gyoza, 12", icon: "plate",   m: [372, 19.7, 48, 10.6] },
+  { id: "coco",  n: "Coconut bean rice 100 g", icon: "grain",  m: [135, 2.9, 22, 3.5], cls: "unv" },
+  { id: "gast",  n: "Gastro chicken ½ bag", icon: "chicken",     m: [526, 28.5, 38, 28.5], cls: "fat" },
+  { id: "pop",   n: "Pop chips, one bag", icon: "plate",       m: [100, 2.8, 14, 2.8], cls: "unv" },
+  { id: "dom",   n: "Domino's slice", icon: "cheese",           m: [300, 13.5, 29, 14.5], cls: "fat" },
   /* Greggs Sausage Roll, 103 g. 348 kcal / 10.2 P / 24.1 C / 22.2 F, 10.2 g saturated.
      2.9 g protein per 100 kcal — the lowest-density item here bar the dips. */
-  { id: "greg",  n: "Greggs sausage roll",      m: [348, 10.2, 24.1, 22.2], cls: "fat" }
+  { id: "greg",  n: "Greggs sausage roll", icon: "beef",      m: [348, 10.2, 24.1, 22.2], cls: "fat" }
 ];
 
 /* ⚠ FIXED IN THE PORT: the artifact had TWO presets with id "chips" — the gram
@@ -63,8 +65,8 @@ export function ordered(list) {
 
 export function presetLabel(p) {
   if (p.kind === "recipe") {
-    const t = oatsTotal();
-    return oats().filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(" ")[0].toLowerCase()).join(" · ") +
+    const R = recipe(p.rid), t = recipeTotal(p.rid);
+    return R.ing.filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(/[ ,]/)[0].toLowerCase()).join(" · ") +
            " · " + Math.round(t[0]) + " kcal";
   }
   if (p.kind === "plate") {
@@ -83,7 +85,7 @@ export function presetLabel(p) {
 
 /* Macros for a preset at a given multiplier. */
 export function presetMacros(p, mult = 1) {
-  if (p.kind === "recipe") return oatsTotal().map(v => v * mult);
+  if (p.kind === "recipe") return recipeTotal(p.rid).map(v => v * mult);
   if (p.kind === "plate") {
     const pr = prepProtein(S.prepPick);
     return pr.per.map(v => v * pr.g / 100 * mult);
@@ -99,7 +101,7 @@ export function presetMacros(p, mult = 1) {
 }
 
 export const displayName = p =>
-  p.kind === "recipe" ? oatsName() :
+  p.kind === "recipe" ? recipeName(p.rid) :
   p.kind === "plate"  ? "Meal prep plate · " + prepProtein(S.prepPick).n.toLowerCase() : p.n;
 
 /* Protein per 100 kcal — ranks the close-the-day routes so the leanest is first. */
