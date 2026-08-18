@@ -226,6 +226,24 @@ const tap = await phone.evaluate(() => {
 });
 ok("log buttons meet the 44px touch minimum", tap >= 44, Math.round(tap) + "px");
 
+/* ── the chart must stay proportionate at any window shape ────────────────
+   Found live on a 1080x1759 window: the chart card was flex:1 and took all the
+   spare height, giving a 562x1166 canvas with the lines stretched into spikes.
+   Fixing the clip earlier did not stop the opposite failure, so both ends are
+   asserted now. */
+console.log("\n── chart geometry at three window shapes ─────────────────");
+for (const [w, h, label] of [[1440, 900, "laptop"], [1080, 1759, "tall"], [1920, 1080, "wide"]]) {
+  await page.setViewportSize({ width: w, height: h });
+  await page.waitForTimeout(250);
+  const box = await page.locator("#chartbox").boundingBox();
+  const ratio = box.width / box.height;
+  ok(`${label} ${w}x${h}: chart is a sane shape`,
+     box.height >= 180 && box.height <= 360 && ratio > 1,
+     Math.round(box.width) + "x" + Math.round(box.height) + " (ratio " + ratio.toFixed(2) + ")");
+}
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.waitForTimeout(200);
+
 if (SHOTS) {
   await page.screenshot({ path: join(ROOT, "tools/shot-desktop.png") });
   await phone.screenshot({ path: join(ROOT, "tools/shot-phone.png"), fullPage: true });
