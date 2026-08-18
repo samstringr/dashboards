@@ -22,6 +22,29 @@ import { PRESETS, presetMacros, displayName } from "./presets.js";
 
 let client = null;
 
+/* ═══════════ WHY THIS FILE IS DEFENSIVE ABOUT THE DOM ═══════════
+   18 Aug 2026: the app shipped a blank page in production. Not a code bug — a
+   VERSION SKEW. The mic button was removed from index.html in the same push
+   that removed its listener from app.js, but GitHub Pages sets a 10-minute
+   Cache-Control on assets, so a browser could load the NEW index.html against
+   a CACHED OLD app.js. `el("mic").addEventListener` hit null, threw at the top
+   level of an ES module, and everything after it — every button, the chart, the
+   preset board — never ran.
+
+   The smoke test could not have caught this: it always serves a matched set.
+   The failure only exists across two versions.
+
+   🚩 THE RULE: a top-level throw in a module kills the whole module. So no
+   top-level DOM wiring may assume an element exists. `on()` no-ops on a missing
+   element and says so once in the console. A stale cache now costs one dead
+   button instead of the entire app.                                            */
+function on(id, evt, fn, opts) {
+  const n = el(id);
+  if (!n) { console.warn("[diet] no #" + id + " — skipping " + evt +
+    " (version skew? hard-refresh)"); return null; }
+  n.addEventListener(evt, fn, opts); return n;
+}
+
 /* ── boot ─────────────────────────────────────────────────────────────────── */
 loadLocal(BATCH, GRAM);
 wireRender({ render: refresh });
@@ -29,7 +52,7 @@ wireEditors({ addItem, render: refresh });
 
 function refresh() { render(); drawStats(); }
 
-el("when").textContent = new Date().toLocaleDateString("en-GB",
+if (el("when")) el("when").textContent = new Date().toLocaleDateString("en-GB",
   { weekday: "long", day: "numeric", month: "long" });
 
 /* ── history from the CSV ─────────────────────────────────────────────────── */
@@ -107,7 +130,7 @@ function markClosedLocally(rec) {
   S.closed = true; S.log = []; clearDraft();
 }
 
-el("close").addEventListener("click", () => {
+on("close", "click", () => {
   const r = risks();
   if (!r.length) { doSave(); return; }
   el("mdl-h").textContent = r.length === 1 ? "One thing before this is saved" : r.length + " things before this is saved";
@@ -116,11 +139,11 @@ el("close").addEventListener("click", () => {
   renderFlagsInto(el("mdl-flags"), r);
   el("ov").classList.add("on");
 });
-el("mdl-go").addEventListener("click", () => { el("ov").classList.remove("on"); doSave(); });
-el("mdl-back").addEventListener("click", () => el("ov").classList.remove("on"));
-el("ov").addEventListener("click", e => { if (e.target === el("ov")) el("ov").classList.remove("on"); });
+on("mdl-go", "click", () => { el("ov").classList.remove("on"); doSave(); });
+on("mdl-back", "click", () => el("ov").classList.remove("on"));
+on("ov", "click", e => { if (e.target === el("ov")) el("ov").classList.remove("on"); });
 
-el("clear").addEventListener("click", () => {
+on("clear", "click", () => {
   S.log.forEach(r => { if (r.batch && S.fridge[r.batch] !== null) S.fridge[r.batch] += r.g; });
   S.log = []; refresh();
 });
@@ -161,9 +184,9 @@ function setSync(state, detail) {
 /* ── settings ─────────────────────────────────────────────────────────────── */
 function showSetup(on) { el("setup").classList.toggle("on", !!on); }
 
-el("gear").addEventListener("click", () => showSetup(!el("setup").classList.contains("on")));
-el("setup-cancel").addEventListener("click", () => showSetup(false));
-el("setup-save").addEventListener("click", async () => {
+on("gear", "click", () => showSetup(!el("setup").classList.contains("on")));
+on("setup-cancel", "click", () => showSetup(false));
+on("setup-save", "click", async () => {
   const owner = el("s-owner").value.trim(), repo = el("s-repo").value.trim();
   const tok = el("s-token").value.trim();
   if (!owner || !repo) { el("setup-msg").textContent = "Owner and repo are both needed."; return; }
@@ -177,9 +200,10 @@ el("setup-save").addEventListener("click", async () => {
 
 (function fillSetup() {
   const c = repoConfig.get();
-  el("s-owner").value = c.owner || "";
-  el("s-repo").value = c.repo || "";
-  el("s-has").textContent = store.hasToken() ? "a token is stored on this device" : "no token on this device";
+  if (el("s-owner")) el("s-owner").value = c.owner || "";
+  if (el("s-repo"))  el("s-repo").value  = c.repo || "";
+  if (el("s-has"))   el("s-has").textContent =
+    store.hasToken() ? "a token is stored on this device" : "no token on this device";
 })();
 
 /* ═══════════ GOAL AND MEASUREMENTS ═══════════
@@ -239,11 +263,11 @@ function previewGoal() {
 }
 ["g-weight", "g-mult"].forEach(id => el(id).addEventListener("input", previewGoal));
 
-el("goalbtn").addEventListener("click", openGoal);
-el("goal-close").addEventListener("click", () => el("goalov").classList.remove("on"));
-el("goalov").addEventListener("click", e => { if (e.target === el("goalov")) el("goalov").classList.remove("on"); });
+on("goalbtn", "click", openGoal);
+on("goal-close", "click", () => el("goalov").classList.remove("on"));
+on("goalov", "click", e => { if (e.target === el("goalov")) el("goalov").classList.remove("on"); });
 
-el("goal-save").addEventListener("click", async () => {
+on("goal-save", "click", async () => {
   S.goal = {
     goal_kg: +el("g-gw").value || TG.PROFILE.goal_weight_kg,
     goal_bf: +el("g-gbf").value || TG.PROFILE.goal_bf_lo,
