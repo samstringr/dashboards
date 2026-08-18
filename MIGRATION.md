@@ -61,6 +61,13 @@ Work top to bottom. **One app per 5-hour window.** Tick as you go.
       target in the app rests on `FALLBACK_WEIGHT_KG` in `targets.js`. **Remove that
       constant once the row is in.** ⚠ Confirm the exact figure with Sam before writing —
       this is an append to the knowledge base, not a code change.
+- [ ] **T2c · 🚩 PUSH THE REBUILD.** 13 changed files sit in `migration-seed/repo/` and are
+      **not on GitHub**. The live site still serves the 17 Aug build. Blocked twice: the
+      5-hour window ran out mid-upload on 17 Aug, and the Chrome extension is disconnected
+      on 18 Aug. **Nothing is lost — the disk copy is verified byte-for-byte and passes
+      28/28 on Sam's own machine.**
+      Changed: `shared/targets.js` · `apps/diet/{index.html,diet.css,app.js,state.js,presets.js,render.js,chart.js,editors.js,sw.js}` ·
+      NEW `apps/diet/{recipes.js,assistant.js}` · `tools/{smoke.mjs,steptest.mjs}`
 - [x] **T2b · Pushed and Pages enabled, 17 Aug 2026.**
       **The app is live: https://samstringr.github.io/dashboards/apps/diet/**
       26 files in `dashboards`, `data/health-daily-log.csv` seeded into `dashboards-data`.
@@ -194,6 +201,7 @@ and every hardcoded target constant (334–348).
 
 | Date | Session | Done | Next |
 |---|---|---|---|
+| 18 Aug 2026 | Rebuild | **Layout rebuilt to Sam's spec** — two columns, Today at the top, close-the-day folded into the log board as a per-item amount, fridge bottom right, chart given a resolved height so it stops clipping. **Recipes are editable at the level he measures at**: oats by ingredient grams, prep proteins by per-100 g macros. Frecency ordering, goal pane (weight and waist write to the CSV), voice logging + Open Food Facts. 🚩 **Era-aware scoring** — the first build scored all 41 days against 2,780 and reported a fabricated 5%; real figure is **43% against Block 01's own band**. Stepped target lines + plan-change marker, **proven 8/8 with data either side of 14 Aug**. Suites: verify 28/28 · smoke 43/43 · steptest 8/8 | 🚩 **PUSH** — blocked on the Chrome extension |
 | 17 Aug 2026 | Ship | **Live at https://samstringr.github.io/dashboards/apps/diet/** — both repos created and populated, Pages enabled. Live-site check found a flaw the harness missed: on an empty day the planner proposed *14× protein yoghurt*. Guarded, portions capped at 3, smoke test extended to cover it — **34/34** | **T3 — Sam creates the token.** Nothing works until then |
 | 17 Aug 2026 | Build | **The diet app is built.** 1,339-line artifact split into 10 modules under `apps/diet/`, largest 400 lines. Targets wired to `targets.js`. `sendPrompt` hand-off deleted; the app commits to GitHub itself. PWA shell, offline queue, T10 composite builder, T11 multi-option close. Chart.js **vendored**, CDN dependency removed. **`tools/smoke.mjs` runs the real app in Chromium: 31/31.** Repos `dashboards` (public) + `dashboards-data` (private) created | T0 · git init and push · T1 · the weigh-in · T3 · token |
 | 17 Aug 2026 | Seed | Architecture rewritten for phone/GitHub. `store.js`, `targets.js`, `tokens.css`, `verify.js` written and **28/28 checks passing in node**. Diet artifact captured to `reference/` | — |
@@ -214,6 +222,11 @@ and every hardcoded target constant (334–348).
   green, and the first thing on screen when the app was actually opened was nonsense,
   because every assertion ran *after* logging something. **Open the thing in the state a
   new user meets it in.**
+- 🚩 **A test that removes a plugin after construction removes nothing.** The first version
+  of the marker check compared two screenshots taken with the plugin still active, found
+  them identical, and would have reported the feature working whether or not it drew a
+  single pixel. **A check that cannot fail is not a check.** Replaced with a pixel read:
+  81 marker-coloured pixels on the line, 9 nine pixels away.
 - **The stats the app now computes off the real CSV are worse than the file claims:**
   **5% of logged days land inside the 2,780 ± 250 band (2 of 41)** and the mean is
   **1,882 kcal against a 2,780 target — 898/day short.** `health-targets.md` §3.5 predicted
