@@ -79,7 +79,10 @@ export function bmr(weight_kg, date = new Date()) {
    deficit and a 400 surplus. Which one it actually is gets settled by four
    weeks of weight data (see correction() below), not by this formula.        */
 
-export const MULTIPLIER = 1.66;   // §3.5. A weekly average, not a daily one.
+/* §3.5. A weekly average, not a daily one. Held in a box so the goal pane can
+   move it without every importer capturing a stale binding. */
+export const MULTIPLIER_REF = { value: 1.66 };
+export const MULTIPLIER = MULTIPLIER_REF.value;
 
 /* Rounded to the nearest 10. health-targets.md §3.5 derives 1,675 × 1.66 = 2,781
    and then publishes 2,780 — the file rounds, so the code rounds the same way,
@@ -87,7 +90,7 @@ export const MULTIPLIER = 1.66;   // §3.5. A weekly average, not a daily one.
    Sam notices numbers. The underlying error band is ±250–400 kcal, so a unit
    digit here was never real precision to begin with. */
 export function calorieTarget(weight_kg, date = new Date()) {
-  return Math.round(bmr(weight_kg, date) * MULTIPLIER / 10) * 10;
+  return Math.round(bmr(weight_kg, date) * MULTIPLIER_REF.value / 10) * 10;
 }
 
 /* ⚠ CONFLICT, FLAGGED NOT RESOLVED — protein has three stated values:
@@ -107,22 +110,84 @@ export function proteinTarget(weight_kg) {
   return Math.max(PROTEIN_MIN, Math.round(PROTEIN_COEFF * weight_kg));
 }
 
-/* The band the day is judged against. There is no upper calorie ceiling any
-   more — the old 2,100–2,450 band went with the day-type split. ±250 mirrors
-   the honest error band on the target itself rather than inventing a new one. */
-export const BAND = 250;
+/* ═══════════════════════════════════════════════════════════════════════════
+   🚩 THE PLAN HAS A HISTORY, AND SCORING MUST RESPECT IT.
+   ═══════════════════════════════════════════════════════════════════════════
+   From the Block 02 handoff, 14 Aug 2026, §4:
 
+     "Every row in health-daily-log.csv before 14 Aug 2026 was logged against
+      the OLD targets. Do not retroactively score historical days against 2,780.
+      It would show a fabricated collapse in adherence on the day the target
+      changed."
+
+   ⚠ THE FIRST BUILD OF THIS APP DID EXACTLY THAT. It scored all 41 logged days
+   against the new band and reported "5% landed in the band (2 of 41)" — a
+   number that describes nothing except the fact that the target moved. The
+   honest split is 46% under Block 01's band and a separate figure for Block 02.
+
+   The protein floor is CONTINUOUS (150 → 155 g) and safe to score across the
+   whole history. Only calories step.
+
+   Each era carries its own band. `bandOn(date)` picks the one in force.        */
+
+export const TARGET_ERAS = [
+  { from: "2000-01-01", label: "Block 01",
+    kcal: 2325, kcal_lo: 2100, kcal_hi: 2550, protein: 150,
+    why: "2,450 training / 2,100 rest, band 2,100–2,550. Set 11 Aug 2026, itself " +
+         "a correction of 2,550/2,100–2,300. Both rested on a 1.7 activity multiplier " +
+         "that assumed hard exercise 6–7 days a week against a logged reality of one " +
+         "gym session a week." },
+  { from: "2026-08-14", label: "Block 02",
+    kcal: 2780, kcal_lo: 2600, kcal_hi: 2950, protein: 155,
+    why: "One flat number, every day. BMR 1,675 (71.5 kg fasted, first weigh-in ever) " +
+         "× 1.66. The training/rest split was deleted — logged means were Gym 2,197 · " +
+         "Football 2,221 · Rest 2,170, a 51 kcal spread against a designed 350, so it " +
+         "was never being followed. +543 kcal/day on the logged mean, and the single " +
+         "change in Block 02 most likely to fail." }
+];
+
+export const PLAN_CHANGES = TARGET_ERAS.slice(1).map(e => ({ date: e.from, label: e.label }));
+
+/* ── Goal-pane overrides ──────────────────────────────────────────────────
+   The goal pane can move the multiplier and the protein floor. Those are PLAN,
+   not measurement, so they override the shipped era rather than editing history:
+   only the CURRENT era changes, and every past day keeps the band it was logged
+   against. Changing the plan must never rewrite how yesterday was scored. */
+export function applyOverrides(goal) {
+  if (!goal) return;
+  const cur = TARGET_ERAS[TARGET_ERAS.length - 1];
+  if (goal.mult) MULTIPLIER_REF.value = goal.mult;
+  if (goal.protein) cur.protein = goal.protein;
+  if (goal.goal_kg) PROFILE.goal_weight_kg = goal.goal_kg;
+  if (goal.goal_bf) PROFILE.goal_bf_lo = goal.goal_bf;
+  if (goal.when) PROFILE.goal_horizon = goal.when;
+}
+
+export function bandOn(dateISO) {
+  let era = TARGET_ERAS[0];
+  for (const e of TARGET_ERAS) if (dateISO >= e.from) era = e;
+  return era;
+}
+
+/* The band the day is judged against. Post-14-Aug figures come from the handoff
+   verbatim (2,600–2,950) rather than a symmetric ±band invented here. */
 export function today(weight_kg, date = new Date()) {
-  const kcal = calorieTarget(weight_kg, date);
+  const iso = typeof date === "string" ? date : date.toLocaleDateString("en-CA");
+  const era = bandOn(iso);
+  const kcal = era === TARGET_ERAS[TARGET_ERAS.length - 1]
+    ? calorieTarget(weight_kg, date)     // current era stays derived from weight
+    : era.kcal;                          // historical eras are frozen as they were
+  const spread_lo = era.kcal - era.kcal_lo, spread_hi = era.kcal_hi - era.kcal;
   return {
     kcal,
-    kcal_lo: kcal - BAND,
-    kcal_hi: kcal + BAND,
-    protein: PROTEIN_FLOOR_HEADLINE,
+    kcal_lo: kcal - spread_lo,
+    kcal_hi: kcal + spread_hi,
+    protein: era.protein,
+    era: era.label,
     weight_kg,
     bmr: Math.round(bmr(weight_kg, date)),
-    multiplier: MULTIPLIER,
-    derivation: `BMR ${Math.round(bmr(weight_kg, date))} × ${MULTIPLIER} = ${kcal} kcal · protein ${PROTEIN_FLOOR_HEADLINE} g`
+    multiplier: MULTIPLIER_REF.value,
+    derivation: `BMR ${Math.round(bmr(weight_kg, date))} × ${MULTIPLIER_REF.value} = ${kcal} kcal · protein ${era.protein} g`
   };
 }
 
