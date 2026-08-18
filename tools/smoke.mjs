@@ -231,6 +231,105 @@ ok("log buttons meet the 44px touch minimum", tap >= 44, Math.round(tap) + "px")
    spare height, giving a 562x1166 canvas with the lines stretched into spikes.
    Fixing the clip earlier did not stop the opposite failure, so both ends are
    asserted now. */
+console.log("\n── axes start at zero, nothing clips ─────────────────────");
+const ax = await page.evaluate(() => {
+  const c = Object.values(Chart.instances)[0];
+  const d = window.__diet.S.history.filter(r => r.kcal != null && r.protein_g != null);
+  return { yMin: c.scales.y.min, yMax: c.scales.y.max,
+           kMin: c.scales.y2.min, kMax: c.scales.y2.max,
+           pLow: Math.min(...d.map(r => r.protein_g)), pHigh: Math.max(...d.map(r => r.protein_g)),
+           kLow: Math.min(...d.map(r => r.kcal)), kHigh: Math.max(...d.map(r => r.kcal)) };
+});
+ok("protein axis starts at 0", ax.yMin === 0, "0 → " + ax.yMax);
+ok("calorie axis starts at 0", ax.kMin === 0, "0 → " + ax.kMax);
+/* The old scheme floored protein at 65 g, so a 90 g day fell off the bottom —
+   which is what made the chart look broken rather than low. */
+ok("the lowest logged protein day is ON the chart", ax.pLow >= ax.yMin && ax.pLow <= ax.yMax,
+   "lowest " + ax.pLow + " g");
+ok("the highest logged protein day is ON the chart", ax.pHigh <= ax.yMax, "highest " + ax.pHigh + " g");
+ok("every calorie day is on the chart", ax.kLow >= 0 && ax.kHigh <= ax.kMax,
+   ax.kLow + "–" + ax.kHigh + " within 0–" + ax.kMax);
+ok("axes stay proportionally matched",
+   Math.abs((ax.yMax / 155) - (ax.kMax / 2780)) < 0.12,
+   (ax.yMax / 155).toFixed(2) + "× vs " + (ax.kMax / 2780).toFixed(2) + "× of target");
+
+console.log("\n── zoom is gentle and says what you are looking at ───────");
+const winBefore = await page.evaluate(() => document.querySelector('.lg .wlabel').textContent);
+await page.locator("#chartbox").hover();
+await page.mouse.wheel(0, -100);   // up = zoom in
+await page.waitForTimeout(160);
+const winAfter = await page.evaluate(() => document.querySelector('.lg .wlabel').textContent);
+const days = t => parseInt((t.match(/(\d+) of/) || t.match(/all (\d+)/) || [])[1] || "0");
+ok("one wheel notch is a small step, not a lurch",
+   days(winAfter) < days(winBefore) && days(winAfter) > days(winBefore) * 0.85,
+   winBefore + "  →  " + winAfter);
+/* And it has to actually get somewhere: 1.04/notch tested "gentle" but took 36
+   notches to reach a useful zoom, which is its own failure. */
+for (let i = 0; i < 17; i++) await page.mouse.wheel(0, -100);
+await page.waitForTimeout(200);
+const winDeep = await page.evaluate(() => document.querySelector('.lg .wlabel').textContent);
+ok("~18 notches reaches a genuinely zoomed view", days(winDeep) <= 12 && days(winDeep) >= 5,
+   winDeep);
+ok("the visible range is named", /→/.test(winAfter), winAfter);
+await page.evaluate(() => document.querySelector('#chartbox').dispatchEvent(new MouseEvent('dblclick',{bubbles:true})));
+await page.waitForTimeout(160);
+ok("double-click resets to the full range",
+   /all/.test(await page.evaluate(() => document.querySelector('.lg .wlabel').textContent)));
+
+console.log("\n── flags no longer bury the food table ───────────────────");
+const tbl = await page.locator(".card.today .tbl").boundingBox();
+ok("the table keeps a readable height with flags up", tbl.height >= 132, Math.round(tbl.height) + "px");
+ok("a flag badge appears in the card header",
+   !(await page.locator("#flagbadge").getAttribute("hidden")) !== false ||
+   (await page.locator("#flagbadge").isVisible()),
+   await page.locator("#flagbadge").innerText());
+await page.waitForTimeout(7400);
+ok("flags collapse on their own after a few seconds",
+   !(await page.locator("#flags").evaluate(n => n.classList.contains("on"))));
+await page.locator("#flagbadge").click();
+await page.waitForTimeout(300);
+ok("clicking the badge brings them back",
+   await page.locator("#flags").evaluate(n => n.classList.contains("on")));
+
+console.log("\n── ingredient macros are editable, and salmon exists ─────");
+await page.locator("#presets .expand", { hasText: "Everything else" }).click();
+await page.waitForTimeout(150);
+const hasSalmon = await page.locator("#presets .p", { hasText: "Air-fried salmon" }).count();
+ok("air-fried salmon is on the board", hasSalmon > 0);
+await page.locator("#presets .p", { hasText: "Air-fried salmon" }).first().click();
+await page.waitForTimeout(200);
+const ingNames = await page.locator(".ed .inglabel").allInnerTexts();
+ok("it is a recipe of four ingredients", ingNames.length === 4, ingNames.join(" · "));
+ok("salmon, honey, paprika and soy",
+   /salmon/i.test(ingNames.join()) && /honey/i.test(ingNames.join()) &&
+   /paprika/i.test(ingNames.join()) && /soy/i.test(ingNames.join()));
+ok("every ingredient row has an icon", (await page.locator(".ed .inglabel .ico").count()) === 4);
+
+await page.locator(".ed .ingtog").first().click();
+await page.waitForTimeout(120);
+ok("✎ reveals the per-100 g macros", (await page.locator(".ed .ingmac.on input.im").count()) === 4);
+const kcalIn = page.locator(".ed .ingmac.on input.im").first();
+const totBefore = await page.locator(".ed .tot2").innerText();
+await kcalIn.fill("300");
+await kcalIn.dispatchEvent("input");
+await page.waitForTimeout(150);
+const totAfter = await page.locator(".ed .tot2").innerText();
+ok("editing a per-100 g calorie figure moves the total",
+   totBefore.split("\n")[0] !== totAfter.split("\n")[0],
+   totBefore.split("\n")[0] + "  →  " + totAfter.split("\n")[0]);
+
+/* Caught live: the per-100 g inputs pushed the right grid track past its share
+   and the whole column ran off the viewport, because `1fr` tracks default to
+   min-width:auto. Assert it at the widest state the editor can reach. */
+ok("an open ingredient editor does not push the layout off screen",
+   await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+   (await page.evaluate(() => document.documentElement.scrollWidth)) + " vs " +
+   (await page.evaluate(() => window.innerWidth)));
+
+console.log("\n── the assistant is gone ─────────────────────────────────");
+ok("no mic button", (await page.locator("#mic").count()) === 0);
+ok("no transcript box", (await page.locator("#heard").count()) === 0);
+
 console.log("\n── chart geometry at three window shapes ─────────────────");
 for (const [w, h, label] of [[1440, 900, "laptop"], [1080, 1759, "tall"], [1920, 1080, "wide"]]) {
   await page.setViewportSize({ width: w, height: h });
