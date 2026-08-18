@@ -31,11 +31,20 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
   display:flex;flex-direction:column;min-height:0}
 .card.grow{flex:1}
-.card.today{flex:none}
-.card.today .tbl{max-height:190px}
-/* The chart card owns the rest of the column and gives the canvas a floor.
-   A flex child with no min-height collapses under pressure — that was the clip. */
-.card.chartcard{flex:1;min-height:330px}
+
+/* ⚠ WHO GETS THE SLACK — fixed 18 Aug 2026 on a 1080×1759 window.
+   The chart card was `flex:1`, so on a tall viewport it took ALL the spare
+   height: a 562×1166 canvas with the lines stretched into unreadable spikes.
+   Giving the canvas a floor fixed the clipping; it did not stop the opposite
+   failure.
+
+   The chart now has a BOUNDED height and the Today card takes the slack —
+   which is the right place for it, because the item table is the thing that
+   genuinely benefits from more room. clamp() means it can still shrink on a
+   short laptop screen without collapsing. */
+.card.today{flex:1;min-height:0}
+.card.today .tbl{flex:1;min-height:0;max-height:none}
+.card.chartcard{flex:none}
 .card.fridge{flex:none}
 .col.right{min-height:0}
 .ph{font:600 11px/1.3 var(--font);letter-spacing:.02em;color:var(--muted);margin-bottom:9px;
@@ -221,7 +230,7 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .bm{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:92px;text-align:right}
 
 /* chart */
-.chartbox{flex:1;min-height:150px;position:relative;cursor:crosshair;touch-action:pan-y}
+.chartbox{flex:none;height:clamp(190px,26vh,340px);position:relative;cursor:crosshair;touch-action:pan-y}
 .chartbox canvas{display:block}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px;flex:none}
 .st{background:var(--s2);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 8px}
@@ -342,8 +351,9 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
   .grid{grid-template-columns:none}
   .card.today{flex:none}
   .card.today .tbl{max-height:none}
-  .card.chartcard{min-height:300px}
-  .chartbox{min-height:210px}
+  .card.today{flex:none}
+  .card.today .tbl{flex:none}
+  .chartbox{height:clamp(200px,34vh,300px)}
   .stats{grid-template-columns:1fr 1fr}
   .mic{min-height:32px}
 }
