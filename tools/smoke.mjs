@@ -130,11 +130,17 @@ ok("oats opens the ingredient editor, not a macro block",
    (await page.locator(".ed .er input[type=number]").count()) >= 6,
    (await page.locator(".ed .er input[type=number]").count()) + " ingredient inputs");
 const oatsTot = await page.locator(".ed .tot2").innerText();
-ok("defaults reproduce recipes.md \u00a71 exactly",
-   /650 kcal · 57.5 g P · 86.5 g C · 8.8 g F/.test(oatsTot), oatsTot.split("\n")[0]);
-ok("the renamed protein powder is flagged, not silently re-macroed",
-   /protein powder/i.test(await page.locator(".ed").innerText()) &&
-   /whey isolate/i.test(await page.locator(".ed").innerText()));
+/* 🚩 CHANGED 19 Aug 2026 and the OLD assertion was the point of this one.
+   It pinned the oats to 650/57.5/86.5/8.8 — recipes.md §1's headline — which was
+   right while the recipe described 80 g of oats and 35 g of a whey isolate. Sam
+   read the Bulk pack (392/68/21/3.8 per 100 g, not 377/85.7/3.4/1.1) and moved to
+   100 g oats / 40 g powder / 180 g milk. Both halves of the multiplication moved,
+   so the headline had to. Pinning the NEW number, not deleting the check. */
+ok("defaults reproduce Sam's current build exactly",
+   /766 kcal · 58\.4 g P · 108\.7 g C · 11\.8 g F/.test(oatsTot), oatsTot.split("\n")[0]);
+ok("the protein powder is no longer carrying the whey isolate's macros",
+   !/whey isolate/i.test(await page.locator(".ed").innerText()) &&
+   /protein powder/i.test(await page.locator(".ed").innerText()));
 
 /* Change an ingredient and watch the OUTPUT move — the whole point. */
 const oatInput = page.locator(".ed .er").filter({ hasText: "Scottish rolled oats" }).locator("input");
@@ -196,8 +202,12 @@ ok("calories scored per era, not all against 2,780",
 ok("Block 01 adherence is not the fabricated 5%",
    !/^5%/.test(statTxt.trim()));
 ok("the reason is stated on screen", /would invent a collapse/i.test(statTxt));
-ok("and it says there is no Block 02 data yet",
-   /no data under it yet/i.test(statTxt));
+/* Was "there is no Block 02 data yet" — true until 19 Aug 2026, when 17 and 18 Aug
+   were logged. The claim worth asserting is not which branch fires, it is that the
+   note always NAMES the eras it scored rather than quietly averaging across them. */
+ok("the era note names both plans rather than averaging over the change",
+   /Block 01/.test(statTxt) && /Block 02/.test(statTxt),
+   statTxt.replace(/\n/g, " ").slice(-120));
 const eras = await page.evaluate(() => window.__diet.eraStats());
 ok("Block 01 scored against 2,100\u20132,550",
    eras.eras[0].band === "2100–2550", eras.eras[0].label + " " + eras.eras[0].rate + "% of " + eras.eras[0].n);
@@ -402,14 +412,14 @@ const rule = await page.evaluate(() => {
                                1, Math.round((c.chartArea.bottom - c.chartArea.top) * dpr) - 48).data;
     let n = 0;
     for (let k = 0; k < d.length; k += 4)
-      if (d[k] > 0xd0 && d[k+1] > 0xd0 && d[k+2] > 0xc8) n++;
+      if (Math.abs(d[k]-155) < 30 && Math.abs(d[k+1]-133) < 30 && Math.abs(d[k+2]-207) < 30) n++;
     return n;
   };
   return { on: count(px), off: count(px - 9) };
 });
 ok("a bright vertical rule is actually painted at 14 Aug",
    rule.on > 10 && rule.on > rule.off * 3,
-   rule.on + " ink pixels on the line vs " + rule.off + " nine px away");
+   rule.on + " violet pixels on the line vs " + rule.off + " nine px away");
 const legend = await page.locator(".lg").innerText();
 ok("the legend names the rule rather than leaving it unexplained",
    /plan change/i.test(legend), legend.replace(/\n/g, " · ").slice(0, 110));

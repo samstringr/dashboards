@@ -41,6 +41,17 @@ const extra = [
 ].map(r=>[r[0],r[1],r[2],r[3],r[4],r[5],r[6],"","confirmed","steptest","synthetic"].join(","));
 const SEEDED = REAL.trimEnd() + "\n" + extra.join("\n") + "\n";
 
+/* Case B needs "nothing logged on or after the change" to STAY true. On 19 Aug
+   Sam logged 17 and 18 Aug, which made the real log stop reproducing the bug —
+   and a precondition that quietly stops holding is a check that quietly stops
+   checking. So case B now takes the real file and TRUNCATES it to before the
+   change date. Still real rows, still the real parser, and the precondition is
+   guaranteed rather than hoped for. */
+const TRUNC = (() => {
+  const [head, ...body] = REAL.trimEnd().split("\n");
+  return [head, ...body.filter(l => l.slice(0, 10) < "2026-08-14")].join("\n") + "\n";
+})();
+
 const browser = await chromium.launch();
 let f = 0, total = 0;
 const ok = (l,c,d="")=>{ total++; console.log(`  ${c?"✓":"✗"} ${l}${d?"  — "+d:""}`); if(!c)f++; };
@@ -59,12 +70,12 @@ async function open(CSV) {
 }
 
 /* The rule is canvas-drawn. Read the pixels: at the rule's x there should be a
-   vertical run of near-ink pixels that does NOT exist a few px to the side.
+   vertical run of violet --plan pixels that does NOT exist a few px to the side.
    (Removing the plugin from config after construction is a no-op — inline
    plugins are captured at build time — which is why the first version of this
    check compared two identical screenshots and "passed" nothing.)
    The scan starts 40px below the top to clear the label chip, which is also
-   ink-coloured and would otherwise register either side of the line. */
+   the same violet and would otherwise register either side of the line. */
 const probeRule = page => page.evaluate(() => {
   const c = Object.values(Chart.instances)[0];
   const dates = c.$planDates || [];
@@ -75,7 +86,7 @@ const probeRule = page => page.evaluate(() => {
   const count = x => {
     const d = ctx.getImageData(Math.round(x*dpr), Math.round(c.chartArea.top*dpr)+40,
                                1, Math.round((c.chartArea.bottom-c.chartArea.top)*dpr)-48).data;
-    let n=0; for (let k=0;k<d.length;k+=4) if (d[k]>0xd0 && d[k+1]>0xd0 && d[k+2]>0xc8) n++;
+    let n=0; for (let k=0;k<d.length;k+=4) if (Math.abs(d[k]-155)<30 && Math.abs(d[k+1]-133)<30 && Math.abs(d[k+2]-207)<30) n++;
     return n;
   };
   return { found:true, i, last:dates.length-1, px,
@@ -108,15 +119,15 @@ console.log("\n── A · data either side of 14 Aug ────────�
   ok("14 Aug is on the axis", m.found, m.reason || ("index "+m.i+" of "+m.last));
   ok("the rule sits inside the plot, not on the frame", m.inside, "x="+m.px);
   ok("a bright vertical rule is painted at 14 Aug", m.on>10 && m.on>m.off*3,
-     m.on+" ink pixels on the line vs "+m.off+" nine px away");
+     m.on+" violet pixels on the line vs "+m.off+" nine px away");
   await page.locator("#chartbox").screenshot({ path: ROOT+"tools/shot-step.png" });
   await ctx.close();
 }
 
 /* ── CASE B · the real log, which has NOTHING after the change ──────────── */
-console.log("\n── B · REAL log · nothing logged after the change ────────");
+console.log("\n── B · REAL log truncated before 14 Aug ──────────────────");
 {
-  const { page, ctx, errs } = await open(REAL);
+  const { page, ctx, errs } = await open(TRUNC);
   ok("no runtime errors", errs.length===0, errs[0]||"clean");
   const last = await page.evaluate(()=>{
     const h = window.__diet.S.history.filter(r=>r.kcal!=null && r.protein_g!=null);
@@ -128,7 +139,7 @@ console.log("\n── B · REAL log · nothing logged after the change ───
   ok("it is NOT the last slot", m.found && m.i < m.last, m.found ? m.i+" of "+m.last : "n/a");
   ok("the rule sits inside the plot, not on the frame", m.inside, "x="+m.px);
   ok("🚩 a bright vertical rule is painted — THE CASE THAT SHIPPED BROKEN",
-     m.on>10 && m.on>m.off*3, m.on+" ink pixels on the line vs "+m.off+" nine px away");
+     m.on>10 && m.on>m.off*3, m.on+" violet pixels on the line vs "+m.off+" nine px away");
   await page.locator("#chartbox").screenshot({ path: ROOT+"tools/shot-step-real.png" });
   await ctx.close();
 }
