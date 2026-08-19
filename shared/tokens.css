@@ -47,6 +47,17 @@
   --warn:       #d9a441;   --warn-dim:   #2c2314;   /* approaching a limit */
   --cool:       #6a9bd1;   --cool-dim:   #16202c;   /* committed / neutral */
 
+  /* ── ANNOTATION, not data. Added 19 Aug 2026 for the plan-change rule.
+        Sam: "make it a different colour, maybe purple, maybe green."
+        Green was available and rejected: --good already means "on plan, target
+        met", and a plan change is neither good nor bad. Violet is the only
+        hue on the wheel this palette was not already using, which is exactly
+        why it works — nothing else on the chart can be confused for it.
+        Mixed to the same saturation and lightness band as --cool and --good
+        (≈265°, 45%, 66%) so it sits in the set rather than shouting over it.
+        ⚠ This is for MARKS ON data, never for a data series itself. ── */
+  --plan:       #9b85cf;   --plan-dim:   #201b30;
+
   /* ── Geometry ─────────────────────────────────────────────── */
   --r:          14px;      /* cards.    v1 was 12px — 12 on dense cards read tight */
   --r-sm:       8px;       /* controls */
