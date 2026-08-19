@@ -89,7 +89,14 @@ ok("voided 10 Jul excluded from history",
 
 console.log("\n── targets are derived, not typed ────────────────────────");
 const T = await page.evaluate(() => window.__diet.targets());
-ok("calorie target is the derived 2,780", T.kcal === 2780, T.kcal + " kcal");
+/* ⚠ NOT asserted as a constant any more. The whole point of targets.js is that
+   the number is DERIVED from bodyweight — pinning the test to 2,780 would have
+   started failing the moment a real weigh-in landed, which is exactly what it
+   did. Assert the derivation instead. */
+const W = await page.evaluate(() => window.__diet.S.weight);
+ok("calorie target is derived from the logged weight, not typed",
+   T.kcal === Math.round((10 * W.kg + 6.25 * 172 - 5 * 24 + 5) * 1.66 / 10) * 10,
+   W.kg + " kg → BMR " + T.bmr + " × 1.66 → " + T.kcal + " kcal");
 ok("protein target is 155 g", T.protein === 155);
 /* 2,100 is now legitimate — it is Block 01's band label in the stats. What must
    never reappear is the old target being applied as if it were current. */
@@ -100,7 +107,13 @@ ok("2,100 appears only as a Block 01 band label",
 const goal = await page.locator("#goal").innerText();
 ok("goal strip shows 75 kg, not 67", /75 kg/.test(goal) && !/67 kg/.test(goal), goal.split("\n")[0]);
 ok("goal strip shows the derivation", /BMR\s*1\d{3}\s*×/.test(goal));
-ok("fallback weight is flagged, not hidden", /weight not in the log/i.test(goal));
+/* Either the weight is missing (fallback, flagged amber) or it is real but its
+   fed/fasted state is unrecorded (also flagged). Both must be visible — an
+   unlabelled weight quietly shifts the target by ~25 kcal per 1.5 kg. */
+ok("an uncertain weight is flagged, never hidden",
+   /weight not in the log/i.test(goal) || /fed or fasted not recorded/i.test(goal) ||
+   /fasted|fed/i.test(goal),
+   goal.split("\n").find(l => /kg/.test(l)) || goal.slice(0, 60));
 
 console.log("\n── what's left, and per-item amounts ─────────────────────");
 ok("no separate close-the-day card any more",
@@ -298,12 +311,19 @@ const hasSalmon = await page.locator("#presets .p", { hasText: "Air-fried salmon
 ok("air-fried salmon is on the board", hasSalmon > 0);
 await page.locator("#presets .p", { hasText: "Air-fried salmon" }).first().click();
 await page.waitForTimeout(200);
+/* Revised 18 Aug: salmon is ONE editable number, grams of COOKED fish. Sam:
+   "there's no need for me to adjust honey, paprika, sauce amounts every time."
+   The glaze is context in the note, not four rows to maintain. */
 const ingNames = await page.locator(".ed .inglabel").allInnerTexts();
-ok("it is a recipe of four ingredients", ingNames.length === 4, ingNames.join(" · "));
-ok("salmon, honey, paprika and soy",
-   /salmon/i.test(ingNames.join()) && /honey/i.test(ingNames.join()) &&
-   /paprika/i.test(ingNames.join()) && /soy/i.test(ingNames.join()));
-ok("every ingredient row has an icon", (await page.locator(".ed .inglabel .ico").count()) === 4);
+ok("salmon is a single cooked-weight number, not four ingredients",
+   ingNames.length === 1, ingNames.join(" · ").replace(/\n/g, " "));
+ok("and it is COOKED weight", /cooked/i.test(ingNames.join()), ingNames.join().replace(/\n/g," "));
+ok("the glaze is recorded as context, not silently dropped",
+   /honey/i.test(await page.locator(".ed .tot2").innerText()) &&
+   /NOT counted/i.test(await page.locator(".ed .tot2").innerText()));
+ok("the omission is quantified, not just flagged",
+   /40 kcal/.test(await page.locator(".ed .tot2").innerText()));
+ok("the ingredient row has an icon", (await page.locator(".ed .inglabel .ico").count()) === 1);
 
 await page.locator(".ed .ingtog").first().click();
 await page.waitForTimeout(120);
@@ -325,6 +345,55 @@ ok("an open ingredient editor does not push the layout off screen",
    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
    (await page.evaluate(() => document.documentElement.scrollWidth)) + " vs " +
    (await page.evaluate(() => window.innerWidth)));
+
+console.log("\n── \"everything else\" is grouped by macro ─────────────────");
+const heads = await page.locator("#presets .grouphead").allInnerTexts();
+ok("the long list is grouped, not a wall", heads.length >= 2, heads.join(" · ").replace(/\n/g, " "));
+ok("grouped by protein / carbs / fat",
+   /protein/i.test(heads.join()) && /carb/i.test(heads.join()) && /fat/i.test(heads.join()));
+/* Grams would file almost everything under carbs; the split is by share of
+   calories, which is why cheddar lands in fat and not in protein. */
+const cls = await page.evaluate(() => {
+  const P = window.__diet.presets();
+  const pick = id => P.find(p => p.id === id);
+  return { ched: window.__diet.macroClass(pick("ched")),
+           chick: window.__diet.macroClass(pick("chick")),
+           rice: window.__diet.macroClass(pick("rice")) };
+});
+ok("cheddar is filed as fat, not protein", cls.ched === "fat", "cheddar → " + cls.ched);
+ok("bulk chicken is protein", cls.chick === "protein", "chicken → " + cls.chick);
+ok("white rice is carbs", cls.rice === "carb", "rice → " + cls.rice);
+
+console.log("\n── the fridge card is gone ───────────────────────────────");
+ok("no fridge card", (await page.locator("#fridge, .card.fridge").count()) === 0);
+ok("nothing is greyed out as \"none left\"",
+   !/none left/i.test(await page.locator("#presets").innerText()));
+
+console.log("\n── trend lines, fitted per plan ──────────────────────────");
+const tr = await page.evaluate(() => {
+  const c = Object.values(Chart.instances)[0];
+  const ds = c.data.datasets.filter(d => d.label === "trend");
+  return ds.map(d => ({ axis: d.yAxisID, pts: d.data.filter(v => v != null).length,
+                        gaps: d.data.filter(v => v == null).length, spanGaps: d.spanGaps }));
+});
+ok("a trend line exists per series", tr.length === 2, JSON.stringify(tr));
+ok("trends do NOT span the plan change", tr.every(t => t.spanGaps === false));
+const legend = await page.locator(".lg").innerText();
+ok("the legend reports the slope in units, not adjectives",
+   /Block 01 [+-]?\d/.test(legend), (legend.match(/kcal Block[^·\n]*/) || [""])[0]);
+ok("an era with too few days says so rather than drawing a fake line",
+   /no fit/.test(legend), (legend.match(/Block 02[^·\n]*/) || ["(Block 02 not in view)"])[0]);
+
+console.log("\n── the multiplier is explained ───────────────────────────");
+await page.locator("#goalbtn").click();
+await page.waitForTimeout(250);
+const ex = await page.locator(".explain").innerText();
+ok("the goal pane explains what the multiplier is", /BMR/.test(ex) && /multiplier/i.test(ex));
+ok("it gives the scale, not just the number", /1\.375/.test(ex) && /1\.9/.test(ex));
+ok("it names the 1.7 error rather than hiding it", /1\.7/.test(ex) && /250/.test(ex));
+ok("and points at the scale as the real answer", /fasted/i.test(ex) && /150 kcal/.test(ex));
+await page.locator("#goal-close").click();
+await page.waitForTimeout(150);
 
 console.log("\n── the assistant is gone ─────────────────────────────────");
 ok("no mic button", (await page.locator("#mic").count()) === 0);
@@ -379,6 +448,30 @@ ok("logging still works", await (async () => {
   return false;
 })());
 await skewPage.close();
+
+/* Caught live 18 Aug: with several flags up, the Today card overflowed its own
+   border and the Consistency card painted over its table. A card must never
+   draw outside itself. */
+console.log("\n── cards stay inside their own borders ───────────────────");
+const overlap = await page.evaluate(() => {
+  const boxes = [...document.querySelectorAll(".grid .card")].map(n => ({
+    cls: n.className, r: n.getBoundingClientRect() }));
+  const bad = [];
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].r, b = boxes[j].r;
+      const ov = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      const oh = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      if (ov > 2 && oh > 2) bad.push(boxes[i].cls + " ∩ " + boxes[j].cls);
+    }
+  /* And nothing inside a card may extend past it. */
+  const spill = [...document.querySelectorAll(".grid .card")].filter(n =>
+    n.scrollHeight > n.clientHeight + 2 && getComputedStyle(n).overflow === "visible")
+    .map(n => n.className);
+  return { bad, spill };
+});
+ok("no two cards overlap", overlap.bad.length === 0, overlap.bad.join(", ") || "clean");
+ok("no card spills past its own border", overlap.spill.length === 0, overlap.spill.join(", ") || "clean");
 
 console.log("\n── chart geometry at three window shapes ─────────────────");
 for (const [w, h, label] of [[1440, 900, "laptop"], [1080, 1759, "tall"], [1920, 1080, "wide"]]) {
