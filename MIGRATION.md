@@ -199,6 +199,7 @@ and every hardcoded target constant (334–348).
 
 | Date | Session | Done | Next |
 |---|---|---|---|
+| 19 Aug 2026 | Data + chart | **Block 02 has data.** 17 Aug **2,681** kcal / 188.4 P / 270.1 C / 90.7 F and 18 Aug **2,658** / 212.5 / 219.5 / 93.9 written to the CSV from recall; 19 Aug loaded as a live draft, not a row, because a row would have closed the day. Block 02 now reads **100% in band (2/2), mean 2,670, −110 vs target** against Block 01's 43%. 🚩 **The protein powder was still carrying the whey isolate's macros** — 377.1/85.7/3.43/1.14 → **392/68/21/3.8**, read off the pack. At a 40 g scoop that is **7 g less protein and 7 g more carbs per bowl** than the app claimed, on every oats day ever logged. Oats defaults moved to the current build, 650/57.5/86.5/8.8 → **766/58.4/108.7/11.8**. Four meal-deal presets added with sources and stated uncertainty. Plan rule ink → **violet `--plan`**. Suites: verify 28/28 · smoke 95/95 · steptest 17/17 | T2d · fed/fasted · **read the baguette pack** · confirm the 17th's dinner protein |
 | 19 Aug 2026 | Chart | 🚩 **The plan-change rule was never drawing on the live site** — and it was "pixel-verified". The x-axis was built from LOGGED DAYS ONLY, the last logged day is 12 Aug, the change is 14 Aug, so `findIndex(d => d >= "2026-08-14")` returned **-1** on every frame and the plugin returned early. `steptest.mjs` injected eight synthetic Block 02 days before it looked, so it proved the drawing code and never the axis it draws on. **Fix: the x-axis is a TIMELINE** — logged days ∪ plan-change dates ∪ the newest era's calendar span to today — so the date always has a slot and the rule is never flush with the border. Rule restyled 1px `#8d8d97` dashed → **2px `#e8e6e1` solid with a date chip**. **Trend lines removed** on Sam's instruction. Suites: verify 28/28 · smoke **95/95** · steptest **17/17**, now run twice, the second against the REAL log | T2d · the fed/fasted question · T4 · the canonical-CSV decision |
 | 18 Aug 2026 | Rebuild | **Layout rebuilt to Sam's spec** — two columns, Today at the top, close-the-day folded into the log board as a per-item amount, fridge bottom right, chart given a resolved height so it stops clipping. **Recipes are editable at the level he measures at**: oats by ingredient grams, prep proteins by per-100 g macros. Frecency ordering, goal pane (weight and waist write to the CSV), voice logging + Open Food Facts. 🚩 **Era-aware scoring** — the first build scored all 41 days against 2,780 and reported a fabricated 5%; real figure is **43% against Block 01's own band**. Stepped target lines + plan-change marker, **proven 8/8 with data either side of 14 Aug**. Suites: verify 28/28 · smoke 43/43 · steptest 8/8 | 🚩 **PUSH** — blocked on the Chrome extension |
 | 17 Aug 2026 | Ship | **Live at https://samstringr.github.io/dashboards/apps/diet/** — both repos created and populated, Pages enabled. Live-site check found a flaw the harness missed: on an empty day the planner proposed *14× protein yoghurt*. Guarded, portions capped at 3, smoke test extended to cover it — **34/34** | **T3 — Sam creates the token.** Nothing works until then |
@@ -209,6 +210,16 @@ and every hardcoded target constant (334–348).
 
 *Add anything that cost you time, so it costs you nothing next time.*
 
+- 🚩 **Logging real data broke a test, and that was the test working.** `steptest.mjs`
+  case B asserted "nothing logged on or after the plan change" as a PRECONDITION of the
+  bug it guards. The moment 17 and 18 Aug were logged, that precondition stopped holding
+  — so the check would have gone on passing while testing nothing. It now truncates the
+  real file to before 14 Aug, which guarantees the condition instead of hoping for it.
+  **When a fixture's precondition depends on live data, it will silently expire.**
+- **The unverified flag was doing its job and still cost two days.** The protein powder
+  was renamed on 17 Aug and its macros left at the old product's, correctly marked `unv`.
+  Nobody reads a flag. What closed it was Sam reading the pack — so the useful output of
+  an `unv` row is not the warning, it is the specific question it generates.
 - 🚩 **The harness and the live site were looking at different axes.** `steptest.mjs`
   seeded eight synthetic days after the plan change so it could see the step — and in doing
   so it manufactured the one precondition the live site did not have. It asserted the
