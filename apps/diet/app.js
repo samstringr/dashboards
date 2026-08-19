@@ -18,7 +18,7 @@ import { risks, buildRecord, totals } from "./engine.js";
 import * as store from "../../shared/store.js";
 import * as TG from "../../shared/targets.js";
 import { noteUse } from "./recipes.js";
-import { PRESETS, presetMacros, displayName } from "./presets.js";
+import { PRESETS, presetMacros, displayName, macroClass } from "./presets.js";
 
 let client = null;
 
@@ -329,5 +329,5 @@ refresh();
 loadHistory().then(drain);
 
 /* Exposed for the headless harness — see tools/smoke.mjs. Not used by the UI. */
-window.__diet = { S, refresh, applyCsv, targets, totals, store,
+window.__diet = { S, refresh, applyCsv, targets, totals, store, presets: PRESETS, macroClass,
                   eraStats: () => ({ eras: chartStats().eras }) };

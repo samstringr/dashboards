@@ -32,8 +32,13 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
    per-100 g inputs shoved the whole right column out of the viewport. */
 .grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:10px}
 .col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+/* ⚠ overflow:hidden. Without it a card whose children total more than its
+   height simply DRAWS PAST ITS OWN BORDER — no scrollbar, no clip. Caught
+   18 Aug when the flag stack pushed the Today card's table down and the
+   Consistency card was painted straight over the top of it. flex:1 sets the
+   card's SIZE; it does nothing to contain the contents. */
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
-  display:flex;flex-direction:column;min-height:0}
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .card.grow{flex:1}
 
 /* ⚠ WHO GETS THE SLACK — fixed 18 Aug 2026 on a 1080×1759 window.
@@ -412,3 +417,26 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 
 /* Chart window label — says what you are looking at */
 .lg .wlabel{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ═══ 18 Aug 2026, second pass ══════════════════════════════════════════════ */
+
+/* "Everything else", grouped by dominant macro so the list is scannable. */
+.grouphead{display:flex;align-items:center;gap:7px;font:600 9.5px/1 var(--font);
+  letter-spacing:.04em;text-transform:uppercase;color:var(--dim);
+  padding:9px 2px 5px;margin-top:2px;border-top:1px solid var(--line)}
+.grouphead:first-child{border-top:none;margin-top:0;padding-top:2px}
+.grouphead .gc{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0}
+.grouphead.protein{color:var(--accent)}
+.grouphead.carb{color:var(--cool)}
+.grouphead.fat{color:var(--warn)}
+
+/* Trend legend: a solid rule, distinct from the dashed target. */
+.lg i.solid{background:var(--muted)}
+.lg .slope{color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* The multiplier explainer in the goal pane. */
+.explain{background:var(--s3);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px 12px;margin:2px 0 10px;font-size:10.5px;line-height:1.6;color:var(--muted)}
+.explain p{margin:0 0 7px}
+.explain p:last-child{margin-bottom:0}
+.explain b{color:var(--ink);font-weight:600}

@@ -60,22 +60,30 @@ export const RECIPES = {
     ]
   },
 
-  /* NEW 18 Aug 2026, from Sam: "air fried salmon with a bit of honey, some
-     paprika, and a little bit of soy sauce as well in the air fryer."
-     ⚠ Logged by RAW input, the recipes.md §4d pattern — mass is conserved apart
-     from water, which carries no calories, so the total is exact without anyone
-     weighing a cooked fillet. Salmon figure is generic farmed Atlantic and is
-     the weakest row here; read the pack. */
+  /* NEW 18 Aug 2026, revised the same day.
+
+     First build made this four editable ingredients — salmon, honey, paprika,
+     soy — logged by RAW input. Wrong for how Sam actually eats it. His words:
+     "I'm going to be just taking the cooked salmon out the fridge, weighing it,
+     and then eating it. There's no need for me to adjust honey, paprika, sauce
+     amounts every time."
+
+     So it is ONE editable number: grams of COOKED salmon. The glaze is recorded
+     as context, not as a row to maintain.
+
+     ⚠ AND THE HONEST BIT, because it is a real omission rather than a rounding
+     one: the glaze is NOT in these macros. On a typical fillet it is roughly
+     +40 kcal and +9 g carbs — about 12% of the calories. Sam asked for salmon
+     alone and that is what this logs, but the number is stated here so the
+     choice stays visible rather than quietly becoming a wrong figure. */
   salmon: {
     id: "salmon", n: "Air-fried salmon", icon: "fish",
-    note: "Logged by raw input, so the total is exact without a cooked weight. " +
-          "⚠ Salmon is generic farmed Atlantic, not a read pack — correct it when you have one. " +
-          "The honey is most of the carbs; the paprika is rounding.",
+    note: "Weigh it COOKED, straight from the air fryer or the fridge. " +
+          "Cooked with honey, paprika and soy rubbed on — ⚠ that glaze is NOT counted here " +
+          "(~40 kcal, ~9 g carbs on a typical fillet). " +
+          "⚠ Salmon is generic farmed Atlantic, not a read pack.",
     ing: [
-      { id: "fish",    n: "Salmon fillet, raw", icon: "fish",  per: [208, 20.4, 0, 13.4],  g: 150, step: 10, unv: true },
-      { id: "honey",   n: "Honey",              icon: "drop",  per: [306.7, 0, 82.7, 0],   g: 10,  step: 5 },
-      { id: "paprika", n: "Paprika",            icon: "spice", per: [282, 14.1, 54, 12.9], g: 2,   step: 1 },
-      { id: "soy",     n: "Soy sauce",          icon: "sauce", per: [53, 8.1, 4.9, 0.6],   g: 10,  step: 5 }
+      { id: "fish", n: "Salmon, cooked", icon: "fish", per: [208, 22.1, 0, 12.4], g: 150, step: 10, unv: true }
     ]
   }
 };

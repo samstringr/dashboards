@@ -99,18 +99,18 @@ would close the day, batch inventory, and a consistency history with drill-down.
       </div>
     </div>
 
-    <!-- RIGHT: log (with close-the-day folded in) on top, fridge at the bottom -->
+    <!-- RIGHT: the log board, full height.
+         The "In the fridge" card was removed 18 Aug 2026. Sam: "let's remove the
+         in the fridge section… it's just kind of useless right now." It tracked a
+         batch inventory that had to be kept true by hand, and a stale inventory is
+         worse than none — it greyed out food that was actually there. The
+         grey-out-when-empty behaviour went with it. -->
     <div class="col right">
       <div class="card grow">
         <div class="ph">Log an item <span class="n" id="pin-n"></span></div>
         <div class="leftline" id="left"></div>
         <div id="editor"></div>
         <div class="scroll"><div class="chips" id="presets"></div></div>
-      </div>
-
-      <div class="card fridge">
-        <div class="ph">In the fridge</div>
-        <div id="fridge"></div>
       </div>
     </div>
   </div>
@@ -151,6 +151,22 @@ would close the day, batch inventory, and a consistency history with drill-down.
 
   <div class="gsec">Calories</div>
   <div class="er"><label>Multiplier</label><input id="g-mult" type="number" step="0.01"><span class="bu">× BMR</span></div>
+  <!-- Sam asked for this, 18 Aug: "can we give a quick explainer as to what the
+       multiplier for the calories thing is?" -->
+  <div class="explain">
+    <p><b>BMR</b> is what you'd burn lying in bed all day — about <b>1,690 kcal</b> at 73 kg.
+    The <b>multiplier</b> is everything on top of that: the cycle commute, the gym, football,
+    walking around. Multiply the two and you get what you actually burn in a day.</p>
+    <p><b>1.66</b> is the current figure. For scale: <b>1.375</b> is a desk job with no training,
+    <b>1.55</b> is three or four sessions a week, <b>1.9</b> is an athlete training twice a day.</p>
+    <p>⚠ <b>It is the least trustworthy number in the app.</b> The old record used <b>1.7</b>,
+    which assumes hard exercise six or seven days a week, against a logged reality of one gym
+    session a week — that single wrong figure overstated the target by 250–400 kcal, the entire
+    size of the intended deficit. The honest error band is still <b>±250–400 kcal</b>.</p>
+    <p><b>So don't tune it by feel — settle it with the scale.</b> Weigh in fasted, and after
+    four weeks: down more than 0.5 kg, add 150 kcal. Up more than 1.0 kg, take 150 off.
+    Anywhere between, it's right. That rule beats any adjustment made from a formula.</p>
+  </div>
   <div class="er"><label>Protein</label><input id="g-prot" type="number" step="1"><span class="bu">g floor</span></div>
   <div class="msub" id="goal-preview" style="margin:8px 0 0"></div>
 

@@ -79,7 +79,6 @@ export function presetLabel(p) {
     return s.g + " " + G.unit + (G.oil[0] && s.oil ? " + " + s.oil + " ml oil" : "") +
            " · " + Math.round(G.per[0] * s.g / 100 + G.oil[0] * s.oil) + " kcal · set your own";
   }
-  if (p.batch && (S.fridge[p.batch] ?? 0) <= 0) return "none left";
   return Math.round(p.m[0]) + " kcal · " + r1(p.m[1]) + " g P";
 }
 
@@ -103,6 +102,32 @@ export function presetMacros(p, mult = 1) {
 export const displayName = p =>
   p.kind === "recipe" ? recipeName(p.rid) :
   p.kind === "plate"  ? "Meal prep plate · " + prepProtein(S.prepPick).n.toLowerCase() : p.n;
+
+/* ── WHAT IS THIS ITEM MOSTLY? ───────────────────────────────────────────
+   Sam: "on the everything else dropdown, can we categorise them by protein,
+   carb, fat? It just makes the list a bit easier to navigate at a glance."
+
+   Dominant macro by share of CALORIES, not by grams — 30 g of fat and 30 g of
+   carbs are not the same thing, and grams would put nearly everything in carbs.
+   Protein and carbs are 4 kcal/g, fat is 9.
+
+   ⚠ Protein wins ties on purpose. Protein is the floor that does not flex and
+   the anchor the whole system rests on, so a genuinely mixed item is more useful
+   filed where Sam looks first. */
+export function macroClass(p) {
+  const m = presetMacros(p, 1);
+  const kcal = m[0] || (m[1] * 4 + m[2] * 4 + m[3] * 9);
+  if (!kcal) return "carb";
+  const share = [m[1] * 4 / kcal, m[2] * 4 / kcal, m[3] * 9 / kcal];
+  if (share[0] >= share[1] && share[0] >= share[2]) return "protein";
+  return share[2] > share[1] ? "fat" : "carb";
+}
+
+export const MACRO_GROUPS = [
+  { key: "protein", label: "Protein",     hint: "most of the calories are protein" },
+  { key: "carb",    label: "Carbs",       hint: "most of the calories are carbohydrate" },
+  { key: "fat",     label: "Fat",         hint: "most of the calories are fat" }
+];
 
 /* Protein per 100 kcal — ranks the close-the-day routes so the leanest is first. */
 export const density = m => m[0] > 0 ? m[1] / m[0] * 100 : 0;

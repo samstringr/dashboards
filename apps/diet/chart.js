@@ -40,6 +40,60 @@ const grade = r => r >= 80 ? "#7fb069" : r >= 60 ? "#d9a441" : "#e2585a";
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const C_PROT = "#e07b45", C_KCAL = "#6a9bd1";
 
+/* ── BEST-FIT TRENDS, ONE PER ERA ─────────────────────────────────────────
+   Sam: "on the date that I changed my protein and calorie target, a vertical
+   line corresponding to that date, which to the right shows the best fit lines
+   at the new target and to the left shows the best fit lines at the old target.
+   So there's context behind the trend there."
+
+   The point is that a trend drawn ACROSS a plan change is meaningless — it
+   measures the change itself, not behaviour. Fitting each era separately answers
+   the question that matters: within THIS plan, is intake going up or down? And
+   because the eras come from TARGET_ERAS, any future change to the goal splits
+   the fit again with no further work.
+
+   Ordinary least squares on (index, value). Index rather than date because the
+   x-axis is categorical and logged days are unevenly spaced — so the slope is
+   "per logged day", not per calendar day. Said plainly here because that is
+   exactly the kind of detail that silently becomes a wrong claim later.
+
+   ⚠ MINIMUM 4 POINTS. A line through two days is not a trend, it is a segment,
+   and drawing one invents confidence that is not there. Below 4 the era gets no
+   fitted line and the legend says why. */
+const MIN_FIT = 4;
+
+function fit(points) {
+  const n = points.length;
+  if (n < MIN_FIT) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  points.forEach(([x, y]) => { sx += x; sy += y; sxx += x * x; sxy += x * y; });
+  const denom = n * sxx - sx * sx;
+  if (!denom) return null;
+  const slope = (n * sxy - sx * sy) / denom;
+  const intercept = (sy - slope * sx) / n;
+  return { slope, intercept, n, at: x => intercept + slope * x };
+}
+
+/* Split the visible days into era runs, fit each, and return a sparse series the
+   length of the window so one dataset draws every segment with gaps between. */
+export function trendSeries(days, pick) {
+  const out = new Array(days.length).fill(null);
+  const runs = [];
+  days.forEach((r, i) => {
+    const label = bandOn(r.date).label;
+    const last = runs[runs.length - 1];
+    if (last && last.label === label) last.idx.push(i);
+    else runs.push({ label, idx: [i] });
+  });
+  const fits = [];
+  runs.forEach(run => {
+    const f = fit(run.idx.map(i => [i, pick(days[i])]));
+    fits.push({ label: run.label, n: run.idx.length, f });
+    if (f) run.idx.forEach(i => out[i] = f.at(i));
+  });
+  return { data: out, fits };
+}
+
 let chart = null;
 
 export const solidDays = () => S.history.filter(r => r.kcal != null && r.protein_g != null);
@@ -198,12 +252,25 @@ export function rebuildChart() {
   });
 
   const sets = [];
+  const trends = {};
+
+  /* Fitted per era, broken at each plan change. Drawn at ~two-thirds opacity so
+     it reads as an overlay on the data rather than competing with it. */
+  const trendLine = (key, pick, colour, axis) => {
+    const t = trendSeries(d, pick);
+    trends[key] = t.fits;
+    return { label: "trend", yAxisID: axis, data: t.data,
+             borderColor: colour + "aa", borderWidth: 1.75,
+             pointRadius: 0, fill: false, order: 1, tension: 0, spanGaps: false };
+  };
+
   if (S.series !== "k") {
     sets.push({ label: "protein g", data: d.map(r => r.protein_g), yAxisID: "y",
       borderColor: C_PROT, backgroundColor: "rgba(224,123,69,.12)",
       borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
       fill: true, order: 2, spanGaps: true });
     sets.push(targetLine(e => e.protein, C_PROT, "y"));
+    sets.push(trendLine("protein", r => r.protein_g, C_PROT, "y"));
   }
   if (S.series !== "p") {
     sets.push({ label: "kcal", data: d.map(r => r.kcal), yAxisID: "y2",
@@ -211,6 +278,7 @@ export function rebuildChart() {
       borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
       fill: true, order: 2, spanGaps: true });
     sets.push(targetLine(e => e.kcal, C_KCAL, "y2"));
+    sets.push(trendLine("kcal", r => r.kcal, C_KCAL, "y2"));
   }
 
   chart = new Chart(cv, {
@@ -229,7 +297,7 @@ export function rebuildChart() {
         tooltip: {
           backgroundColor: "#1a1a1f", borderColor: "#33333d", borderWidth: 1,
           titleColor: "#e8e6e1", bodyColor: "#8d8d97", padding: 9, displayColors: false,
-          filter: it => it.dataset.label !== "target",
+          filter: it => it.dataset.label !== "target" && it.dataset.label !== "trend",
           callbacks: { afterBody: ctx => {
             const r = d[ctx[0].dataIndex], era = bandOn(r.date);
             return [(r.day_type || "") + (r.day_type ? " · " : "") + era.label,
@@ -254,11 +322,19 @@ export function rebuildChart() {
   chart.$planDates = d.map(r => r.date);
   chart.update("none");
 
+  /* Report which way each era is actually going, in units rather than adjectives. */
+  const slopeTxt = (fits, unit) => (fits || []).map(f => f.f
+      ? f.label + " " + (f.f.slope >= 0 ? "+" : "") + Math.round(f.f.slope * 10) / 10 + unit + "/day"
+      : f.label + " — only " + f.n + " day" + (f.n === 1 ? "" : "s") + ", no fit").join(" · ");
+
   el("legend").innerHTML =
     '<span><i style="background:' + C_PROT + '"></i>protein</span>' +
     '<span><i style="background:' + C_KCAL + '"></i>kcal</span>' +
     '<span><i class="dash"></i>target</span>' +
+    '<span><i class="solid"></i>trend, fitted per plan</span>' +
     '<span class="wlabel">' + windowLabel() + '</span>' +
+    (S.series !== "p" ? '<span class="slope">kcal ' + slopeTxt(trends.kcal, "") + '</span>' : '') +
+    (S.series !== "k" ? '<span class="slope">protein ' + slopeTxt(trends.protein, " g") + '</span>' : '') +
     '<span style="color:var(--dim)">scroll to zoom · drag to pan' +
       (win ? ' · <b id="zreset" style="color:var(--accent);cursor:pointer">reset</b>' : '') + '</span>';
   const zr = el("zreset"); if (zr) zr.onclick = () => { win = null; rebuildChart(); };

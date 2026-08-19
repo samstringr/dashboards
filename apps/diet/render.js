@@ -2,7 +2,8 @@
 
 import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint } from "./presets.js";
+import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint,
+         macroClass, MACRO_GROUPS } from "./presets.js";
 import { noteUse, useCount } from "./recipes.js";
 import { icon } from "./icons.js";
 import { totals, flags, hasDay, fileItems } from "./engine.js";
@@ -119,7 +120,10 @@ function renderGoal() {
       TG.PROFILE.goal_ffmi + ' · ~2-year arc to ' + TG.PROFILE.goal_horizon + '</span>' +
     '<span class="sep">│</span>' +
     (w && !w.fallback
-      ? '<span><b>' + w.kg + ' kg</b> <span style="color:var(--dim)">' + w.date + '</span></span>'
+      ? '<span><b>' + w.kg + ' kg</b> <span style="color:var(--dim)">' + w.date +
+        (w.state ? ' ' + w.state : '') + '</span></span>' +
+        (w.state ? '' : '<span class="warn" title="' + (w.warning || '') +
+          '">⚠ fed or fasted not recorded</span>')
       : '<span class="warn">⚠ weight not in the log</span><span>using the 14 Aug fasted estimate, ' +
         TG.FALLBACK_WEIGHT_KG + ' kg</span>') +
     '<span class="sep">│</span>' +
@@ -168,7 +172,7 @@ function renderLeft() {
 function presetRow(p, mode) {
   const b = document.createElement("button");
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
-    (mode === "arch" ? " archrow" : "") + (p.batch && (S.fridge[p.batch] ?? 0) <= 0 ? " gone" : "");
+    (mode === "arch" ? " archrow" : "");
   const t = document.createElement("span"); t.className = "pn";
   t.innerHTML = (p.icon ? icon(p.icon) : "") +
     "<span>" + displayName(p).replace(/[<>&]/g, "") + (p.edited ? " ·" : "") + "</span>";
@@ -237,8 +241,19 @@ function renderPresets() {
 
   host.appendChild(expander("Everything else", rest.length, S.openMore, () => { S.openMore = !S.openMore; onChange(); }));
   if (S.openMore) {
+    /* Grouped by dominant macro so the list is scannable rather than a wall.
+       Frecency ordering still applies WITHIN each group. */
     const w = document.createElement("div"); w.className = "sub-list";
-    rest.forEach(p => w.appendChild(presetRow(p, "rest")));
+    MACRO_GROUPS.forEach(g => {
+      const inGroup = rest.filter(p => macroClass(p) === g.key);
+      if (!inGroup.length) return;
+      const h = document.createElement("div");
+      h.className = "grouphead " + g.key;
+      h.innerHTML = "<span>" + g.label + "</span><span class='gc'>" + inGroup.length + "</span>";
+      h.title = g.hint;
+      w.appendChild(h);
+      inGroup.forEach(p => w.appendChild(presetRow(p, "rest")));
+    });
     host.appendChild(w);
   }
   if (arch.length) {
@@ -260,39 +275,6 @@ function renderPresets() {
     "decayed over ~3 weeks, so a new staple climbs and an old one drifts down. Pins always win.";
   host.appendChild(hint);
   el("pin-n").textContent = pinned.length + " pinned · " + live.length + " items";
-}
-
-/* ── fridge ───────────────────────────────────────────────────────────────── */
-function renderFridge() {
-  const host = el("fridge"); host.innerHTML = "";
-  Object.keys(BATCH).forEach(k => {
-    if (S.fridge[k] === null) return;
-    const B = BATCH[k], rem = S.fridge[k], pct = Math.max(0, Math.min(100, rem / B.init * 100));
-    const size = k === "mince" ? 320 : 150, portions = rem > 0 ? Math.floor(rem / size) : 0;
-    const row = document.createElement("div"); row.className = "fr";
-    const ft = document.createElement("div"); ft.className = "ft";
-    ft.innerHTML = '<div class="fn">' + B.n + '</div><div class="fd">' + Math.round(rem) + ' g of ' + B.init +
-      ' · ' + B.per[0] + ' kcal / ' + B.per[1] + ' P per 100 g' +
-      (portions ? ' · ~' + portions + ' portions' : ' · empty') +
-      '</div><div class="fb"><i style="width:' + pct + '%" class="' + (pct < 25 ? "low" : "") + '"></i></div>';
-    const btn = document.createElement("button"); btn.className = "mini"; btn.textContent = "Restock";
-    btn.onclick = () => {
-      const v = prompt("Cooked weight in the fridge, grams:", String(B.init));
-      if (v !== null && !isNaN(+v)) { S.fridge[k] = Math.max(0, +v); onChange(); }
-    };
-    const del = document.createElement("button"); del.className = "mini del"; del.textContent = "×";
-    del.title = "Remove from the fridge — binned, eaten elsewhere, gone off";
-    del.onclick = () => { if (confirm("Remove " + B.n + " from the fridge?\n\nIt comes back with Restock."))
-      { S.fridge[k] = null; onChange(); } };
-    row.append(ft, btn, del); host.appendChild(row);
-  });
-  const gone = Object.keys(BATCH).filter(k => S.fridge[k] === null);
-  if (gone.length) {
-    const b = document.createElement("button"); b.className = "addnew";
-    b.textContent = "Restore " + gone.length + " removed item" + (gone.length > 1 ? "s" : "");
-    b.onclick = () => { gone.forEach(k => S.fridge[k] = 0); onChange(); };
-    host.appendChild(b);
-  }
 }
 
 /* ── main render ──────────────────────────────────────────────────────────── */
@@ -369,7 +351,7 @@ export function render() {
     "<b>Closed and committed to health-daily-log.csv.</b> Figures below are the file's, not a local draft — the file wins."]);
   paintFlags(fl);
 
-  renderEditor(); renderPresets(); renderFridge(); renderLeft(); renderGoal();
+  renderEditor(); renderPresets(); renderLeft(); renderGoal();
 
   const cb = el("close");
   if (S.closed) { cb.disabled = true; cb.textContent = "Day closed"; }
