@@ -4,7 +4,7 @@
    failure this base has hit three times. Offline writes go to the queue in
    store.js instead, and drain when the network returns. */
 
-const CACHE = "diet-v4";   // bumped 19 Aug 2026 — chart stripped to two lines + the plan rule
+const CACHE = "diet-v5";   // bumped 19 Aug 2026 — meal-deal presets, corrected powder, violet plan rule
 const SHELL = [
   "./", "./index.html", "./diet.css", "./app.js", "./state.js", "./data.js",
   "./presets.js", "./engine.js", "./editors.js", "./render.js", "./chart.js",

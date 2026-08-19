@@ -44,17 +44,26 @@ import { S, r1, persist } from "./state.js";
 export const RECIPES = {
   oats: {
     id: "oats", n: "Overnight oats", icon: "grain",
-    note: "recipes.md §1, LOCKED and confirmed 5 Aug 2026. Defaults reproduce " +
-          "650 / 57.5 / 86.5 / 8.8 exactly. ⚠ The protein powder is no longer the " +
-          "whey isolate and its macros still are — read the Bulk pack and correct the row.",
+    note: "Components from recipes.md §1 (LOCKED, 5 Aug 2026). ✅ The protein powder row " +
+          "is now READ FROM THE PACK — Sam, 19 Aug 2026 — and the grams are his current " +
+          "build. The old 650 / 57.5 / 86.5 / 8.8 headline no longer applies: it described " +
+          "80 g of oats and 35 g of a different powder. This build is 766 / 58.4 / 108.7 / 11.8.",
     ing: [
-      { id: "oats",   n: "Scottish rolled oats",           icon: "grain",  per: [378.75, 13.25, 67.75, 6.5],  g: 80,  step: 5 },
-      /* ⚠ RENAMED 17 Aug 2026: "it's not actually the whey isolate anymore… just
-         bulk protein powder chocolate flavour." Macros held at the isolate's
-         figures until a pack is read — flag it, don't invent it. */
-      { id: "powder", n: "Bulk protein powder, chocolate", icon: "tub",    per: [377.1, 85.7, 3.43, 1.14],   g: 35,  step: 5, unv: true },
+      { id: "oats",   n: "Scottish rolled oats",           icon: "grain",  per: [378.75, 13.25, 67.75, 6.5],  g: 100, step: 5 },
+      /* 🚩 CORRECTED 19 Aug 2026, and this one was carrying real error.
+         Renamed on 17 Aug — "it's not actually the whey isolate anymore… just bulk
+         protein powder chocolate flavour" — but the MACROS stayed at the isolate's,
+         flagged unverified, for two days. Sam read the pack:
+
+              was  377.1 kcal · 85.7 P · 3.43 C · 1.14 F   (whey isolate)
+              now  392   kcal · 68   P · 21   C · 3.8  F   (Bulk chocolate)
+
+         At his 40 g scoop that is 7 g LESS protein and 7 g MORE carbs per bowl than
+         the app was claiming. Every oats day logged before today overstates protein
+         by about that much — the CSV rows stand as logged, but this is why. */
+      { id: "powder", n: "Bulk protein powder, chocolate", icon: "tub",    per: [392, 68, 21, 3.8],           g: 40,  step: 5 },
       { id: "yog",    n: "Milbona protein yoghurt",        icon: "pot",    per: [58, 11, 3.5, 0.2],           g: 100, step: 10 },
-      { id: "milk",   n: "Semi-skimmed milk",              icon: "bottle", per: [50, 3.6, 4.8, 1.8],          g: 150, step: 10 },
+      { id: "milk",   n: "Semi-skimmed milk",              icon: "bottle", per: [50, 3.6, 4.8, 1.8],          g: 180, step: 10 },
       { id: "berry",  n: "Frozen blueberries",             icon: "berry",  per: [45, 0.625, 10, 0.375],       g: 80,  step: 10 },
       { id: "honey",  n: "Honey",                          icon: "drop",   per: [306.7, 0, 82.7, 0],          g: 15,  step: 5 }
     ]

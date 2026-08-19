@@ -64,11 +64,21 @@ const grade = r => r >= 80 ? "#7fb069" : r >= 60 ? "#d9a441" : "#e2585a";
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const C_PROT = "#e07b45", C_KCAL = "#6a9bd1";
 
-/* The rule's colour. Deliberately NOT the accent — the accent is the protein
-   line, and a marker the same colour as a data series is a marker you read as
-   data. Ink on near-black is the highest-contrast thing available and nothing
-   else on the chart uses it. */
-const C_MARK = "#e8e6e1";
+/* The rule's colour. Read from --plan rather than written here, because
+   design-system.md is binding and a colour declared in two places drifts.
+
+   19 Aug 2026: was ink white, which Sam wanted changed — fair, since white on
+   near-black is what the chart's own border is made of, so the rule read as
+   part of the frame. Violet is the one hue the palette was not already using.
+   Deliberately NOT the accent and NOT --cool: those ARE the two data series,
+   and a mark the colour of a series gets read as a series. */
+const cssVar = (name, fallback) => {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch { return fallback; }
+};
+const markColour = () => cssVar("--plan", "#9b85cf");
 
 let chart = null;
 
@@ -238,8 +248,9 @@ const planMarker = {
       const px = x.getPixelForValue(i);
       if (px < area.left - 1 || px > area.right + 1) return;
 
+      const col = markColour();
       ctx.save();
-      ctx.strokeStyle = C_MARK; ctx.lineWidth = 2;
+      ctx.strokeStyle = col; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); ctx.stroke();
 
       /* Chip, placed on whichever side has room so it never runs off the plot. */
@@ -249,10 +260,10 @@ const planMarker = {
       const w = ctx.measureText(txt).width + 12, h = 16;
       const left = px + 4 + w <= area.right;
       const bx = left ? px + 4 : px - 4 - w;
-      ctx.fillStyle = C_MARK;
+      ctx.fillStyle = col;
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, area.top + 3, w, h, 4); ctx.fill(); }
       else ctx.fillRect(bx, area.top + 3, w, h);
-      ctx.fillStyle = "#0c0c0f";
+      ctx.fillStyle = cssVar("--bg", "#0c0c0f");
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
       ctx.fillText(txt, bx + 6, area.top + 3 + h / 2 + .5);
       ctx.restore();

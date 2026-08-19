@@ -36,7 +36,41 @@ export const BASE_PRESETS = [
   { id: "dom",   n: "Domino's slice", icon: "cheese",           m: [300, 13.5, 29, 14.5], cls: "fat" },
   /* Greggs Sausage Roll, 103 g. 348 kcal / 10.2 P / 24.1 C / 22.2 F, 10.2 g saturated.
      2.9 g protein per 100 kcal — the lowest-density item here bar the dips. */
-  { id: "greg",  n: "Greggs sausage roll", icon: "beef",      m: [348, 10.2, 24.1, 22.2], cls: "fat" }
+  { id: "greg",  n: "Greggs sausage roll", icon: "beef",      m: [348, 10.2, 24.1, 22.2], cls: "fat" },
+
+  /* ── MEAL-DEAL ITEMS, added 19 Aug 2026 ──────────────────────────────────
+     Sam started logging shop-bought lunches, so they need to exist on the board
+     rather than being re-derived from memory every time. Sources below; two of
+     the four are flagged `unv` and the reason is stated rather than implied. */
+
+  /* ⚠ WEAKEST ROW ON THIS BOARD. Sainsbury's does not publish its food-to-go
+     baguettes online — the whole On The Go range is in-store only — so this is
+     Simply Lunch "Chicken & Bacon Caesar in a White Baguette" standing in:
+     559 kcal / 23 P / 63 C / 24.7 F per pack (MyNetDiary, read 19 Aug 2026).
+     A supermarket baguette of this type runs roughly 500–650 kcal, so the real
+     figure could be ±90. READ THE PACK NEXT TIME and correct this row — at
+     ~21% of a day's calories it is the single largest unverified number here. */
+  { id: "bagcbc", n: "Chicken, bacon & Caesar baguette", icon: "plate", m: [559, 23, 63, 24.7], cls: "unv" },
+
+  /* For Goodness Shakes 27G Protein, strawberry, 250 ml: 165 kcal / 27 P /
+     ~13 C / ~0.7 F (forgoodnessshakes.com, read 19 Aug 2026).
+     ⚠ Sam called it a COLLAGEN smoothie. FGS's collagen line is "Glow", and Glow
+     ships only in iced latte and white chocolate — there is no strawberry Glow.
+     The strawberry is the plain 27G. The two are 15 kcal apart (Glow is
+     150/27/12.25/<1.25), so the choice barely moves the day either way, but the
+     name on the bottle is worth checking once. */
+  { id: "fgs27", n: "For Goodness Shakes 27 g, strawberry", icon: "bottle", m: [165, 27, 13, 0.7] },
+
+  /* Walkers Max Strong Jalapeño & Cheese: 531 kcal / 6.5 P / 51 C / 33 F per
+     100 g (walkers.co.uk panel, read 19 Aug 2026), taken at the 45 g grab bag. */
+  { id: "maxjal", n: "Walkers Max jalapeño & cheese 45 g", icon: "plate", m: [239, 2.9, 23, 14.9], cls: "fat" },
+
+  /* Ginsters Large Sausage Roll, 140 g: 480 kcal / 9.3 P / 21.8 C / 34.9 F
+     (FatSecret UK, read 19 Aug 2026). 72% of its calories are fat and it carries
+     1.9 g of protein per 100 kcal — the lowest-density item on the whole board.
+     ⚠ If the packet was a 2-pack of the smaller rolls rather than one Large,
+     halve it: that is a 240 kcal difference, so it is worth knowing which. */
+  { id: "gins",  n: "Ginsters large sausage roll", icon: "beef", m: [480, 9.3, 21.8, 34.9], cls: "fat" }
 ];
 
 /* ⚠ FIXED IN THE PORT: the artifact had TWO presets with id "chips" — the gram
