@@ -11,13 +11,38 @@
    Block 02 handoff §4: "Do not retroactively score historical days against
    2,780. It would show a fabricated collapse in adherence on the day the target
    changed." The first build did exactly that and reported 5% band adherence.
-   Every score below now uses the band IN FORCE ON THAT DAY, the target line is
+   Every score below uses the band IN FORCE ON THAT DAY, the target line is
    drawn as a STEP, and the change is marked on the x-axis.
 
-   ── Why the axes are set the way they are ──
-   Protein on y, calories on y2, both centred on the CURRENT target with the same
-   proportional half-range. A day on plan for both puts the two lines on top of
-   each other, so any separation is immediately attributable to one or the other. */
+   ── 19 Aug 2026 · FOURTH ATTEMPT AT THE PLAN-CHANGE LINE, and the first three
+      failed for a reason no amount of styling would have fixed ──
+   Sam, four times now: "all I want is a bisector of the x axis, a vertical line
+   which corresponds to the date of when the diet change happened."
+
+   It was implemented. It was pixel-tested. It drew 81 marker-coloured pixels in
+   the harness. And on the live site it drew NOTHING, because:
+
+     the x-axis was built from LOGGED DAYS ONLY,
+     the last logged day is 12 Aug,
+     the plan changed on 14 Aug,
+     so `dates.findIndex(d => d >= "2026-08-14")` returned -1 and the plugin
+     returned early on every single frame.
+
+   The harness passed because `steptest.mjs` injects eight synthetic Block 02
+   days before it looks. It proved the code works when the date is on the axis.
+   It never asked whether the date is on the axis. 🚩 THE TEST AND THE LIVE SITE
+   WERE LOOKING AT DIFFERENT AXES.
+
+   The fix is structural, not cosmetic: the x-axis is no longer "days I logged",
+   it is a TIMELINE — logged days, plus every plan-change date, plus today. A
+   plan change gets a slot on the axis whether or not anything was eaten on it,
+   so the line always has somewhere to stand. Slots with no row carry null and
+   draw no point; the target line still steps there, which is the whole point.
+
+   ── And the trend lines are gone ──
+   Sam: "I don't want the trend lines." They were least-squares fits drawn per
+   era. Six lines on one chart, four of them derived, is not a chart you read at
+   a glance. Two data lines, two stepped target lines, one vertical rule. */
 
 import { S, el, r1, targets } from "./state.js";
 import { bandOn, PLAN_CHANGES } from "../../shared/targets.js";
@@ -26,81 +51,74 @@ import { bandOn, PLAN_CHANGES } from "../../shared/targets.js";
    the same way. Sam: "make the low bound zero or just… I just wanna see, like,
    two flowing lines."
 
-   The old scheme centred each axis on its target with a ±42% half-range. The
-   idea was that an on-plan day puts the lines on top of each other — sound in
-   theory, awful in practice: a 90 g protein day fell BELOW the axis floor and
-   the line vanished off the bottom, which is why the chart read as jagged and
-   broken rather than as a trend.
+   The old scheme centred each axis on its target with a ±42% half-range. Sound
+   in theory — an on-plan day puts the lines on top of each other — awful in
+   practice: a 90 g protein day fell BELOW the axis floor and vanished off the
+   bottom, which is why the chart read as broken rather than as a trend.
 
    Both axes now start at ZERO and top out at the same MULTIPLE of their target,
    so the on-plan alignment property survives while every real value stays on
-   screen. Nothing clips, and the two series read as two flowing lines. */
+   screen. */
 const HEAD = 1.35;   // axis max as a multiple of target, same for both series
 const grade = r => r >= 80 ? "#7fb069" : r >= 60 ? "#d9a441" : "#e2585a";
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const C_PROT = "#e07b45", C_KCAL = "#6a9bd1";
 
-/* ── BEST-FIT TRENDS, ONE PER ERA ─────────────────────────────────────────
-   Sam: "on the date that I changed my protein and calorie target, a vertical
-   line corresponding to that date, which to the right shows the best fit lines
-   at the new target and to the left shows the best fit lines at the old target.
-   So there's context behind the trend there."
-
-   The point is that a trend drawn ACROSS a plan change is meaningless — it
-   measures the change itself, not behaviour. Fitting each era separately answers
-   the question that matters: within THIS plan, is intake going up or down? And
-   because the eras come from TARGET_ERAS, any future change to the goal splits
-   the fit again with no further work.
-
-   Ordinary least squares on (index, value). Index rather than date because the
-   x-axis is categorical and logged days are unevenly spaced — so the slope is
-   "per logged day", not per calendar day. Said plainly here because that is
-   exactly the kind of detail that silently becomes a wrong claim later.
-
-   ⚠ MINIMUM 4 POINTS. A line through two days is not a trend, it is a segment,
-   and drawing one invents confidence that is not there. Below 4 the era gets no
-   fitted line and the legend says why. */
-const MIN_FIT = 4;
-
-function fit(points) {
-  const n = points.length;
-  if (n < MIN_FIT) return null;
-  let sx = 0, sy = 0, sxx = 0, sxy = 0;
-  points.forEach(([x, y]) => { sx += x; sy += y; sxx += x * x; sxy += x * y; });
-  const denom = n * sxx - sx * sx;
-  if (!denom) return null;
-  const slope = (n * sxy - sx * sy) / denom;
-  const intercept = (sy - slope * sx) / n;
-  return { slope, intercept, n, at: x => intercept + slope * x };
-}
-
-/* Split the visible days into era runs, fit each, and return a sparse series the
-   length of the window so one dataset draws every segment with gaps between. */
-export function trendSeries(days, pick) {
-  const out = new Array(days.length).fill(null);
-  const runs = [];
-  days.forEach((r, i) => {
-    const label = bandOn(r.date).label;
-    const last = runs[runs.length - 1];
-    if (last && last.label === label) last.idx.push(i);
-    else runs.push({ label, idx: [i] });
-  });
-  const fits = [];
-  runs.forEach(run => {
-    const f = fit(run.idx.map(i => [i, pick(days[i])]));
-    fits.push({ label: run.label, n: run.idx.length, f });
-    if (f) run.idx.forEach(i => out[i] = f.at(i));
-  });
-  return { data: out, fits };
-}
+/* The rule's colour. Deliberately NOT the accent — the accent is the protein
+   line, and a marker the same colour as a data series is a marker you read as
+   data. Ink on near-black is the highest-contrast thing available and nothing
+   else on the chart uses it. */
+const C_MARK = "#e8e6e1";
 
 let chart = null;
 
 export const solidDays = () => S.history.filter(r => r.kcal != null && r.protein_g != null);
 
-/* The visible window. Wheel zooms it, drag pans it. Null = show everything. */
+const today = () => new Date().toLocaleDateString("en-CA");
+
+/* ── THE TIMELINE ─────────────────────────────────────────────────────────
+   Logged days ∪ plan-change dates ∪ today. Sorted, de-duplicated, each slot
+   carrying its row or null.
+
+   Why today is in there: without it, a plan change with nothing logged after it
+   lands on the LAST slot, which is the right-hand border of the plot — a line
+   drawn exactly on the frame, indistinguishable from the frame. Adding today
+   guarantees at least one slot to the right of the newest change, so the rule
+   always sits INSIDE the chart where it can be seen. It also happens to be
+   honest: the gap between the last logged day and today is real information. */
+export function frame(days) {
+  const rows = new Map(days.map(r => [r.date, r]));
+  const dates = new Set(rows.keys());
+  PLAN_CHANGES.forEach(pc => dates.add(pc.date));
+
+  /* The NEWEST era always shows its full calendar span, change date → today.
+     Two reasons, and the second is the one that made the feature work:
+       · the days since the plan changed with nothing logged are real, and an
+         empty run is exactly what they should look like;
+       · it guarantees several slots to the RIGHT of the rule, so the rule sits
+         inside the plot instead of on top of the right-hand border. With only
+         the logged days on the axis, 14 Aug landed on the last slot and the
+         line was drawn on the frame — invisible, whatever colour it was.
+     ⚠ Capped at CAL_FILL days so an old plan change cannot flood the axis with
+     empty slots and squash the actual data into the left third. */
+  const CAL_FILL = 21;
+  const last = PLAN_CHANGES.length ? PLAN_CHANGES[PLAN_CHANGES.length - 1].date : null;
+  const now = today();
+  if (last) {
+    for (let k = 0, t = Date.parse(last); k <= CAL_FILL; k++, t += 864e5) {
+      const iso = new Date(t).toISOString().slice(0, 10);
+      if (iso > now) break;
+      dates.add(iso);
+    }
+  }
+  dates.add(now);
+  return [...dates].sort().map(date => ({ date, row: rows.get(date) || null }));
+}
+
+/* The visible window, in TIMELINE indices. Wheel zooms it, drag pans it. */
 let win = null;
-const windowed = d => win ? d.slice(win.a, win.b) : d;
+const windowed = f => win ? f.slice(win.a, win.b) : f;
+const timeline = () => frame(solidDays());
 
 /* ── STATS, scored era by era ─────────────────────────────────────────────── */
 export function stats() {
@@ -142,7 +160,6 @@ export function drawStats() {
   if (!s.n) { host.innerHTML = '<div class="st"><div class="v">—</div><div class="k">no logged days yet</div></div>'; return; }
 
   const cur = s.eras[s.eras.length - 1];
-  const prev = s.eras.length > 1 ? s.eras[0] : null;
 
   host.innerHTML =
     '<div class="st"><div class="v" style="color:' + grade(s.pRate) + '">' + s.pRate + '%</div>' +
@@ -172,7 +189,8 @@ export function drawStats() {
 }
 
 export function showDay(i) {
-  const d = windowed(solidDays())[i], host = el("drill");
+  const slot = windowed(timeline())[i], host = el("drill");
+  const d = slot && slot.row;
   if (!d) { host.className = "drill"; return; }
   const era = bandOn(d.date);
   host.className = "drill on";
@@ -198,30 +216,45 @@ export function showDay(i) {
 const escapeHtml = s => String(s).replace(/[&<>"]/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/* ── The plan-change marker. A custom plugin rather than a vendored annotation
-      library — one vertical dashed rule and a label is not worth 40 KB. ── */
+/* ── THE PLAN-CHANGE RULE ─────────────────────────────────────────────────
+   A custom plugin rather than a vendored annotation library — one vertical rule
+   and a label is not worth 40 KB.
+
+   Drawn LOUD on purpose. The previous version was a 1px #8d8d97 dashed hairline,
+   which even when it did draw was a whisper. This is 2px, ink-coloured, solid,
+   full plot height, with a filled chip carrying the date. Sam has asked for it
+   four times; it is now the most visible thing on the chart. */
 const planMarker = {
   id: "planMarker",
   afterDatasetsDraw(c) {
     const dates = c.$planDates || [];
-    const x = c.scales.x, ctx = c.ctx;
+    const x = c.scales.x, ctx = c.ctx, area = c.chartArea;
     PLAN_CHANGES.forEach(pc => {
-      /* ⚠ First logged day ON OR AFTER the change, not an exact match. Nothing
-         was logged on 14 Aug itself, so an indexOf lookup drew nothing at all
-         and the whole feature silently did not exist. */
-      const i = dates.findIndex(d => d >= pc.date);
+      /* Exact match first — the timeline guarantees the date has a slot. The
+         >= fallback survives a window that starts after the change. */
+      let i = dates.indexOf(pc.date);
+      if (i < 0) i = dates.findIndex(d => d >= pc.date);
       if (i < 0) return;
       const px = x.getPixelForValue(i);
+      if (px < area.left - 1 || px > area.right + 1) return;
+
       ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = "#8d8d97"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(px, c.chartArea.top); ctx.lineTo(px, c.chartArea.bottom); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = "#8d8d97";
-      ctx.font = "600 9.5px ui-sans-serif, system-ui";
-      ctx.textAlign = px > (c.chartArea.left + c.chartArea.right) / 2 ? "right" : "left";
-      ctx.fillText("plan change · " + pc.label,
-        px + (ctx.textAlign === "right" ? -5 : 5), c.chartArea.top + 11);
+      ctx.strokeStyle = C_MARK; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); ctx.stroke();
+
+      /* Chip, placed on whichever side has room so it never runs off the plot. */
+      const txt = "plan change · " + new Date(pc.date)
+        .toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+      const w = ctx.measureText(txt).width + 12, h = 16;
+      const left = px + 4 + w <= area.right;
+      const bx = left ? px + 4 : px - 4 - w;
+      ctx.fillStyle = C_MARK;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, area.top + 3, w, h, 4); ctx.fill(); }
+      else ctx.fillRect(bx, area.top + 3, w, h);
+      ctx.fillStyle = "#0c0c0f";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(txt, bx + 6, area.top + 3 + h / 2 + .5);
       ctx.restore();
     });
   }
@@ -229,56 +262,48 @@ const planMarker = {
 
 export function rebuildChart() {
   const cv = el("ch"); if (!cv || typeof Chart === "undefined") return;
-  const T = targets(), all = solidDays();
+  const T = targets(), all = timeline();
   if (chart) { chart.destroy(); chart = null; }
-  if (!all.length) return;
+  if (!solidDays().length) return;
 
-  const d = windowed(all);
-  const labels = d.map(r => r.date.slice(5));
+  const f = windowed(all);
+  const labels = f.map(s => s.date.slice(5));
+  const rows = f.map(s => s.row).filter(Boolean);
+
   /* Zero floor. Ceiling is target × HEAD, lifted if real data would clip it —
      a chart that hides a day is worse than one with a little dead space. */
-  const pPeak = Math.max(...d.map(r => r.protein_g), T.protein);
-  const kPeak = Math.max(...d.map(r => r.kcal), T.kcal);
+  const pPeak = Math.max(T.protein, ...rows.map(r => r.protein_g));
+  const kPeak = Math.max(T.kcal, ...rows.map(r => r.kcal));
   const head = Math.max(HEAD, pPeak / T.protein * 1.06, kPeak / T.kcal * 1.06);
-  const pLo = 0, pHi = Math.ceil(T.protein * head / 10) * 10;
-  const kLo = 0, kHi = Math.ceil(T.kcal * head / 100) * 100;
+  const pHi = Math.ceil(T.protein * head / 10) * 10;
+  const kHi = Math.ceil(T.kcal * head / 100) * 100;
 
-  /* Stepped target lines — the whole point of the era model made visible. */
+  /* Stepped target lines — the era model made visible. These are drawn on EVERY
+     slot including the empty ones, which is what makes the step land exactly on
+     the change date rather than on the next day that happened to be logged. */
   const targetLine = (pick, colour, axis) => ({
     label: "target", yAxisID: axis,
-    data: d.map(r => pick(bandOn(r.date))),
+    data: f.map(s => pick(bandOn(s.date))),
     borderColor: colour, borderWidth: 1.25, borderDash: [5, 4],
     pointRadius: 0, stepped: "before", fill: false, order: 0, tension: 0
   });
 
+  const dataLine = (label, pick, colour, fillRgba, axis) => ({
+    label, yAxisID: axis, data: f.map(s => s.row ? pick(s.row) : null),
+    borderColor: colour, backgroundColor: fillRgba,
+    borderWidth: 2, pointRadius: 0, pointHitRadius: 14,
+    tension: .4, cubicInterpolationMode: "monotone",
+    fill: true, order: 2, spanGaps: true
+  });
+
   const sets = [];
-  const trends = {};
-
-  /* Fitted per era, broken at each plan change. Drawn at ~two-thirds opacity so
-     it reads as an overlay on the data rather than competing with it. */
-  const trendLine = (key, pick, colour, axis) => {
-    const t = trendSeries(d, pick);
-    trends[key] = t.fits;
-    return { label: "trend", yAxisID: axis, data: t.data,
-             borderColor: colour + "aa", borderWidth: 1.75,
-             pointRadius: 0, fill: false, order: 1, tension: 0, spanGaps: false };
-  };
-
   if (S.series !== "k") {
-    sets.push({ label: "protein g", data: d.map(r => r.protein_g), yAxisID: "y",
-      borderColor: C_PROT, backgroundColor: "rgba(224,123,69,.12)",
-      borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
-      fill: true, order: 2, spanGaps: true });
+    sets.push(dataLine("protein g", r => r.protein_g, C_PROT, "rgba(224,123,69,.12)", "y"));
     sets.push(targetLine(e => e.protein, C_PROT, "y"));
-    sets.push(trendLine("protein", r => r.protein_g, C_PROT, "y"));
   }
   if (S.series !== "p") {
-    sets.push({ label: "kcal", data: d.map(r => r.kcal), yAxisID: "y2",
-      borderColor: C_KCAL, backgroundColor: "rgba(106,155,209,.10)",
-      borderWidth: 2, pointRadius: 0, pointHitRadius: 14, tension: .4, cubicInterpolationMode: "monotone",
-      fill: true, order: 2, spanGaps: true });
+    sets.push(dataLine("kcal", r => r.kcal, C_KCAL, "rgba(106,155,209,.10)", "y2"));
     sets.push(targetLine(e => e.kcal, C_KCAL, "y2"));
-    sets.push(trendLine("kcal", r => r.kcal, C_KCAL, "y2"));
   }
 
   chart = new Chart(cv, {
@@ -297,10 +322,11 @@ export function rebuildChart() {
         tooltip: {
           backgroundColor: "#1a1a1f", borderColor: "#33333d", borderWidth: 1,
           titleColor: "#e8e6e1", bodyColor: "#8d8d97", padding: 9, displayColors: false,
-          filter: it => it.dataset.label !== "target" && it.dataset.label !== "trend",
+          filter: it => it.dataset.label !== "target" && it.raw != null,
           callbacks: { afterBody: ctx => {
-            const r = d[ctx[0].dataIndex], era = bandOn(r.date);
-            return [(r.day_type || "") + (r.day_type ? " · " : "") + era.label,
+            const s = f[ctx[0].dataIndex]; if (!s || !s.row) return [];
+            const era = bandOn(s.date);
+            return [(s.row.day_type || "") + (s.row.day_type ? " · " : "") + era.label,
                     era.kcal_lo + "–" + era.kcal_hi + " kcal · " + era.protein + " g floor"];
           } }
         }
@@ -309,32 +335,25 @@ export function rebuildChart() {
         x: { grid: { color: "#1e1e25", drawBorder: false },
              ticks: { color: "#5c5c66", font: { size: 10.5 }, maxTicksLimit: 9,
                       maxRotation: 0, autoSkipPadding: 12 } },
-        y: { position: "left", min: pLo, max: pHi,
+        y: { position: "left", min: 0, max: pHi,
              grid: { color: "#1e1e25", drawBorder: false },
              ticks: { color: "#5c5c66", font: { size: 10.5 }, maxTicksLimit: 6 } },
-        y2: { position: "right", min: kLo, max: kHi,
+        y2: { position: "right", min: 0, max: kHi,
               grid: { display: false, drawBorder: false },
               ticks: { color: "#5c5c66", font: { size: 10.5 }, maxTicksLimit: 6 } }
       }
     }
   });
 
-  chart.$planDates = d.map(r => r.date);
+  chart.$planDates = f.map(s => s.date);
   chart.update("none");
-
-  /* Report which way each era is actually going, in units rather than adjectives. */
-  const slopeTxt = (fits, unit) => (fits || []).map(f => f.f
-      ? f.label + " " + (f.f.slope >= 0 ? "+" : "") + Math.round(f.f.slope * 10) / 10 + unit + "/day"
-      : f.label + " — only " + f.n + " day" + (f.n === 1 ? "" : "s") + ", no fit").join(" · ");
 
   el("legend").innerHTML =
     '<span><i style="background:' + C_PROT + '"></i>protein</span>' +
     '<span><i style="background:' + C_KCAL + '"></i>kcal</span>' +
     '<span><i class="dash"></i>target</span>' +
-    '<span><i class="solid"></i>trend, fitted per plan</span>' +
+    '<span><i class="rule"></i>plan change</span>' +
     '<span class="wlabel">' + windowLabel() + '</span>' +
-    (S.series !== "p" ? '<span class="slope">kcal ' + slopeTxt(trends.kcal, "") + '</span>' : '') +
-    (S.series !== "k" ? '<span class="slope">protein ' + slopeTxt(trends.protein, " g") + '</span>' : '') +
     '<span style="color:var(--dim)">scroll to zoom · drag to pan' +
       (win ? ' · <b id="zreset" style="color:var(--accent);cursor:pointer">reset</b>' : '') + '</span>';
   const zr = el("zreset"); if (zr) zr.onclick = () => { win = null; rebuildChart(); };
@@ -344,32 +363,28 @@ export function rebuildChart() {
    Sam: "the scrolling is, like, too violent, and it's not kind of intuitive
    what you're scrolling or looking at."
 
-   Both complaints, fixed separately:
-
    · VIOLENT — one wheel notch used to change the window by 25%, and a trackpad
      emits notches in bursts, so a flick went from 40 days to 6. Steps are now
-     ~4% per notch and normalised across deltaMode, so a mouse wheel and a
+     ~8% per notch and normalised across deltaMode, so a mouse wheel and a
      trackpad feel the same.
-   · NOT INTUITIVE — nothing told you what you were looking at. The legend now
-     names the visible range and its day count, live, and Chart.js redraws are
-     coalesced into one per animation frame so the motion is continuous rather
-     than stepped. */
+   · NOT INTUITIVE — the legend now names the visible range and its day count,
+     live, and redraws are coalesced into one per animation frame. */
 
 /* 1.08 per notch. 1.25 was violent — a flick went from 40 days to 6. 1.04 was
-   the overcorrection: 36 notches to get from 40 days down to 10, which is its
-   own kind of unusable. 1.08 makes that journey ~18 notches, about one
-   comfortable scroll. Scroll UP zooms IN, matching every map you have used. */
+   the overcorrection: 36 notches to get from 40 days down to 10. 1.08 makes
+   that journey ~18 notches, about one comfortable scroll. Scroll UP zooms IN. */
 const ZOOM_PER_NOTCH = 1.08;
 let raf = null;
 const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = null; rebuildChart(); }); };
 
 export function windowLabel() {
-  const all = solidDays(); if (!all.length) return "";
-  const d = windowed(all);
+  const all = timeline(); if (!all.length) return "";
+  const f = windowed(all);
+  const n = all.filter(s => s.row).length, vis = f.filter(s => s.row).length;
   const fmt = iso => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   return win
-    ? fmt(d[0].date) + " → " + fmt(d[d.length - 1].date) + " · " + d.length + " of " + all.length + " days"
-    : fmt(d[0].date) + " → " + fmt(d[d.length - 1].date) + " · all " + all.length + " days";
+    ? fmt(f[0].date) + " → " + fmt(f[f.length - 1].date) + " · " + vis + " of " + n + " logged days"
+    : fmt(f[0].date) + " → " + fmt(f[f.length - 1].date) + " · all " + n + " logged days";
 }
 
 export function wireChartGestures() {
@@ -382,7 +397,7 @@ export function wireChartGestures() {
   };
 
   box.addEventListener("wheel", e => {
-    const n = solidDays().length; if (n < 8) return;
+    const n = timeline().length; if (n < 8) return;
     e.preventDefault();
     const cur = win || { a: 0, b: n };
     const span = cur.b - cur.a;
@@ -401,8 +416,7 @@ export function wireChartGestures() {
     schedule();
   }, { passive: false });
 
-  /* Drag to pan. Works at any zoom; at full view there is nowhere to go, so the
-     cursor stays a crosshair rather than promising something it cannot do. */
+  /* Drag to pan. Works at any zoom; at full view there is nowhere to go. */
   let drag = null;
   box.addEventListener("pointerdown", e => {
     if (!win) return;
@@ -412,7 +426,7 @@ export function wireChartGestures() {
   });
   box.addEventListener("pointermove", e => {
     if (!drag || !win) return;
-    const n = solidDays().length, span = win.b - win.a;
+    const n = timeline().length, span = win.b - win.a;
     const perPx = span / box.clientWidth;
     let a = Math.round(drag.a - (e.clientX - drag.x) * perPx);
     a = Math.max(0, Math.min(n - span, a));

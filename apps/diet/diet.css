@@ -430,9 +430,10 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .grouphead.carb{color:var(--cool)}
 .grouphead.fat{color:var(--warn)}
 
-/* Trend legend: a solid rule, distinct from the dashed target. */
-.lg i.solid{background:var(--muted)}
-.lg .slope{color:var(--muted);font-variant-numeric:tabular-nums}
+/* Plan-change legend swatch: a VERTICAL ink rule, matching the rule drawn on
+   the chart. Trend lines were removed 19 Aug 2026 — Sam: "I don't want the
+   trend lines" — so .solid/.slope went with them. */
+.lg i.rule{width:2px;height:11px;border-radius:1px;background:var(--ink)}
 
 /* The multiplier explainer in the goal pane. */
 .explain{background:var(--s3);border:1px solid var(--line);border-radius:var(--r-sm);
