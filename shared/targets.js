@@ -39,14 +39,43 @@ export const PROFILE = {
    markdown" — failing in the direction nobody was watching. verify.js caught
    it on the first run.
 
-   REMOVE THIS CONSTANT once the weigh-in is appended to the CSV (MIGRATION.md
-   task T1). While it exists, every target in this app rests on a number that
-   is not in the data layer. */
+   ✅ CLOSED 18 Aug 2026. Sam weighed himself and the row is in the CSV:
+   73.0 kg, 2026-08-18. `weightFor()` now finds a real measurement and the
+   fallback is dead code on the happy path.
+
+   ⚠ IT IS KEPT, deliberately, as the empty-file case — a fresh clone against a
+   data repo with no weight yet must still render rather than divide by nothing.
+   If it is ever in USE again, the goal strip says so in amber; that warning is
+   the point of it. */
 export const FALLBACK_WEIGHT_KG = 71.5;   // fasted estimate, 14 Aug 2026
+
+/* ⚠ FED OR FASTED MATTERS, AND THE CSV OFTEN WON'T SAY.
+   §3.5 derived 2,780 from 71.5 kg FASTED. The 14 Aug measurement was 73.0 kg
+   FED at 16:00 — the same body, 1.5 kg apart, and a 1.5 kg difference moves the
+   target by ~25 kcal. The correction rule in §3.6 is defined on FASTED weigh-ins
+   specifically, so mixing the two silently corrupts the one dynamic input the
+   whole system has.
+
+   So: read the state out of the row's notes if it is there, and flag when it is
+   not. Never infer it. An unlabelled weight is used as given and marked. */
+function statedState(notes) {
+  const n = String(notes || "").toLowerCase();
+  if (/\bfasted\b/.test(n)) return "fasted";
+  if (/\bfed\b/.test(n)) return "fed";
+  return null;
+}
 
 export function weightFor(records, latestWeightFn) {
   const w = latestWeightFn(records);
-  if (w) return { kg: w.kg, date: w.date, fallback: false };
+  if (w) {
+    const row = records.filter(r => r.date === w.date).pop();
+    const state = statedState(row && row.notes);
+    return { kg: w.kg, date: w.date, fallback: false, state,
+             warning: state ? null :
+               "Weighed " + w.kg + " kg on " + w.date + " but fed/fasted is not recorded. " +
+               "§3.5 derived the target from a FASTED figure and §3.6 corrects on fasted " +
+               "weigh-ins, so an unlabelled weight can shift the target by ~25 kcal per 1.5 kg." };
+  }
   return { kg: FALLBACK_WEIGHT_KG, date: "2026-08-14", fallback: true,
            warning: "No weight in health-daily-log.csv — using the 14 Aug fasted estimate. See MIGRATION.md T1." };
 }
