@@ -61,13 +61,11 @@ Work top to bottom. **One app per 5-hour window.** Tick as you go.
       target in the app rests on `FALLBACK_WEIGHT_KG` in `targets.js`. **Remove that
       constant once the row is in.** ⚠ Confirm the exact figure with Sam before writing —
       this is an append to the knowledge base, not a code change.
-- [ ] **T2c · 🚩 PUSH THE REBUILD.** 13 changed files sit in `migration-seed/repo/` and are
-      **not on GitHub**. The live site still serves the 17 Aug build. Blocked twice: the
-      5-hour window ran out mid-upload on 17 Aug, and the Chrome extension is disconnected
-      on 18 Aug. **Nothing is lost — the disk copy is verified byte-for-byte and passes
-      28/28 on Sam's own machine.**
-      Changed: `shared/targets.js` · `apps/diet/{index.html,diet.css,app.js,state.js,presets.js,render.js,chart.js,editors.js,sw.js}` ·
-      NEW `apps/diet/{recipes.js,assistant.js}` · `tools/{smoke.mjs,steptest.mjs}`
+- [x] **T2c · Pushed, 19 Aug 2026.** The rebuild plus the chart correction are live. Uploaded
+      through the GitHub web UI from the browser; the token was never touched.
+- [ ] **T2d · Confirm the 73.0 kg weigh-in was FED or FASTED.** It decides the target:
+      **2,780** (from 71.5 kg fasted, §3.5) or **2,810** (from 73.0 as given). The app flags
+      it rather than guessing. One sentence from Sam closes it.
 - [x] **T2b · Pushed and Pages enabled, 17 Aug 2026.**
       **The app is live: https://samstringr.github.io/dashboards/apps/diet/**
       26 files in `dashboards`, `data/health-daily-log.csv` seeded into `dashboards-data`.
@@ -201,6 +199,7 @@ and every hardcoded target constant (334–348).
 
 | Date | Session | Done | Next |
 |---|---|---|---|
+| 19 Aug 2026 | Chart | 🚩 **The plan-change rule was never drawing on the live site** — and it was "pixel-verified". The x-axis was built from LOGGED DAYS ONLY, the last logged day is 12 Aug, the change is 14 Aug, so `findIndex(d => d >= "2026-08-14")` returned **-1** on every frame and the plugin returned early. `steptest.mjs` injected eight synthetic Block 02 days before it looked, so it proved the drawing code and never the axis it draws on. **Fix: the x-axis is a TIMELINE** — logged days ∪ plan-change dates ∪ the newest era's calendar span to today — so the date always has a slot and the rule is never flush with the border. Rule restyled 1px `#8d8d97` dashed → **2px `#e8e6e1` solid with a date chip**. **Trend lines removed** on Sam's instruction. Suites: verify 28/28 · smoke **95/95** · steptest **17/17**, now run twice, the second against the REAL log | T2d · the fed/fasted question · T4 · the canonical-CSV decision |
 | 18 Aug 2026 | Rebuild | **Layout rebuilt to Sam's spec** — two columns, Today at the top, close-the-day folded into the log board as a per-item amount, fridge bottom right, chart given a resolved height so it stops clipping. **Recipes are editable at the level he measures at**: oats by ingredient grams, prep proteins by per-100 g macros. Frecency ordering, goal pane (weight and waist write to the CSV), voice logging + Open Food Facts. 🚩 **Era-aware scoring** — the first build scored all 41 days against 2,780 and reported a fabricated 5%; real figure is **43% against Block 01's own band**. Stepped target lines + plan-change marker, **proven 8/8 with data either side of 14 Aug**. Suites: verify 28/28 · smoke 43/43 · steptest 8/8 | 🚩 **PUSH** — blocked on the Chrome extension |
 | 17 Aug 2026 | Ship | **Live at https://samstringr.github.io/dashboards/apps/diet/** — both repos created and populated, Pages enabled. Live-site check found a flaw the harness missed: on an empty day the planner proposed *14× protein yoghurt*. Guarded, portions capped at 3, smoke test extended to cover it — **34/34** | **T3 — Sam creates the token.** Nothing works until then |
 | 17 Aug 2026 | Build | **The diet app is built.** 1,339-line artifact split into 10 modules under `apps/diet/`, largest 400 lines. Targets wired to `targets.js`. `sendPrompt` hand-off deleted; the app commits to GitHub itself. PWA shell, offline queue, T10 composite builder, T11 multi-option close. Chart.js **vendored**, CDN dependency removed. **`tools/smoke.mjs` runs the real app in Chromium: 31/31.** Repos `dashboards` (public) + `dashboards-data` (private) created | T0 · git init and push · T1 · the weigh-in · T3 · token |
@@ -210,6 +209,13 @@ and every hardcoded target constant (334–348).
 
 *Add anything that cost you time, so it costs you nothing next time.*
 
+- 🚩 **The harness and the live site were looking at different axes.** `steptest.mjs`
+  seeded eight synthetic days after the plan change so it could see the step — and in doing
+  so it manufactured the one precondition the live site did not have. It asserted the
+  feature worked *given* the date is on the axis, and never asserted the date is on the
+  axis. **A fixture that supplies the missing precondition tests everything except the
+  bug.** Every check that depends on the shape of the data now runs against the REAL CSV
+  as well as the seeded one.
 - **`verify.js` earned its keep on run one**, catching that the most expensive measurement
   in the base (the first-ever weigh-in) had never reached the data layer. Tests against
   real data find data problems, not just code problems.
