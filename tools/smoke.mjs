@@ -369,20 +369,51 @@ ok("no fridge card", (await page.locator("#fridge, .card.fridge").count()) === 0
 ok("nothing is greyed out as \"none left\"",
    !/none left/i.test(await page.locator("#presets").innerText()));
 
-console.log("\n── trend lines, fitted per plan ──────────────────────────");
-const tr = await page.evaluate(() => {
+console.log("\n── no trend lines, and the plan change is ON THE AXIS ────");
+/* 🚩 THIS IS THE CHECK THAT WOULD HAVE CAUGHT THE LIVE BUG.
+   The marker drew nothing on the real site for five days because the x-axis
+   was built from LOGGED DAYS ONLY and nothing has been logged since 12 Aug,
+   two days before the 14 Aug change. steptest.mjs injected synthetic Block 02
+   days before it looked, so it proved the drawing code and never the axis.
+   This runs against the REAL CSV and asserts the change date has a slot. */
+const axp = await page.evaluate(() => {
   const c = Object.values(Chart.instances)[0];
-  const ds = c.data.datasets.filter(d => d.label === "trend");
-  return ds.map(d => ({ axis: d.yAxisID, pts: d.data.filter(v => v != null).length,
-                        gaps: d.data.filter(v => v == null).length, spanGaps: d.spanGaps }));
+  return { trends: c.data.datasets.filter(d => d.label === "trend").length,
+           sets: c.data.datasets.map(d => d.label),
+           dates: c.$planDates || [] };
 });
-ok("a trend line exists per series", tr.length === 2, JSON.stringify(tr));
-ok("trends do NOT span the plan change", tr.every(t => t.spanGaps === false));
+ok("the trend lines are gone", axp.trends === 0, axp.sets.join(" · "));
+ok("four datasets remain — two data, two target", axp.sets.length === 4, axp.sets.join(" · "));
+ok("🚩 the plan-change date has a slot on the axis, with the REAL log",
+   axp.dates.includes("2026-08-14"),
+   "last five axis dates: " + axp.dates.slice(-5).join(" · "));
+ok("the change is NOT the last slot, so the rule is not drawn on the border",
+   axp.dates.indexOf("2026-08-14") < axp.dates.length - 1,
+   "index " + axp.dates.indexOf("2026-08-14") + " of " + (axp.dates.length - 1));
+/* Pixel read, not a screenshot diff — see the note in steptest.mjs. */
+const rule = await page.evaluate(() => {
+  const c = Object.values(Chart.instances)[0];
+  const i = (c.$planDates || []).indexOf("2026-08-14");
+  if (i < 0) return { on: 0, off: 0 };
+  const px = Math.round(c.scales.x.getPixelForValue(i));
+  const dpr = window.devicePixelRatio || 1, ctx = c.ctx;
+  const count = x => {
+    const d = ctx.getImageData(Math.round(x * dpr), Math.round(c.chartArea.top * dpr) + 40,
+                               1, Math.round((c.chartArea.bottom - c.chartArea.top) * dpr) - 48).data;
+    let n = 0;
+    for (let k = 0; k < d.length; k += 4)
+      if (d[k] > 0xd0 && d[k+1] > 0xd0 && d[k+2] > 0xc8) n++;
+    return n;
+  };
+  return { on: count(px), off: count(px - 9) };
+});
+ok("a bright vertical rule is actually painted at 14 Aug",
+   rule.on > 10 && rule.on > rule.off * 3,
+   rule.on + " ink pixels on the line vs " + rule.off + " nine px away");
 const legend = await page.locator(".lg").innerText();
-ok("the legend reports the slope in units, not adjectives",
-   /Block 01 [+-]?\d/.test(legend), (legend.match(/kcal Block[^·\n]*/) || [""])[0]);
-ok("an era with too few days says so rather than drawing a fake line",
-   /no fit/.test(legend), (legend.match(/Block 02[^·\n]*/) || ["(Block 02 not in view)"])[0]);
+ok("the legend names the rule rather than leaving it unexplained",
+   /plan change/i.test(legend), legend.replace(/\n/g, " · ").slice(0, 110));
+ok("no slope readouts left behind", !/\/day/.test(legend));
 
 console.log("\n── the multiplier is explained ───────────────────────────");
 await page.locator("#goalbtn").click();
