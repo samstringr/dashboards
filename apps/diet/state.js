@@ -65,6 +65,7 @@ export const S = {
   autoDate: new Date().toLocaleDateString("en-CA"),
   rolled: null,          // {from, to} once midnight has passed under an open tab
   reopened: null,        // the file row a re-opened day is superseding, for reference
+  qualLens: false,       // colour every item by protein per 100 kcal — off by default
 
   day: "rest",
   log: [],

@@ -115,7 +115,15 @@ would close the day, batch inventory, and a consistency history with drill-down.
          grey-out-when-empty behaviour went with it. -->
     <div class="col right">
       <div class="card grow">
-        <div class="ph">Log an item <span class="n" id="pin-n"></span></div>
+        <div class="ph">Log an item
+          <span class="n" id="pin-n"></span>
+          <!-- 20 Aug 2026 — the quality lens. Off by default: design-system.md
+               allows ONE accent for the most important thing on a page, and a
+               board where every row is coloured has no accent left. -->
+          <button class="lens" id="qual" aria-pressed="false"
+            title="Colour every item by protein per 100 kcal">
+            <i></i><span>quality</span></button>
+        </div>
         <div class="leftline" id="left"></div>
         <div id="editor"></div>
         <div class="scroll"><div class="chips" id="presets"></div></div>

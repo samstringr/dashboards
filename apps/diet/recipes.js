@@ -94,7 +94,43 @@ export const RECIPES = {
     ing: [
       { id: "fish", n: "Salmon, cooked", icon: "fish", per: [208, 22.1, 0, 12.4], g: 150, step: 10, unv: true }
     ]
-  }
+  },
+
+  /* ── WHOLE ROAST CHICKEN, added 20 August 2026 ──────────────────────────
+     Sam: "I cooked a whole chicken. Rubbed it with a little bit of paprika, a
+     little bit of honey, put an onion inside it, but I don't count the onion.
+     When I go to eat it, I'll just weigh out the cooked weight. I don't know
+     how much it weighed raw."
+
+     🚩 SO IT IS LOGGED BY COOKED WEIGHT, like the salmon (4d's rule) and NOT
+     like the batch preps. A batch figure needs a raw input and a cooked yield;
+     he has neither, and inventing a raw weight to back into a yield would make
+     every portion wrong by however far the guess was off. A per-100-g-cooked
+     figure needs only the thing he will actually do: put meat on the scale.
+
+     ⚠ SKIN IS THE WHOLE DECISION HERE, and it is a bigger swing than anything
+     else on this board:
+        meat AND skin, roasted   223 kcal · 24.0 P · 0 C · 13.4 F   per 100 g
+        meat only, no skin       167 kcal · 25.0 P · 0 C ·  6.6 F   per 100 g
+     Same protein. **Half the fat and a third fewer calories.** Over 500 g of
+     picked chicken that is 280 kcal — a whole meal's worth of difference made
+     by nothing but whether the skin goes on the plate. Skin-on is the default
+     because Sam rubbed the skin and will eat it; switch the row to 167/25/0/6.6
+     on a day he strips it. Both figures USDA, read 20 Aug 2026.
+
+     ⚠ The rub is NOT counted, and unlike the salmon glaze it genuinely does not
+     matter: "a little bit" of honey over a whole bird is ~15 g, so ~46 kcal
+     spread across the entire chicken — under 6 kcal per 100 g of meat. Paprika
+     is nil. The onion is not counted because Sam does not eat it. */
+  chicken: {
+    id: "chicken", n: "Whole roast chicken", icon: "chicken",
+    note: "Weigh the meat COOKED, off the bird — there is no raw weight and no yield, " +
+          "so this is the only basis that can be exact. ⚠ The row is MEAT AND SKIN. " +
+          "Strip the skin and it is 167 / 25 / 0 / 6.6 instead: same protein, half the fat. " +
+          "⚠ Paprika and honey rub NOT counted (~46 kcal over the whole bird, under 6 per 100 g). " +
+          "Onion not counted — it goes in the cavity and does not get eaten.",
+    ing: [ { id: "meat", n: "Roast chicken, meat and skin, cooked", icon: "chicken",
+             per: [223, 24, 0, 13.4], g: 200, step: 10 } ] }
 };
 
 export const OATS_INGREDIENTS = RECIPES.oats.ing;

@@ -19,8 +19,8 @@ import { rebuildChart, drawStats, setSeries, wireChartGestures, wireJump,
 import { risks, buildRecord, totals } from "./engine.js";
 import * as store from "../../shared/store.js";
 import * as TG from "../../shared/targets.js";
-import { noteUse } from "./recipes.js";
-import { PRESETS, presetMacros, displayName, macroClass } from "./presets.js";
+import { noteUse, RECIPES } from "./recipes.js";
+import { PRESETS, presetMacros, displayName, macroClass, qualityClass } from "./presets.js";
 
 let client = null;
 
@@ -52,7 +52,7 @@ loadLocal(BATCH, GRAM);
 wireRender({ render: refresh });
 wireEditors({ addItem, render: refresh });
 
-function refresh() { render(); drawStats(); }
+function refresh() { render(); drawStats(); paintLens(); }
 
 /* ── THE DAY SELECTOR ─────────────────────────────────────────────────────
    🚩 20 Aug 2026. The header used to print `new Date()` and nothing more — a
@@ -95,6 +95,23 @@ function jumpTo(date) {
 /* Exposed so the chart's drill-down can hand a date straight over. */
 export const jumpToDay = jumpTo;
 wireJump(jumpTo);
+
+/* ── The quality lens. One class on the container; the rows already carry their
+   band. Persisted so it survives a reload — a lens you have to re-enable every
+   time is a lens nobody uses. */
+const LENS_KEY = "diet7-qual";
+function paintLens() {
+  const b = el("qual"), host = el("presets");
+  if (!b || !host) return;
+  b.setAttribute("aria-pressed", String(S.qualLens));
+  host.classList.toggle("qual", S.qualLens);
+}
+try { S.qualLens = localStorage.getItem(LENS_KEY) === "1"; } catch { S.qualLens = false; }
+on("qual", "click", () => {
+  S.qualLens = !S.qualLens;
+  try { localStorage.setItem(LENS_KEY, S.qualLens ? "1" : "0"); } catch {}
+  paintLens();
+});
 
 on("whenprev", "click", () => jumpTo(shiftDate(S.logDate, -1)));
 on("whennext", "click", () => jumpTo(shiftDate(S.logDate, +1)));
@@ -430,5 +447,7 @@ loadHistory().then(drain);
 
 /* Exposed for the headless harness — see tools/smoke.mjs. Not used by the UI. */
 window.__diet = { S, refresh, applyCsv, targets, totals, store, presets: PRESETS, macroClass,
+                  presetMacros, qualityClass,
+                  recipeNote: rid => RECIPES[rid] && RECIPES[rid].note,
                   buildRecord, jumpToDay: jumpTo, paintWhen,
                   eraStats: () => ({ eras: chartStats().eras }) };

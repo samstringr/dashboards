@@ -12,6 +12,8 @@ export const BASE_PRESETS = [
   { id: "oats",   n: "Overnight oats",      kind: "recipe", rid: "oats",   icon: "grain", cls: "lock" },
   /* NEW 18 Aug 2026 — salmon, honey, paprika, soy, air fried. */
   { id: "salmonr", n: "Air-fried salmon",  kind: "recipe", rid: "salmon", icon: "fish" },
+  /* NEW 20 Aug 2026 — cooked whole, logged by cooked weight. See recipes.js. */
+  { id: "roast", n: "Whole roast chicken", kind: "recipe", rid: "chicken", icon: "chicken" },
   { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
   { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
   { id: "bfc",   n: "Birds Eye southern fried chicken", icon: "chicken", m: [238, 13, 20, 12], cls: "fat" },
@@ -162,6 +164,84 @@ export const MACRO_GROUPS = [
   { key: "carb",    label: "Carbs",       hint: "most of the calories are carbohydrate" },
   { key: "fat",     label: "Fat",         hint: "most of the calories are fat" }
 ];
+
+/* ── HOW GOOD IS THIS ITEM? ───────────────────────────────────────────────
+   Sam, 20 Aug 2026: "the fat items here are highlighted in yellow. Maybe it'd
+   be cool to highlight or surround or border items in green or red depending on
+   how good they are. And I could turn this on and off with a little switch."
+
+   🚩 "GOOD" IS PROTEIN PER 100 KCAL, AND NOTHING ELSE.
+   Not calories — a 900-kcal Assenheims box with 78 g of protein is a good item
+   and a 100-kcal bag of chips is not. Not fat either; the existing amber `fat`
+   class already covers that and answers a different question. The whole system
+   rests on hitting a protein floor INSIDE a calorie band, so the only ranking
+   that matters is how much protein a calorie buys.
+
+   The bands are lifted from the language already in recipes.md and
+   health-fitness.md, so the colours agree with the prose rather than inventing
+   a second opinion:
+     ≥12 g/100 kcal  a protein source            chicken 16.3 · yoghurt 19 · whey 22.7
+      6–12           carries its weight          mince 13.4 · Assenheims 10.7
+      3–6            "reads as protein,          cheddar 6.1 · gyoza 5.3 · Gastro 5.4
+                      behaves as a fat source"
+      <3             carries none                Greggs roll 2.9 · Ginsters 1.9 · dips
+
+   ⚠ OFF BY DEFAULT. design-system.md allows one accent for the single most
+   important thing on a page; a board where every row is coloured has no accent
+   left. It is a lens Sam switches on, not the resting state. */
+export const QUALITY_BANDS = [
+  { key: "q-hi",  min: 12, label: "a protein source" },
+  { key: "q-ok",  min: 7,  label: "carries its weight" },
+  { key: "q-lo",  min: 3,  label: "reads as protein, behaves as fat" },
+  { key: "q-bad", min: 0,  label: "carries no protein" }
+];
+
+/* 🚩 A DENSITY-ONLY LENS LIBELS SMALL FOOD, and the first version did.
+   Frozen veg is 68 kcal at 5.6 g protein per 100 kcal, which lands it in the
+   same amber band as cheddar and a sausage roll. That is nonsense: an item that
+   contributes 68 calories cannot damage a day no matter what its ratio is.
+
+   So the two NEGATIVE bands need a calorie floor and the positive ones do not.
+   Below FLOOR_KCAL an item simply goes unbanded rather than being called bad —
+   but it can still earn green, because a 58-kcal yoghurt at 19 g/100 kcal is
+   genuinely good and hiding that would be the opposite error.
+
+   Asymmetric on purpose: **we will not call a small item bad, but we are happy
+   to call it good.** */
+const FLOOR_KCAL = 120;
+
+export function qualityClass(p) {
+  const m = presetMacros(p, 1);
+  if (!m[0]) return "";
+  const d = m[1] / m[0] * 100;
+  const band = (QUALITY_BANDS.find(b => d >= b.min) || QUALITY_BANDS[3]).key;
+  if ((band === "q-lo" || band === "q-bad") && m[0] < FLOOR_KCAL) return "";
+  return band;
+}
+
+/* ── WHAT WOULD EATING ONE OF THESE DO? ───────────────────────────────────
+   Sam: "when I hover, tell me how close it would make to the target to eat.
+   That'd be cool. Just when I hover, so it's kind of discreet."
+
+   ⚠ NOT the same question as `closeHint` below, and they are easy to confuse.
+     closeHint  — "how much of this would I need to CLOSE the day?"   (an amount)
+     eatHint    — "if I ate ONE, where would that leave me?"          (a position)
+   The first is a plan, the second is a consequence. Sam asked for the second and
+   the board only had the first. Hover-only because a board with two permanent
+   numbers on every row is a board nobody reads. */
+export function eatHint(p, totals) {
+  const T = targets();
+  const m = presetMacros(p, 1);
+  if (!m[0]) return null;
+
+  const k = totals[0] + m[0], pr = totals[1] + m[1];
+  const pct = Math.round(k / T.kcal * 100);
+  const kTxt = k > T.kcal_hi ? Math.round(k - T.kcal_hi) + " over the band"
+                             : pct + "% of the kcal target";
+  const pGap = Math.round(T.protein - pr);
+  const pTxt = pGap <= 0 ? "floor cleared" : pGap + " g of protein still short";
+  return "eat one → " + kTxt + " · " + pTxt;
+}
 
 /* Protein per 100 kcal — ranks the close-the-day routes so the leanest is first. */
 export const density = m => m[0] > 0 ? m[1] / m[0] * 100 : 0;

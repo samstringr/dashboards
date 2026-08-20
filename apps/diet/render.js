@@ -3,7 +3,7 @@
 import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
 import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint,
-         macroClass, MACRO_GROUPS } from "./presets.js";
+         macroClass, MACRO_GROUPS, qualityClass, eatHint } from "./presets.js";
 import { noteUse, useCount } from "./recipes.js";
 import { icon } from "./icons.js";
 import { totals, flags, hasDay, fileItems } from "./engine.js";
@@ -57,7 +57,47 @@ export function renderFlagsInto(host, arr) {
    ⚠ The risk-check modal is NOT affected — that one has to block, and it does. */
 
 const FLAG_MS = 7000;
-let flagTimer = null, flagsOpen = false, lastKey = "";
+let flagTimer = null, goneTimer = null, flagsOpen = false, lastKey = "";
+
+/* ── THE FLAG STACK ───────────────────────────────────────────────────────
+   Sam, 20 Aug 2026: "when the flags pop up, I wanted [them] to pop up one at a
+   time, kind of overlay on each other, stack on top of each other, and then
+   disappear into the flag, the little icon bit."
+
+   Staggered in, held, then shrunk into the badge. The stack is an absolute
+   overlay (see diet.css), so it cannot move the food table — which is what it
+   did on 18 Aug and, through a half-collapsing grid, was still doing on 20. */
+const STAGGER_MS = 150;
+
+function showFlags(host, badge, arr) {
+  host.classList.remove("gone", "away");
+  [...host.children].forEach((n, i) => {
+    n.style.animation = "none";
+    void n.offsetWidth;                       // restart the animation on re-show
+    n.style.animation = "";
+    n.style.animationDelay = (i * STAGGER_MS) + "ms";
+  });
+  clearTimeout(flagTimer);
+  /* The hold starts when the LAST flag has landed, not the first — otherwise a
+     five-flag day gets less reading time than a one-flag day. */
+  flagTimer = setTimeout(() => hideFlags(host, badge), FLAG_MS + arr.length * STAGGER_MS);
+}
+
+function hideFlags(host, badge) {
+  clearTimeout(flagTimer);
+  flagsOpen = false;
+  /* "Disappear into the little icon bit." The origin is COMPUTED, not written
+     down, because the badge slides along the header as the flag count changes
+     and a hardcoded corner would only be right some of the time. */
+  const b = badge.getBoundingClientRect(), h = host.getBoundingClientRect();
+  if (b.width && h.width) {
+    host.style.transformOrigin =
+      (b.left + b.width / 2 - h.left) + "px " + (b.top + b.height / 2 - h.top) + "px";
+  }
+  host.classList.add("away");
+  clearTimeout(goneTimer);
+  goneTimer = setTimeout(() => host.classList.add("gone"), 320);
+}
 
 export function paintFlags(arr) {
   const host = el("flags"), badge = el("flagbadge");
@@ -68,8 +108,8 @@ export function paintFlags(arr) {
   lastKey = key;
 
   if (!arr.length) {
-    host.classList.remove("on"); host.innerHTML = ""; badge.hidden = true;
-    clearTimeout(flagTimer); flagsOpen = false; return;
+    host.classList.add("gone"); host.innerHTML = ""; badge.hidden = true;
+    clearTimeout(flagTimer); clearTimeout(goneTimer); flagsOpen = false; return;
   }
 
   const worst = arr.some(f => f[0] === "bad") ? "bad"
@@ -83,21 +123,16 @@ export function paintFlags(arr) {
 
   renderFlagsInto(host, arr);
 
-  /* Only restart the timer when the flags actually changed, or every render
-     would re-show them and they would never settle. */
-  if (changed) {
-    host.classList.add("on"); flagsOpen = true;
-    clearTimeout(flagTimer);
-    flagTimer = setTimeout(() => { host.classList.remove("on"); flagsOpen = false; }, FLAG_MS);
-  } else {
-    host.classList.toggle("on", flagsOpen);
-  }
+  /* Only restart on a real change, or every render re-shows them and they never
+     settle. renderFlagsInto rebuilt the children, so a stack that was already
+     dismissed has to be put straight back into its hidden state. */
+  if (changed || flagsOpen) { flagsOpen = true; showFlags(host, badge, arr); }
+  else host.classList.add("gone", "away");
 
   badge.onclick = () => {
     flagsOpen = !flagsOpen;
-    host.classList.toggle("on", flagsOpen);
-    clearTimeout(flagTimer);
-    if (flagsOpen) flagTimer = setTimeout(() => { host.classList.remove("on"); flagsOpen = false; }, FLAG_MS);
+    if (flagsOpen) showFlags(host, badge, arr);
+    else hideFlags(host, badge);
   };
 }
 
@@ -202,8 +237,11 @@ function renderLeft() {
 /* ── preset column ────────────────────────────────────────────────────────── */
 function presetRow(p, mode) {
   const b = document.createElement("button");
+  /* The quality class is always attached; whether it PAINTS anything is decided
+     by `.chips.qual` on the container, so toggling the lens is one class change
+     on one element rather than a re-render of every row. */
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
-    (mode === "arch" ? " archrow" : "");
+    (mode === "arch" ? " archrow" : "") + " " + qualityClass(p);
   const t = document.createElement("span"); t.className = "pn";
   t.innerHTML = (p.icon ? icon(p.icon) : "") +
     "<span>" + displayName(p).replace(/[<>&]/g, "") + (p.edited ? " ·" : "") + "</span>";
@@ -216,6 +254,14 @@ function presetRow(p, mode) {
     h.className = "phint" + (hint.weak ? " weak" : "");
     h.textContent = hint.text;
     b.appendChild(h);
+  }
+  /* Hover only. Built now rather than on mouseenter so there is no flicker on
+     the first hover, and CSS decides when it is visible. */
+  const eat = eatHint(p, totals());
+  if (eat && !S.closed && mode !== "arch") {
+    const e = document.createElement("span");
+    e.className = "peat"; e.textContent = eat;
+    b.appendChild(e);
   }
   b.onclick = e => { if (e.target.closest(".ctl")) return; if (mode === "arch") return; addPreset(p); };
 

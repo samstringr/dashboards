@@ -264,19 +264,43 @@ const planMarker = {
       ctx.strokeStyle = col; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); ctx.stroke();
 
-      /* Chip, placed on whichever side has room so it never runs off the plot. */
-      const txt = "plan change · " + new Date(pc.date)
+      /* Chip, placed on whichever side has room so it never runs off the plot.
+
+         🚩 20 Aug 2026 — "plan change · 14 Aug" became **P꜀ · 14 Aug**.
+         Sam: "change the plan change label to just have, like, in the maths
+         style, P and then subscript c." Two words of English on a chart that has
+         no other words on it were doing more shouting than explaining; a
+         subscripted symbol is the notation the thing already deserves. The
+         legend below the chart spells it out once, which is where a key belongs.
+
+         Canvas has no rich text, so the subscript is drawn: cap-height glyph at
+         full size, then a smaller glyph dropped below the baseline. The widths
+         are measured at each size rather than guessed, because the chip has to
+         wrap whatever the font actually renders. */
+      const F_MAIN = "600 11px ui-sans-serif, system-ui, sans-serif";
+      const F_SUB  = "600 8px ui-sans-serif, system-ui, sans-serif";
+      const F_DATE = "600 10px ui-sans-serif, system-ui, sans-serif";
+      const date = " · " + new Date(pc.date)
         .toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-      ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
-      const w = ctx.measureText(txt).width + 12, h = 16;
+
+      ctx.font = F_MAIN; const wP = ctx.measureText("P").width;
+      ctx.font = F_SUB;  const wC = ctx.measureText("c").width;
+      ctx.font = F_DATE; const wD = ctx.measureText(date).width;
+
+      const w = wP + wC + wD + 13, h = 16;
       const left = px + 4 + w <= area.right;
       const bx = left ? px + 4 : px - 4 - w;
+      const mid = area.top + 3 + h / 2;
+
       ctx.fillStyle = col;
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, area.top + 3, w, h, 4); ctx.fill(); }
       else ctx.fillRect(bx, area.top + 3, w, h);
+
       ctx.fillStyle = cssVar("--bg", "#0c0c0f");
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      ctx.fillText(txt, bx + 6, area.top + 3 + h / 2 + .5);
+      ctx.font = F_MAIN; ctx.fillText("P", bx + 6, mid + .5);
+      ctx.font = F_SUB;  ctx.fillText("c", bx + 6 + wP, mid + 3.5);
+      ctx.font = F_DATE; ctx.fillText(date, bx + 6 + wP + wC, mid + .5);
       ctx.restore();
     });
   }
@@ -374,7 +398,8 @@ export function rebuildChart() {
     '<span><i style="background:' + C_PROT + '"></i>protein</span>' +
     '<span><i style="background:' + C_KCAL + '"></i>kcal</span>' +
     '<span><i class="dash"></i>target</span>' +
-    '<span><i class="rule"></i>plan change</span>' +
+    '<span title="P subscript c — the date the calorie and protein targets changed">' +
+      '<i class="rule"></i>P<sub>c</sub> plan change</span>' +
     '<span class="wlabel">' + windowLabel() + '</span>' +
     '<span style="color:var(--dim)">scroll to zoom · drag to pan' +
       (win ? ' · <b id="zreset" style="color:var(--accent);cursor:pointer">reset</b>' : '') + '</span>';
