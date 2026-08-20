@@ -82,7 +82,14 @@ would close the day, batch inventory, and a consistency history with drill-down.
           <div class="met" id="m-fat"><div class="v" id="v-fat">0</div><div class="k">fat g</div></div>
         </div>
         <div class="goal" id="goal"></div>
-        <div class="fl" id="flags"></div>
+        <!-- ⚠ The anchor is NOT decoration. `.card.today` is a flex column, and an
+             absolutely positioned flex child does NOT keep the position it would
+             have flowed to — the spec puts its static position at the flex
+             container's content-box corner. So the first build of the overlay
+             drew over the metric tiles instead of under the goal strip. This
+             zero-height in-flow div gives the overlay something to hang off at
+             exactly the right y, while contributing no height of its own. -->
+        <div class="flanchor"><div class="fl" id="flags"></div></div>
         <div class="scroll tbl">
           <table>
             <thead><tr><th>Item</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead>

@@ -138,7 +138,8 @@ body.backdated .topbar{box-shadow:inset 0 -2px 0 var(--accent)}
    have been INVISIBLE ever since. The modal has been showing "3 things before
    this is saved" above an empty space. Transient behaviour is now #flags only;
    #mdl-flags is a plain visible list. */
-#flags{position:absolute;left:14px;right:14px;z-index:5;pointer-events:none;
+.flanchor{position:relative;height:0;flex:none}
+#flags{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;
   display:flex;flex-direction:column;gap:5px;
   transform-origin:top left;transition:opacity .30s ease,transform .30s cubic-bezier(.4,0,.6,1)}
 #flags:empty,#flags.gone{visibility:hidden}
