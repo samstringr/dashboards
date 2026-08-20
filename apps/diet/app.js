@@ -9,11 +9,13 @@
    whole hand-off path (sendPrompt, the clipboard fallback chain, the copy-by-hand
    textarea) is deleted rather than ported. */
 
-import { S, el, r1, persist, loadLocal, clearDraft, repoConfig, targets, DAYS, ISO } from "./state.js";
+import { S, el, r1, persist, loadLocal, loadDraft, setLogDate, clearDraft,
+         repoConfig, targets, DAYS, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
 import { render, renderFlagsInto, addItem, wireRender } from "./render.js";
 import { renderEditor, wireEditors } from "./editors.js";
-import { rebuildChart, drawStats, setSeries, wireChartGestures, stats as chartStats } from "./chart.js";
+import { rebuildChart, drawStats, setSeries, wireChartGestures, wireJump,
+         stats as chartStats } from "./chart.js";
 import { risks, buildRecord, totals } from "./engine.js";
 import * as store from "../../shared/store.js";
 import * as TG from "../../shared/targets.js";
@@ -52,8 +54,75 @@ wireEditors({ addItem, render: refresh });
 
 function refresh() { render(); drawStats(); }
 
-if (el("when")) el("when").textContent = new Date().toLocaleDateString("en-GB",
+/* ── THE DAY SELECTOR ─────────────────────────────────────────────────────
+   🚩 20 Aug 2026. The header used to print `new Date()` and nothing more — a
+   passive label nobody reads, which is why a whole day's food silently landed
+   on the wrong date. It is now the control that decides where the log goes.
+
+   Sam: "the ability to click into and edit past meal logs… I might wanna do
+   two, three days in one go."
+
+   ◀ steps back a day, ▶ forward, the date itself opens a native picker, and
+   "Today" jumps home. Forward past today is refused — you cannot log food you
+   have not eaten, and an off-by-one there is the same class of bug as the one
+   this replaces. */
+const dayName = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-GB",
   { weekday: "long", day: "numeric", month: "long" });
+
+const shiftDate = (iso, days) => {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString("en-CA");
+};
+
+export function paintWhen() {
+  const w = el("when"); if (!w) return;
+  const back = S.logDate !== ISO();
+  w.textContent = dayName(S.logDate) + (back ? "" : " · today");
+  w.classList.toggle("back", back);
+  const pick = el("whenpick"); if (pick) { pick.value = S.logDate; pick.max = ISO(); }
+  const home = el("whenhome"); if (home) home.hidden = !back;
+  const fwd = el("whennext"); if (fwd) fwd.disabled = !back;
+  document.body.classList.toggle("backdated", back);
+}
+
+function jumpTo(date) {
+  if (date > ISO()) return;                       // never log the future
+  if (!setLogDate(date)) { paintWhen(); return; }
+  applyCsv(lastCsv || "date\n");                  // re-resolve closed/fileToday for the new day
+  paintWhen(); refresh(); rebuildChart();
+}
+/* Exposed so the chart's drill-down can hand a date straight over. */
+export const jumpToDay = jumpTo;
+wireJump(jumpTo);
+
+on("whenprev", "click", () => jumpTo(shiftDate(S.logDate, -1)));
+on("whennext", "click", () => jumpTo(shiftDate(S.logDate, +1)));
+on("whenhome", "click", () => jumpTo(ISO()));
+on("whenpick", "change", e => jumpTo(e.target.value));
+/* The date text opens the native picker. showPicker() is the supported way and
+   falls back to a plain click on browsers that lack it. */
+on("when", "click", () => {
+  const p = el("whenpick"); if (!p) return;
+  p.style.pointerEvents = "auto";
+  try { p.showPicker(); } catch { p.click(); }
+});
+paintWhen();
+
+/* ── THE MIDNIGHT WATCHER ─────────────────────────────────────────────────
+   The specific failure of 19 → 20 August: the tab stayed open, the clock moved,
+   and nothing on screen changed. This checks once a minute.
+
+   · Nothing logged yet → follow the clock silently. There is nothing to lose.
+   · Items in the draft → DO NOT move them. Hold the date they were entered
+     under and say so, loudly, because guessing either way can misfile a day. */
+setInterval(() => {
+  const now = ISO();
+  if (now === S.logDate || S.logDate !== S.autoDate) return;
+  if (!S.log.length) { S.logDate = now; S.autoDate = now; loadDraft(); paintWhen(); refresh(); return; }
+  S.rolled = { from: S.logDate, to: now };
+  paintWhen(); refresh();
+}, 60000);
 
 /* ── history from the CSV ─────────────────────────────────────────────────── */
 async function loadHistory() {
@@ -72,18 +141,26 @@ async function loadHistory() {
   refresh(); rebuildChart();
 }
 
+/* The last CSV text we successfully parsed. Kept so switching days can
+   re-resolve "is this day closed?" without another round trip to GitHub. */
+let lastCsv = "";
+
 export function applyCsv(text) {
+  lastCsv = text;
   const rows = store.parseCSV(text);
   S.history = store.currentView(rows);
 
   /* Weight is the engine's only input. Resolve it here, once. */
   S.weight = TG.weightFor(rows, store.latestWeight);
 
-  /* THE FILE WINS. If the CSV already has today, the day is closed: render from
-     the file and discard the local draft. Never merge — merging is how two
-     copies of one fact drift, which this base has hit three times. */
-  const today = ISO();
-  const row = S.history.find(r => r.date === today);
+  /* THE FILE WINS. If the CSV already has the day being logged, that day is
+     closed: render from the file and discard the local draft. Never merge —
+     merging is how two copies of one fact drift, which this base has hit three
+     times.
+
+     ⚠ 20 Aug 2026: keyed on S.logDate, not ISO(). Opening a past day must show
+     what the FILE says about that day, not what the file says about today. */
+  const row = S.history.find(r => r.date === S.logDate);
   if (row && row.kcal != null) {
     S.fileToday = row; S.closed = true; S.log = []; clearDraft();
     const k = Object.keys(DAYS).find(d => DAYS[d].csv === row.day_type);
@@ -92,6 +169,29 @@ export function applyCsv(text) {
     S.fileToday = null; S.closed = false;
   }
 }
+
+/* ── RE-OPENING A CLOSED DAY ──────────────────────────────────────────────
+   A day that is already in the file reads as closed, which is right — the file
+   wins. But Sam needs to be able to fix one: "I might not do something, or
+   might wanna do two, three days in one go."
+
+   ⚠ IT DOES NOT PREFILL, AND IT CANNOT. The CSV stores a day's TOTALS plus a
+   semicolon list of item names — not structured items with macros. There is no
+   honest way to rebuild a clickable log from "Overnight oats; Cheddar 50 g".
+   So re-opening starts an empty board, shows the recorded totals beside it for
+   reference, and whatever gets saved appends a `corrected` row that supersedes
+   the old one wholesale. Half-restoring the items would produce a row that
+   looks reconstructed and is actually invented. */
+/* ⚠ DELEGATED, not bound directly. #reopen is rendered by renderLeft() on every
+   paint, so a direct addEventListener at module load binds to an element that
+   does not exist yet — which is exactly what happened first time: the button
+   drew, clicked, and did nothing. #left is static, so listen there. */
+on("left", "click", e => {
+  if (!e.target.closest("#reopen")) return;
+  if (!S.fileToday) return;
+  S.closed = false; S.log = []; S.reopened = S.fileToday;
+  refresh();
+});
 
 /* ── saving ───────────────────────────────────────────────────────────────── */
 async function doSave() {
@@ -330,4 +430,5 @@ loadHistory().then(drain);
 
 /* Exposed for the headless harness — see tools/smoke.mjs. Not used by the UI. */
 window.__diet = { S, refresh, applyCsv, targets, totals, store, presets: PRESETS, macroClass,
+                  buildRecord, jumpToDay: jumpTo, paintWhen,
                   eraStats: () => ({ eras: chartStats().eras }) };

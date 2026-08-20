@@ -7,7 +7,27 @@
 .wrap{display:flex;flex-direction:column;gap:9px;padding:13px 15px}
 .head{display:flex;align-items:center;gap:11px;flex:none;flex-wrap:wrap}
 h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
-.when{color:var(--muted);font-size:12px}
+/* ── THE DAY SELECTOR, 20 Aug 2026 ────────────────────────────────────────
+   Was a passive date label. It is now the control that decides which day the
+   log is written to, so it has to look like one and it has to be impossible to
+   misread when it is NOT today — a whole day of food went to the wrong date
+   because nothing on screen changed when midnight passed. */
+.whenbar{display:flex;align-items:center;gap:2px}
+.when{color:var(--muted);font-size:12px;padding:0 4px;white-space:nowrap}
+.when.back{color:var(--accent);font-weight:600}
+.whennav{background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  border-radius:6px;font-size:11px;line-height:1;padding:4px 5px}
+.whennav:hover:not(:disabled){background:var(--s2);color:var(--ink)}
+.whennav:disabled{opacity:.28;cursor:default}
+.whennav.home{border-color:var(--line-2);color:var(--accent);padding:3px 8px;font-weight:600}
+/* The native picker sits UNDER the date text and is invisible — clicking the
+   date opens it. Keeping the native control means the phone gets its own date
+   wheel for free, which a hand-rolled popover would not. */
+#whenpick{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.whenbar{position:relative}
+.when{cursor:pointer}
+/* One unmissable cue that the whole board is pointed at a past day. */
+body.backdated .topbar{box-shadow:inset 0 -2px 0 var(--accent)}
 .spacer{flex:1}
 .sync{font-size:10.5px;color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
 .sync.ok{color:var(--good);border-color:#33402c}

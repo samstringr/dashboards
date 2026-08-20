@@ -7,6 +7,30 @@ import * as T from "../../shared/targets.js";
 
 export const ISO = () => new Date().toLocaleDateString("en-CA");
 
+/* ── WHICH DAY AM I LOGGING? ──────────────────────────────────────────────
+   🚩 ADDED 20 August 2026, and it exists because the app lost a day.
+
+   Every date in this app used to be `ISO()` evaluated at the moment it was
+   needed. That reads as harmless until the page is left open across midnight:
+   on 19 Aug seven items were logged and never closed; on 20 Aug the tab was
+   still open, `Close and save` ran, and `buildRecord()` stamped the row with
+   ISO() — which by then was the 20th. **The food moved a day forward and
+   nothing said a word.** The draft in localStorage was keyed `diet7-2026-08-19`
+   and was never even read, so the rollover left no trace to notice.
+
+   Sam, 20 Aug 2026: "let's also have the ability to click into and edit past
+   meal logs… I might not do something, or might wanna do two, three days in
+   one go."
+
+   So the day being logged is now STATE, not an implicit clock read. One
+   variable, `S.logDate`, is the single answer to "which day does this go to" —
+   the draft key, the record's date, the closed check and the header all read
+   it. `S.autoDate` records what it was set to automatically at boot, which is
+   what lets the rollover watcher tell "midnight passed under me" apart from
+   "Sam deliberately picked a past day". */
+export const logDate = () => S.logDate;
+export const isBackdated = () => S.logDate !== ISO();
+
 /* ── Thresholds that are NOT calorie targets. Targets live in targets.js. ──
    FLOOR/CEIL are the protein band; the rest are the fat and under-eating
    watch lines. None of them are derived from bodyweight, so they belong here. */
@@ -25,13 +49,23 @@ export const DAYS = {
 /* localStorage keys. `diet7-` prefix: bumped from diet6 at the GitHub port so a
    stale pre-port draft cannot be read back by the new code. */
 const K = {
-  draft: () => "diet7-" + ISO(),
+  /* Keyed on the day being LOGGED, not on the clock. Two different days open
+     in two tabs keep two drafts, which is correct. */
+  draft: () => "diet7-" + S.logDate,
   fridge: "diet7-fridge", pins: "diet7-pins", customs: "diet7-customs",
   overrides: "diet7-overrides", archived: "diet7-archived", gram: "diet7-gram",
   repo: "diet7-repo", recipes: "diet7-recipes", uses: "diet7-uses", goal: "diet7-goal"
 };
 
 export const S = {
+  /* The day being logged. Set once at boot, changed only by setLogDate(). */
+  logDate: new Date().toLocaleDateString("en-CA"),
+  /* What the boot set it to. If ISO() later disagrees with BOTH of these, the
+     clock rolled over while the page sat open — see the watcher in app.js. */
+  autoDate: new Date().toLocaleDateString("en-CA"),
+  rolled: null,          // {from, to} once midnight has passed under an open tab
+  reopened: null,        // the file row a re-opened day is superseding, for reference
+
   day: "rest",
   log: [],
   fridge: null,
@@ -86,7 +120,10 @@ export const S = {
 
 /* Targets are DERIVED, never typed. Recomputed whenever weight changes. */
 export function targets() {
-  return T.today(S.weight?.kg ?? T.FALLBACK_WEIGHT_KG);
+  /* fastedKg, not kg — a FED weight is converted to its fasted equivalent before
+     it reaches the formula (targets.js, 19 Aug 2026). Using the raw figure is how
+     the app came to show 2,810 while §3.5 said 2,780. */
+  return T.today(S.weight?.fastedKg ?? S.weight?.kg ?? T.FALLBACK_WEIGHT_KG);
 }
 
 export const el = id => document.getElementById(id);
@@ -98,9 +135,28 @@ const read = (key, dflt) => {
   catch { return dflt; }
 };
 
-export function loadLocal(BATCH, GRAM) {
+/* Swap the draft in and out when the logged day changes. Deliberately does NOT
+   merge: two days' drafts are two separate facts and merging them is how one
+   day's food ends up on another, which is the bug this whole mechanism exists
+   to stop. */
+export function loadDraft() {
   const d = read(K.draft(), null);
-  if (d) { S.day = d.day || "rest"; S.log = d.log || []; }
+  S.day = (d && d.day) || "rest";
+  S.log = (d && d.log) || [];
+}
+
+export function setLogDate(date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  if (date === S.logDate) return false;
+  persist();               // keep the day being left behind
+  S.logDate = date;
+  S.rolled = null;
+  loadDraft();
+  return true;
+}
+
+export function loadLocal(BATCH, GRAM) {
+  loadDraft();
 
   S.fridge = read(K.fridge, null);
   if (!S.fridge) { S.fridge = {}; Object.keys(BATCH).forEach(k => S.fridge[k] = BATCH[k].init); }

@@ -42,7 +42,15 @@ would close the day, batch inventory, and a consistency history with drill-down.
 <div class="wrap">
   <div class="head">
     <h1>Diet</h1>
-    <span class="when" id="when"></span>
+    <!-- 🚩 20 Aug 2026: was a static date label. It is now the control that
+         decides which day the log is written to — see app.js paintWhen(). -->
+    <div class="whenbar">
+      <button class="whennav" id="whenprev" title="Previous day" aria-label="Previous day">◀</button>
+      <span class="when" id="when"></span>
+      <input type="date" id="whenpick" aria-label="Pick a day to log">
+      <button class="whennav" id="whennext" title="Next day" aria-label="Next day">▶</button>
+      <button class="whennav home" id="whenhome" hidden>Today</button>
+    </div>
     <div class="spacer"></div>
     <span class="sync" id="sync"></span>
     <div class="seg" role="group" aria-label="Day type">

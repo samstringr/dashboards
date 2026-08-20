@@ -235,11 +235,31 @@ export function risks() {
    ⚠ weight_kg and training are deliberately BLANK. Blank is not zero, and
    neither may be inferred or interpolated. store.js refuses a record with no
    confidence, which is the last line of defence against an unlabelled row. */
+/* 🚩 20 Aug 2026: `date` is S.logDate, NOT ISO().
+
+   It used to read the clock at the instant of saving. A tab left open across
+   midnight therefore filed the previous day's food under the new date — which
+   is exactly what happened to 19 August, and the row had to be voided and
+   re-dated by hand the next morning.
+
+   Two consequences fall out of making the date explicit, and both are handled
+   here rather than by the caller:
+
+   · **A day that already has a solid row gets `corrected`, not `confirmed`.**
+     Append-only plus last-row-wins means re-logging a day is a supersession,
+     and it has to be labelled as one or the history stops being auditable.
+   · **A backdated row says so in `source`.** "Logged on the 22nd for the 19th"
+     is a materially weaker claim than "logged as it happened", and the file is
+     the only place that distinction can survive. */
 export function buildRecord() {
   const t = totals();
   const unv = S.log.filter(l => l.u).map(l => l.n);
+  const date = S.logDate, today = ISO();
+  const prior = S.history.filter(r => r.date === date && r.kcal != null).pop();
+  const late = date !== today;
+
   return {
-    date: ISO(),
+    date,
     day_type: DAYS[S.day].csv,
     weight_kg: "",
     kcal: Math.round(t[0]),
@@ -247,9 +267,13 @@ export function buildRecord() {
     carbs_g: r1(t[2]),
     fat_g: r1(t[3]),
     training: "",
-    confidence: "confirmed",
-    source: "Diet app " + ISO(),
+    confidence: prior ? "corrected" : "confirmed",
+    source: "Diet app " + date + (late ? " (entered " + today + ")" : ""),
     notes: S.log.map(l => l.n).join("; ") +
-           (unv.length ? " | ESTIMATED not label: " + unv.join(", ") : "")
+           (unv.length ? " | ESTIMATED not label: " + unv.join(", ") : "") +
+           (late ? " | BACKDATED: logged on " + today + " for " + date +
+                   ", so the item list is recall rather than a live log." : "") +
+           (prior ? " | SUPERSEDES the earlier " + date + " row (" +
+                    prior.kcal + " kcal / " + prior.protein_g + " g P)." : "")
   };
 }

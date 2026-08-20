@@ -220,8 +220,19 @@ export function showDay(i) {
     '</div>' +
     '<div class="dn" style="color:var(--dim)">judged against ' + era.label + ': ' +
       era.kcal_lo + '–' + era.kcal_hi + ' kcal, ' + era.protein + ' g floor</div>' +
-    (d.notes ? '<div class="dn">' + escapeHtml(d.notes) + '</div>' : '');
+    (d.notes ? '<div class="dn">' + escapeHtml(d.notes) + '</div>' : '') +
+    /* 🚩 20 Aug 2026 — Sam: "the ability to click into and edit past meal logs."
+       The drill-down was already the place he clicks to look at a day; making it
+       the place he clicks to FIX one costs a single button. */
+    '<div class="dn"><button class="mini" data-jump="' + d.date + '">Log or correct this day</button></div>';
+  host.querySelectorAll("[data-jump]").forEach(b => {
+    b.onclick = () => { if (typeof jump === "function") jump(b.dataset.jump); };
+  });
 }
+
+/* Wired from app.js — chart.js must not import app.js (circular). */
+let jump = null;
+export function wireJump(fn) { jump = fn; }
 
 const escapeHtml = s => String(s).replace(/[&<>"]/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

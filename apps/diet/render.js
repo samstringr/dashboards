@@ -1,6 +1,6 @@
 /* render.js — everything that draws. Reads state, writes DOM, returns nothing. */
 
-import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER } from "./state.js";
+import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
 import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint,
          macroClass, MACRO_GROUPS } from "./presets.js";
@@ -150,18 +150,49 @@ function renderGoal() {
 function renderLeft() {
   const host = el("left"); if (!host) return;
   const t = totals(), T = targets();
+  /* 🚩 20 Aug 2026 — the day being logged is named here, every time, whenever it
+     is not today. The bug this replaces was invisible precisely because nothing
+     on screen said which date the food was going to. */
+  const dayLabel = new Date(S.logDate + "T12:00:00")
+    .toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const back = S.logDate !== ISO();
+  const pre = back
+    ? '<b class="acc">Logging ' + dayLabel + '</b> <span style="color:var(--dim)">— not today. ' +
+      'This will be saved with the ' + S.logDate + ' date.</span><br>'
+    : "";
+
+  /* Midnight passed while the tab sat open. Do not move the items and do not
+     stay silent — this is the exact failure of 19 → 20 August. */
+  if (S.rolled) {
+    host.innerHTML =
+      '<b class="warn">It is now ' + S.rolled.to + '.</b> These ' + S.log.length +
+      ' item' + (S.log.length === 1 ? "" : "s") + ' were started on <b>' + S.rolled.from +
+      '</b> and are still being logged to that date — nothing has moved. ' +
+      'Use the date control at the top to switch to today if that is wrong.';
+    return;
+  }
+
   if (S.closed) {
-    host.innerHTML = '<b class="ok">Day closed.</b> ' + Math.round(t[0]) + ' kcal · ' +
-      r1(t[1]) + ' g protein, committed to the CSV.';
+    host.innerHTML = pre + '<b class="ok">Day closed.</b> ' + Math.round(t[0]) + ' kcal · ' +
+      r1(t[1]) + ' g protein, committed to the CSV. ' +
+      '<button class="mini" id="reopen">Re-log this day</button> ' +
+      '<span style="color:var(--dim)">appends a correction that replaces it — it cannot ' +
+      'restore the individual items, only the totals are in the file</span>';
     return;
   }
   const pLeft = Math.round(T.protein - t[1]), kLeft = Math.round(T.kcal - t[0]);
+  if (S.reopened) {
+    host.innerHTML = pre + '<b class="warn">Re-logging a day that is already written.</b> ' +
+      'The file has <b>' + S.reopened.kcal + '</b> kcal · <b>' + r1(S.reopened.protein_g) +
+      '</b> g P for ' + S.logDate + '. Saving appends a <b>corrected</b> row that supersedes it.';
+    return;
+  }
   if (!S.log.length) {
-    host.innerHTML = '<b>' + T.kcal.toLocaleString() + '</b> kcal and <b>' + T.protein +
+    host.innerHTML = pre + '<b>' + T.kcal.toLocaleString() + '</b> kcal and <b>' + T.protein +
       '</b> g protein for the day. Each item below shows how much of it would close that.';
     return;
   }
-  host.innerHTML =
+  host.innerHTML = pre +
     (pLeft > 0 ? '<b class="acc">' + pLeft + ' g</b> protein' : '<b class="ok">floor cleared</b>') +
     ' · ' + (kLeft > 0 ? '<b>' + kLeft.toLocaleString() + '</b> kcal to target'
                        : '<b class="warn">' + Math.abs(kLeft) + '</b> kcal over target') +
@@ -301,7 +332,9 @@ export function render() {
     tb.appendChild(tr);
   } else {
     el("empty").style.display = S.log.length ? "none" : "block";
-    el("empty").innerHTML = "Nothing logged today.<br><span class='dimcell'>Tap a preset to start.</span>";
+    el("empty").innerHTML = (S.logDate === ISO() ? "Nothing logged today." :
+      "Nothing logged for " + S.logDate + ".") +
+      "<br><span class='dimcell'>Tap a preset to start.</span>";
     S.log.forEach((r, i) => {
       const tr = document.createElement("tr");
       if (i === S.justAdded) tr.className = "new";
@@ -355,6 +388,11 @@ export function render() {
 
   const cb = el("close");
   if (S.closed) { cb.disabled = true; cb.textContent = "Day closed"; }
-  else { cb.disabled = !S.log.length; if (cb.textContent === "Day closed") cb.textContent = "Close and save"; }
+  else {
+    cb.disabled = !S.log.length;
+    cb.textContent = S.logDate === ISO() ? "Close and save"
+      : "Save " + new Date(S.logDate + "T12:00:00").toLocaleDateString("en-GB",
+          { day: "numeric", month: "short" });
+  }
   persist();
 }
