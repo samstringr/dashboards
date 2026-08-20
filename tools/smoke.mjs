@@ -434,6 +434,17 @@ ok("they arrive one at a time, not as a block",
 
 ok("🚩 the stack is OUT OF FLOW — it cannot push the table at all",
    await page.locator("#flags").evaluate(n => getComputedStyle(n).position === "absolute"));
+/* 🚩 And out of flow is not enough on its own. `.card.today` is a flex column,
+   and the spec puts an absolutely positioned flex child's static position at the
+   FLEX CONTAINER'S CORNER, not where it would have flowed. The first build of
+   this overlay therefore painted straight over the four metric tiles. It needs a
+   zero-height in-flow anchor, and this asserts the anchor is doing its job. */
+const goalBox = await page.locator("#goal").boundingBox();
+const flagBox = await page.locator("#flags").boundingBox();
+ok("🚩 and it hangs below the goal strip, not over the metric tiles",
+   flagBox.y >= goalBox.y + goalBox.height - 1,
+   "flags at " + Math.round(flagBox.y) + "px, goal strip ends at " +
+   Math.round(goalBox.y + goalBox.height) + "px");
 
 const tblUp = (await page.locator(".card.today .tbl").boundingBox()).y;
 await page.waitForTimeout(7400 + nFlags * 150);
