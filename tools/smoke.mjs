@@ -94,9 +94,16 @@ const T = await page.evaluate(() => window.__diet.targets());
    started failing the moment a real weigh-in landed, which is exactly what it
    did. Assert the derivation instead. */
 const W = await page.evaluate(() => window.__diet.S.weight);
-ok("calorie target is derived from the logged weight, not typed",
-   T.kcal === Math.round((10 * W.kg + 6.25 * 172 - 5 * 24 + 5) * 1.66 / 10) * 10,
-   W.kg + " kg → BMR " + T.bmr + " × 1.66 → " + T.kcal + " kcal");
+/* 🚩 19 Aug 2026: derived from W.fastedKg, not W.kg. A FED weight is converted to
+   its fasted equivalent before the formula sees it — the raw figure is what made
+   the app show 2,810 against §3.5's 2,780. The old line here reproduced the bug
+   in the assertion, so it agreed with the code and both were wrong. */
+ok("calorie target is derived from the FASTED-equivalent weight, not the raw one",
+   T.kcal === Math.round((10 * W.fastedKg + 6.25 * 172 - 5 * 24 + 5) * 1.66 / 10) * 10,
+   W.kg + " kg " + (W.state || "UNSTATED") + " → " + W.fastedKg + " kg fasted → BMR " +
+   T.bmr + " × 1.66 → " + T.kcal + " kcal");
+ok("and that lands on health-targets.md §3.5's published 2,780",
+   T.kcal === 2780, T.kcal + " kcal");
 ok("protein target is 155 g", T.protein === 155);
 /* 2,100 is now legitimate — it is Block 01's band label in the stats. What must
    never reappear is the old target being applied as if it were current. */
@@ -235,6 +242,95 @@ ok("day reads as closed after the commit",
 ok("the file wins — draft cleared",
    (await page.evaluate(() => window.__diet.S.log.length)) === 0);
 
+console.log("\n── logging a day that is not today ───────────────────────");
+/* 🚩 ADDED 20 Aug 2026, after the app lost a day.
+
+   On 19 Aug seven items were logged and left open. The tab was still open on the
+   20th; Close and save ran and `buildRecord()` stamped the row with ISO() —
+   which by then was the 20th. The food moved forward a day and the CSV said so
+   confidently. It had to be voided and re-dated by hand the next morning.
+
+   Nothing in the old suite could have caught it, because every date assertion
+   compared the app's output against `new Date()` — the same clock read the bug
+   was made of. **A test that recomputes the buggy expression agrees with the
+   bug.** These pin the date to the SELECTED day instead. */
+const isoOf = d => d.toLocaleDateString("en-CA");
+const yesterday = isoOf(new Date(Date.now() - 864e5));
+const EMPTY_DAY = "2026-08-15";      // a real gap in the log: it jumps 12 Aug → 17 Aug
+
+ok("the day selector exists and is not a passive label",
+   (await page.locator("#whenprev").count()) === 1 &&
+   (await page.locator("#whenpick").count()) === 1);
+ok("it names today when it is today", /today/i.test(await page.locator("#when").innerText()),
+   await page.locator("#when").innerText());
+
+/* ── A day that has never been logged ─────────────────────────────────────── */
+await page.evaluate(d => window.__diet.jumpToDay(d), EMPTY_DAY);
+await page.waitForTimeout(300);
+ok("jumping to an unlogged day opens a blank board",
+   (await page.evaluate(() => window.__diet.S.logDate)) === EMPTY_DAY &&
+   (await page.evaluate(() => window.__diet.S.log.length)) === 0);
+ok("🚩 the board SAYS it is not today — the thing that was missing",
+   /not today/i.test(await page.locator("#left").innerText()),
+   (await page.locator("#left").innerText()).slice(0, 68));
+ok("the page is visibly marked as backdated",
+   await page.evaluate(() => document.body.classList.contains("backdated")));
+
+const beforeRows = CSV.split("\n").filter(Boolean).length;
+await page.locator("#presets .p", { hasText: "Banana" }).first().click();
+await page.waitForTimeout(250);
+ok("the save button names the day it will write, not \"today\"",
+   /15 Aug/.test(await page.locator("#close").innerText()),
+   await page.locator("#close").innerText());
+
+const rec = await page.evaluate(() => window.__diet.buildRecord());
+ok("🚩 buildRecord stamps the SELECTED day, not the clock",
+   rec.date === EMPTY_DAY, rec.date + "  (the clock says " + isoOf(new Date()) + ")");
+ok("a fresh day is `confirmed`", rec.confidence === "confirmed");
+ok("but it admits it was entered late", /entered/.test(rec.source) && /BACKDATED/.test(rec.notes),
+   rec.source);
+
+await page.locator("#close").click();
+await page.waitForTimeout(200);
+if (await page.locator("#ov").evaluate(n => n.classList.contains("on"))) await page.locator("#mdl-go").click();
+await page.waitForTimeout(700);
+ok("the appended row carries the chosen date",
+   CSV.trim().split("\n").pop().startsWith(EMPTY_DAY),
+   CSV.trim().split("\n").pop().slice(0, 30));
+ok("one row appended, nothing rewritten",
+   CSV.split("\n").filter(Boolean).length === beforeRows + 1);
+
+/* ── A day that is already written ────────────────────────────────────────── */
+await page.evaluate(d => window.__diet.jumpToDay(d), yesterday);
+await page.waitForTimeout(300);
+ok("a day already in the file reads as closed — the file wins",
+   await page.evaluate(() => window.__diet.S.closed));
+ok("and offers a way to correct it",
+   (await page.locator("#reopen").count()) === 1);
+ok("which is honest that it cannot restore the individual items",
+   /cannot|only the totals/i.test(await page.locator("#left").innerText()),
+   (await page.locator("#left").innerText()).slice(-70));
+
+await page.locator("#reopen").click();
+await page.waitForTimeout(250);
+ok("re-opening unlocks the board", !(await page.evaluate(() => window.__diet.S.closed)));
+await page.locator("#presets .p", { hasText: "Banana" }).first().click();
+await page.waitForTimeout(250);
+const rec2 = await page.evaluate(() => window.__diet.buildRecord());
+ok("🚩 re-logging a written day is `corrected`, never `confirmed`",
+   rec2.confidence === "corrected", rec2.confidence);
+ok("and the note names the figures it supersedes", /SUPERSEDES/.test(rec2.notes),
+   (rec2.notes.match(/SUPERSEDES[^|]*/) || [""])[0].trim());
+
+await page.locator("#whenhome").click();
+await page.waitForTimeout(300);
+ok("Today jumps back", (await page.evaluate(() => window.__diet.S.logDate)) === isoOf(new Date()));
+ok("forward past today is refused — you cannot log food you have not eaten",
+   await page.locator("#whennext").isDisabled());
+ok("and today's own draft survived the round trip untouched",
+   (await page.evaluate(() => window.__diet.S.log.length)) === 0 ||
+   (await page.evaluate(() => window.__diet.S.closed)));
+
 console.log("\n── phone layout ──────────────────────────────────────────");
 const phone = await ctx.newPage();
 await phone.setViewportSize({ width: 390, height: 844 });
@@ -291,8 +387,18 @@ ok("one wheel notch is a small step, not a lurch",
 for (let i = 0; i < 17; i++) await page.mouse.wheel(0, -100);
 await page.waitForTimeout(200);
 const winDeep = await page.evaluate(() => document.querySelector('.lg .wlabel').textContent);
-ok("~18 notches reaches a genuinely zoomed view", days(winDeep) <= 12 && days(winDeep) >= 5,
-   winDeep);
+/* 🚩 RESTATED 20 Aug 2026, and the old form was a time bomb of the same kind
+   steptest case B turned out to be. It asserted an ABSOLUTE count — "between 5
+   and 12 days visible" — which was calibrated against a 42-day log. Logging
+   three more days pushed it to 13 and the check failed while the zoom was
+   working perfectly. An assertion pinned to the size of live data expires.
+
+   What the test actually cares about is the RATE: 1.08 per notch, so 18 notches
+   should divide the window by 1.08^18 ≈ 4. Assert that ratio and the check
+   survives the log growing to 400 days. */
+const shrink = days(winBefore) / Math.max(1, days(winDeep));
+ok("~18 notches divides the window by about four", shrink >= 3 && shrink <= 5,
+   winDeep + "  (÷" + shrink.toFixed(1) + ", 1.08^18 predicts ÷4.0)");
 ok("the visible range is named", /→/.test(winAfter), winAfter);
 await page.evaluate(() => document.querySelector('#chartbox').dispatchEvent(new MouseEvent('dblclick',{bubbles:true})));
 await page.waitForTimeout(160);
