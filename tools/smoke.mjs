@@ -405,20 +405,54 @@ await page.waitForTimeout(160);
 ok("double-click resets to the full range",
    /all/.test(await page.evaluate(() => document.querySelector('.lg .wlabel').textContent)));
 
-console.log("\n── flags no longer bury the food table ───────────────────");
+console.log("\n── the flag stack cannot move the layout ─────────────────");
+/* 🚩 REWRITTEN 20 Aug 2026, and the bug it now guards was live for two days
+   while this section passed.
+
+   The stack collapsed with `grid-template-rows: 0fr`, which zeroes the FIRST
+   grid row only. The flags were direct children, so with three flags rows two
+   and three fell into implicit `auto` tracks and kept their height. Measured on
+   the live site: a "closed" stack still 74px tall, dead space between the goal
+   strip and the food table. The old checks only ever asked whether a CLASS was
+   present — and the class was correct the whole time.
+
+   So the assertion is now geometric: the food table must not move by a single
+   pixel between flags-up and flags-down. The stack is an absolute overlay, so
+   that is true by construction rather than by animation. */
 const tbl = await page.locator(".card.today .tbl").boundingBox();
 ok("the table keeps a readable height with flags up", tbl.height >= 132, Math.round(tbl.height) + "px");
 ok("a flag badge appears in the card header",
-   !(await page.locator("#flagbadge").getAttribute("hidden")) !== false ||
-   (await page.locator("#flagbadge").isVisible()),
+   await page.locator("#flagbadge").isVisible(),
    await page.locator("#flagbadge").innerText());
-await page.waitForTimeout(7400);
+
+const nFlags = await page.locator("#flags .fli").count();
+ok("flags are rendered as a stack", nFlags > 0, nFlags + " flags");
+/* "Pop up one at a time" — each flag carries its own increasing delay. */
+const delays = await page.$$eval("#flags .fli", ns => ns.map(n => n.style.animationDelay));
+ok("they arrive one at a time, not as a block",
+   nFlags < 2 || delays[1] !== delays[0], delays.join(" · "));
+
+ok("🚩 the stack is OUT OF FLOW — it cannot push the table at all",
+   await page.locator("#flags").evaluate(n => getComputedStyle(n).position === "absolute"));
+
+const tblUp = (await page.locator(".card.today .tbl").boundingBox()).y;
+await page.waitForTimeout(7400 + nFlags * 150);
 ok("flags collapse on their own after a few seconds",
-   !(await page.locator("#flags").evaluate(n => n.classList.contains("on"))));
+   await page.locator("#flags").evaluate(n => n.classList.contains("away")));
+ok("and they shrink INTO the badge, not to an arbitrary corner",
+   await page.locator("#flags").evaluate(n => /px/.test(n.style.transformOrigin)),
+   await page.locator("#flags").evaluate(n => n.style.transformOrigin));
+
+const tblDown = (await page.locator(".card.today .tbl").boundingBox()).y;
+ok("🚩 THE BUG: the table does not move when the flags go — no gap left behind",
+   tblUp === tblDown, "table top " + Math.round(tblUp) + "px up, " + Math.round(tblDown) + "px down");
+
 await page.locator("#flagbadge").click();
 await page.waitForTimeout(300);
 ok("clicking the badge brings them back",
-   await page.locator("#flags").evaluate(n => n.classList.contains("on")));
+   !(await page.locator("#flags").evaluate(n => n.classList.contains("away"))));
+ok("and bringing them back still does not move the table",
+   Math.round((await page.locator(".card.today .tbl").boundingBox()).y) === Math.round(tblDown));
 
 console.log("\n── ingredient macros are editable, and salmon exists ─────");
 await page.locator("#presets .expand", { hasText: "Everything else" }).click();
@@ -530,6 +564,94 @@ const legend = await page.locator(".lg").innerText();
 ok("the legend names the rule rather than leaving it unexplained",
    /plan change/i.test(legend), legend.replace(/\n/g, " · ").slice(0, 110));
 ok("no slope readouts left behind", !/\/day/.test(legend));
+
+console.log("\n── the roast chicken, the hover hint and the lens ────────");
+/* Added 20 Aug 2026 with the features themselves. */
+/* Assert against the board's data, not against whichever disclosure group
+   happens to be open — a DOM-only check here just tests the accordion. */
+const roast = await page.evaluate(() =>
+  window.__diet.presets().filter(p => p.id === "roast")
+    .map(p => ({ n: p.n, rid: p.rid, m: window.__diet.presetMacros(p, 1) }))[0]);
+ok("the whole roast chicken is on the board", !!roast, roast && roast.n);
+ok("it is a recipe, so the cooked weight is editable", roast && roast.rid === "chicken");
+const chickNote = await page.evaluate(() => window.__diet.recipeNote("chicken"));
+ok("it says to weigh it COOKED — there is no raw weight and no yield",
+   /cooked/i.test(chickNote), chickNote.slice(0, 64));
+ok("and it names the skin as the decision it is",
+   /skin/i.test(chickNote) && /167/.test(chickNote),
+   (chickNote.match(/Strip the skin[^.]*\./) || [""])[0]);
+ok("the rub is declared uncounted rather than silently dropped",
+   /NOT counted/i.test(chickNote));
+
+/* Hover: the consequence of eating one, not the amount needed to close.
+   Needs an OPEN day — the hint is meaningless on a day already committed, so it
+   is not rendered there. 16 Aug is a real gap in the log. */
+await page.evaluate(() => window.__diet.jumpToDay("2026-08-16"));
+await page.waitForTimeout(400);
+const row = page.locator("#presets .p", { hasText: "Banana" }).first();
+const eat = row.locator(".peat");
+ok("every row carries an eat-one hint", (await eat.count()) === 1);
+const eatTxt = await eat.innerText();
+ok("it answers WHERE it leaves you, not how much to eat",
+   /eat one →/.test(eatTxt) && /(target|band)/.test(eatTxt), eatTxt);
+ok("🚩 it is hidden until hover — discreet, not a second permanent number",
+   (await eat.evaluate(n => parseFloat(getComputedStyle(n).opacity))) === 0);
+await row.hover();
+await page.waitForTimeout(320);
+ok("and hovering reveals it",
+   (await eat.evaluate(n => parseFloat(getComputedStyle(n).opacity))) > 0.8,
+   await eat.evaluate(n => getComputedStyle(n).opacity));
+
+/* The lens. Off by default, and every row already carries its band. */
+ok("the lens is OFF by default — one accent per page",
+   (await page.locator("#qual").getAttribute("aria-pressed")) === "false");
+ok("but every row already carries a quality band",
+   (await page.locator("#presets .p.q-hi, #presets .p.q-ok, #presets .p.q-lo, #presets .p.q-bad").count()) > 5,
+   (await page.locator("#presets .p.q-hi, #presets .p.q-ok, #presets .p.q-lo, #presets .p.q-bad").count()) + " banded rows");
+const borderOff = await page.locator("#presets .p.q-bad").first().evaluate(n => getComputedStyle(n).borderTopColor);
+await page.locator("#qual").click();
+await page.waitForTimeout(250);
+ok("clicking it turns the lens on",
+   (await page.locator("#qual").getAttribute("aria-pressed")) === "true" &&
+   await page.locator("#presets").evaluate(n => n.classList.contains("qual")));
+const borderOn = await page.locator("#presets .p.q-bad").first().evaluate(n => getComputedStyle(n).borderTopColor);
+ok("🚩 and it actually repaints the borders — not just a class",
+   borderOff !== borderOn, borderOff + "  →  " + borderOn);
+/* Bands come from protein per 100 kcal, so the classification has to agree with
+   the figures rather than with a hand-written list. */
+const bands = await page.evaluate(() => {
+  const out = {};
+  window.__diet.presets().forEach(p => {
+    const m = window.__diet.presetMacros(p, 1);
+    if (m[0]) out[p.id] = { d: Math.round(m[1] / m[0] * 1000) / 10, q: window.__diet.qualityClass(p) };
+  });
+  return out;
+});
+ok("a sausage roll is banded as carrying no protein",
+   bands.gins && bands.gins.q === "q-bad", bands.gins && bands.gins.d + " g/100 kcal");
+ok("bulk chicken is banded as a protein source",
+   bands.chick && bands.chick.q === "q-hi", bands.chick && bands.chick.d + " g/100 kcal");
+ok("cheddar reads as protein and is banded as not one",
+   bands.ched && bands.ched.q === "q-lo", bands.ched && bands.ched.d + " g/100 kcal");
+/* 🚩 The check that caught the first version libelling small food. Frozen veg
+   is 5.6 g/100 kcal — the same band as cheddar — on 68 calories that cannot
+   hurt a day. Below the floor, negative bands are suppressed; positive ones
+   are not, so a 58-kcal protein yoghurt still earns green. */
+ok("🚩 frozen veg is NOT called bad — 68 kcal cannot damage a day",
+   bands.vegq && bands.vegq.q === "", bands.vegq && bands.vegq.d + " g/100 kcal → " +
+   (bands.vegq.q || "unbanded"));
+ok("but a small GOOD item still earns green",
+   bands.yog && bands.yog.q === "q-hi", bands.yog && bands.yog.d + " g/100 kcal");
+await page.locator("#qual").click();
+await page.waitForTimeout(200);
+
+console.log("\n── the plan-change label is P subscript c ────────────────");
+const lgTxt = await page.locator(".lg").innerText();
+ok("the legend spells the symbol out", /P\s*c/.test(lgTxt.replace(/\n/g, " ")),
+   (lgTxt.match(/P.{0,14}plan change/) || [""])[0]);
+ok("it keeps a plain-English gloss for anyone who has not seen the notation",
+   /targets changed/i.test(await page.locator(".lg span[title]").first().getAttribute("title") || ""),
+   await page.locator(".lg span[title]").first().getAttribute("title"));
 
 console.log("\n── the multiplier is explained ───────────────────────────");
 await page.locator("#goalbtn").click();
