@@ -58,11 +58,54 @@ export const FALLBACK_WEIGHT_KG = 71.5;   // fasted estimate, 14 Aug 2026
 
    So: read the state out of the row's notes if it is there, and flag when it is
    not. Never infer it. An unlabelled weight is used as given and marked. */
+/* 🚩 REWRITTEN 19 Aug 2026, AND THE OLD VERSION WAS CAUGHT BY ITS OWN TEST.
+
+   It word-searched free prose for "fasted" then "fed", first match wins. The
+   correction row written the same day explains the fed/fasted decision IN the
+   notes — so it contains the word "fasted" several times while describing a FED
+   weight, and the old function confidently returned "fasted" for it. A naive
+   keyword scan over a field designed to hold reasoning will eventually read the
+   reasoning as the datum.
+
+   So: an explicit `STATE=fed` / `STATE=fasted` token wins outright. Prose is a
+   fallback and now REFUSES to answer when both words appear — ambiguous is not
+   the same as unknown, but for this purpose both mean "do not convert". */
 function statedState(notes) {
-  const n = String(notes || "").toLowerCase();
-  if (/\bfasted\b/.test(n)) return "fasted";
-  if (/\bfed\b/.test(n)) return "fed";
+  const raw = String(notes || "");
+  const tok = /\bSTATE\s*=\s*(fed|fasted)\b/i.exec(raw);
+  if (tok) return tok[1].toLowerCase();
+  const n = raw.toLowerCase();
+  const fasted = /\bfasted\b/.test(n), fed = /\bfed\b/.test(n);
+  if (fasted && fed) return null;        // the note mentions both — do not guess
+  if (fasted) return "fasted";
+  if (fed) return "fed";
   return null;
+}
+
+/* 🚩 ADDED 19 Aug 2026, and it closes a hole that had TWO NUMBERS CLAIMING TO BE
+   THE TARGET at the same time.
+
+   Reading the state out of the notes was only ever half the job: the state was
+   recorded, displayed, and then thrown away. The target went on being derived
+   from the RAW figure. So the 18 Aug measurement of 73.0 kg produced 2,810 on
+   screen while health-targets.md §3.5 said 2,780 — the same body, the same
+   formula, two answers, because one of them silently treated a fed weight as a
+   fasted one.
+
+   Sam's call, 19 Aug 2026: "just go off of the 73 kilos fed weight, I assume I'm
+   71.5 fasted." So a FED weight is converted before it reaches the formula.
+
+   THE OFFSET IS MEASURED, NOT ASSUMED — 14 Aug 2026, 73.0 kg fed at 16:00, two
+   meals in, against a ~71.5 fasted estimate. It is food, water and gut contents,
+   not tissue.
+
+   ⚠ AND AN UNSTATED WEIGHT IS STILL NOT CONVERTED. Subtracting 1.5 kg from a
+   figure whose state nobody recorded would be inventing a measurement. Unstated
+   is used as given and flagged, exactly as before. */
+export const FED_TO_FASTED_KG = 1.5;
+
+export function fastedEquivalent(kg, state) {
+  return state === "fed" ? kg - FED_TO_FASTED_KG : kg;
 }
 
 export function weightFor(records, latestWeightFn) {
@@ -70,13 +113,16 @@ export function weightFor(records, latestWeightFn) {
   if (w) {
     const row = records.filter(r => r.date === w.date).pop();
     const state = statedState(row && row.notes);
-    return { kg: w.kg, date: w.date, fallback: false, state,
+    return { kg: w.kg, fastedKg: fastedEquivalent(w.kg, state), date: w.date,
+             fallback: false, state,
              warning: state ? null :
                "Weighed " + w.kg + " kg on " + w.date + " but fed/fasted is not recorded. " +
                "§3.5 derived the target from a FASTED figure and §3.6 corrects on fasted " +
-               "weigh-ins, so an unlabelled weight can shift the target by ~25 kcal per 1.5 kg." };
+               "weigh-ins, so an unlabelled weight can shift the target by ~25 kcal per 1.5 kg. " +
+               "Used as given — an unstated weight is NOT converted." };
   }
-  return { kg: FALLBACK_WEIGHT_KG, date: "2026-08-14", fallback: true,
+  return { kg: FALLBACK_WEIGHT_KG, fastedKg: FALLBACK_WEIGHT_KG, date: "2026-08-14",
+           fallback: true, state: "fasted",
            warning: "No weight in health-daily-log.csv — using the 14 Aug fasted estimate. See MIGRATION.md T1." };
 }
 

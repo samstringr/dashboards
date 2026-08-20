@@ -119,6 +119,32 @@ ok("no calorie constant is reachable outside targets.js",
    T.today(71.5, on14Aug).derivation.includes("×"),
    T.today(71.5, on14Aug).derivation);
 
+/* 🚩 FED → FASTED, added 19 Aug 2026. The bug this guards was live and visible:
+   the app showed 2,810 while health-targets.md §3.5 said 2,780, because a FED
+   weight was read, labelled, and then fed to the formula raw. Three assertions —
+   the conversion happens, it does NOT happen on an unstated weight, and the
+   converted answer lands on the published figure. */
+ok("a FED weight converts to its fasted equivalent",
+   T.fastedEquivalent(73.0, "fed") === 71.5, T.fastedEquivalent(73.0, "fed") + " kg");
+ok("a FASTED weight is left alone", T.fastedEquivalent(71.5, "fasted") === 71.5);
+ok("🚩 an UNSTATED weight is NOT converted — that would invent a measurement",
+   T.fastedEquivalent(73.0, null) === 73.0, T.fastedEquivalent(73.0, null) + " kg");
+ok("73.0 kg FED lands on the published 2,780, not 2,810",
+   T.calorieTarget(T.fastedEquivalent(73.0, "fed"), on14Aug) === 2780,
+   T.calorieTarget(T.fastedEquivalent(73.0, "fed"), on14Aug) + " vs " +
+   T.calorieTarget(73.0, on14Aug) + " if the state were discarded");
+ok("🚩 a note that mentions BOTH words refuses to guess",
+   T.weightFor([{date:"2026-01-01", weight_kg:73, notes:"73 kg fed, about 71.5 fasted"}],
+               rs => ({kg:73, date:"2026-01-01"})).state === null,
+   "prose naming both states → no conversion");
+ok("an explicit STATE= token beats the prose around it",
+   T.weightFor([{date:"2026-01-01", weight_kg:73, notes:"STATE=fed. Compared against a fasted figure."}],
+               rs => ({kg:73, date:"2026-01-01"})).fastedKg === 71.5,
+   "STATE=fed inside prose mentioning 'fasted' → 71.5 kg");
+ok("the resolved weight carries a fasted equivalent for the engine to use",
+   resolved.fastedKg > 0 && resolved.fastedKg <= resolved.kg,
+   resolved.kg + " kg " + (resolved.state || "state UNSTATED") + " → " + resolved.fastedKg + " kg fasted-equivalent");
+
 /* Age ticks over on 17 Sep 2026 — the target must move with it, unprompted.
    This is the whole reason age is derived rather than typed. */
 /* Targets round to the nearest 10, so a birthday moves this by 10, not by 8.3.
