@@ -77,6 +77,11 @@ export const S = {
   gState: {},
   pState: { mince: 320, potato: 150, veg: 150 },
   aState: { size: "reg", base: "veg" },
+  /* Shah's platter. Defaults are Sam's standing order, 29 Aug 2026:
+     large, combo, spicy sauce always on. Deliberately NOT persisted —
+     the default IS the usual order, so a stray one-off pick should not
+     become the new normal the next time the board opens. */
+  sState: { size: "lg", meat: "combo" },
 
   editing: null, editTarget: null, gTarget: null,
   justAdded: -1, openMore: false, openArch: false, series: "both",

@@ -112,4 +112,51 @@ export const ASSEN = {
   sizeLabel: { sm: "100 g", reg: "200 g", lg: "300 g" }
 };
 
+/* ── SHAH'S HALAL RICE PLATTER ────────────────────────────────────────────
+   Sam, 29 Aug 2026: "I also commonly eat Large Shah's Halal Combo Rice Platter…
+   add the option to select whether it is regular or large (default large), and
+   chicken, lamb or combo (default combo) with spicy sauce, always."
+
+   🚩 SHAH'S OWN PUBLISHED FIGURES ARE UNUSABLE, AND THE REASON MATTERS.
+   Their two UK sites disagree with each other AND with themselves:
+     shahshalalfood.co.uk  combo   520 kcal · 29 P ·  98 C · 12 F → macros sum to 616
+     shahshalalfooduk.com  combo   820 kcal · 40 P ·  39 C · 34 F → macros sum to 622
+     shahshalalfooduk.com  lamb   1030 kcal · 39 P ·  45 C · 55 F → macros sum to 831
+   A published calorie figure that does not reconcile with its own published
+   macros cannot be used for EITHER number. Taking the stated kcal breaks the
+   day's macro totals; taking the macros breaks the kcal. Both were rejected.
+
+   ✅ SOURCED FROM THE HALAL GUYS INSTEAD — the same product format (halal-cart
+   platter: rice, meat, white sauce, hot sauce), whose published figures pass
+   the test Shah's own chart fails, reconciling to within 3 kcal:
+     regular chicken   648 kcal · 59 P ·  79 C · 10 F   (236 + 316 +  90 = 642)
+     regular combo     794 kcal · 50 P ·  96 C · 23 F   (200 + 384 + 207 = 791)
+     small combo       572 kcal · 34 P ·  73 C · 16 F   (136 + 292 + 144 = 572)
+   Corroboration: Shah's UK puts a combo at 820 against Halal Guys' 794 — 3%
+   apart — and both rank chicken < combo < lamb, lamb the fattest. The shape of
+   the menu agrees even where the arithmetic does not.
+
+   LAMB IS DERIVED, NOT INVENTED. A combo is half chicken and half gyro, so
+   lamb = 2 × combo − chicken = 940 kcal · 41 P · 113 C · 36 F, which reconciles
+   exactly (164 + 452 + 324 = 940).
+
+   ⚠ THE LARGE MULTIPLIER IS AN ASSUMPTION. No large-size figure is published
+   anywhere. 1.4 is Halal Guys' own small → regular step (572 → 794 = 1.39).
+   A reasoned estimate, not a measurement — which is why every item logged from
+   here carries the UNVERIFIED flag. Read a panel or weigh one and correct it;
+   the editor exists for exactly that.
+
+   Spicy sauce is always on at ~10 kcal / 2 g C, folded into each base rather
+   than offered as a toggle. Sam never varies it, and a control nobody moves is
+   only a new way to get it wrong.                                          ── */
+export const SHAHS = {
+  meats: {
+    chicken: { n: "Chicken", m: [658, 59,  81, 10] },
+    combo:   { n: "Combo",   m: [804, 50,  98, 23] },
+    lamb:    { n: "Lamb",    m: [950, 41, 115, 36] }
+  },
+  sizes:     { reg: 1,         lg: 1.4 },
+  sizeLabel: { reg: "Regular", lg: "Large" }
+};
+
 export const vegPreset = () => scale(BATCH.veg.per, 150);

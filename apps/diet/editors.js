@@ -8,7 +8,7 @@
    mutate a `recalc()` target. */
 
 import { S, el, r1, scale, persist, targets } from "./state.js";
-import { BATCH, GRAM, ASSEN } from "./data.js";
+import { BATCH, GRAM, ASSEN, SHAHS } from "./data.js";
 import { PRESETS, BASE_PRESETS, presetMacros, presetLabel, displayName } from "./presets.js";
 import { RECIPES, recipe, recipeTotal, recipeName, setIng, resetRecipe,
          prepProtein, prepSide, setPrep, setSide, resetPrep,
@@ -32,6 +32,7 @@ export function renderEditor() {
   if (S.editing === "basket")  return basketEditor(host, box);
   if (S.editing === "recipe")  return recipeEditor(host, box);
   if (S.editing === "assen")   assenEditor(box);
+  if (S.editing === "shahs")   shahsEditor(box);
   if (S.editing === "plate")   plateEditor(box);
   if (S.editing === "gram")    return gramEditor(host, box);
   if (S.editing === "new")     return newEditor(host, box);
@@ -177,6 +178,53 @@ function assenEditor(box) {
   acts.appendChild(mkBtn("btn p2", "Add", () => {
     addItem({ n: "Assenheims " + ASSEN.sizeLabel[S.aState.size] + " · " + combo.n,
               m, u: step !== 0, veg: S.aState.base !== "ricepot", fat: m[3] > 20 });
+    S.editing = null; rerender();
+  }));
+  acts.appendChild(mkBtn("btn", "Cancel", closeEditor));
+  box.appendChild(acts);
+}
+
+/* ═══════════ SHAH'S HALAL PLATTER ═══════════
+   Two picks, both defaulted to Sam's standing order: large, combo. Spicy sauce
+   is folded into the base figures rather than offered as a third control —
+   see SHAHS in data.js. Every item logged from here is flagged UNVERIFIED,
+   because the large multiplier is an estimate and the source figures are
+   another chain's. */
+function shahsEditor(box) {
+  const meat = SHAHS.meats[S.sState.meat], size = SHAHS.sizes[S.sState.size];
+  const m = meat.m.map(v => v * size);
+  box.innerHTML = '<div class="et">Shah\'s Halal platter</div>';
+
+  const mk = (lab, key, opts) => {
+    const r = document.createElement("div"); r.className = "er";
+    r.innerHTML = '<label>' + lab + '</label>';
+    const o = document.createElement("div"); o.className = "opts";
+    opts.forEach(([k, t]) => {
+      const b = document.createElement("button"); b.className = "opt"; b.textContent = t;
+      b.setAttribute("aria-pressed", String(S.sState[key] === k));
+      b.onclick = () => { S.sState[key] = k; renderEditor(); };
+      o.appendChild(b);
+    });
+    r.appendChild(o); box.appendChild(r);
+  };
+  mk("Size", "size", [["reg", "Regular"], ["lg", "Large"]]);
+  mk("Meat", "meat", [["chicken", "Chicken"], ["combo", "Combo"], ["lamb", "Lamb"]]);
+
+  const tt = document.createElement("div"); tt.className = "tot2";
+  tt.innerHTML = Math.round(m[0]) + " kcal · " + r1(m[1]) + " g P · " + r1(m[2]) + " g C · " + r1(m[3]) + " g F" +
+    '<div style="color:var(--dim);margin-top:4px;font-size:10px;line-height:1.45">' +
+    '<b style="color:var(--warn)">⚠ Unverified.</b> Shah\'s own published figures do not ' +
+    'reconcile with their own calorie counts, so these come from the equivalent ' +
+    'Halal Guys platter' +
+    (size === 1 ? '.' : ', scaled by 1.4 for large — an estimate, not a published figure.') +
+    ' Spicy sauce is included. Read a panel and correct these when you can.</div>';
+  box.appendChild(tt);
+
+  const acts = document.createElement("div"); acts.className = "acts";
+  acts.appendChild(mkBtn("btn p2", "Add", () => {
+    addItem({ n: "Shah's " + SHAHS.sizeLabel[S.sState.size].toLowerCase() + " " +
+                 meat.n.toLowerCase() + " over rice",
+              m, u: true, fat: m[3] > 20 });
     S.editing = null; rerender();
   }));
   acts.appendChild(mkBtn("btn", "Cancel", closeEditor));

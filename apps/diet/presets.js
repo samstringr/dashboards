@@ -2,7 +2,7 @@
    Items and macros come from domains/recipes.md. Recipes live there and only there. */
 
 import { S, r1, scale, targets } from "./state.js";
-import { BATCH, GRAM } from "./data.js";
+import { BATCH, GRAM, ASSEN, SHAHS } from "./data.js";
 import { RECIPES, recipe, recipeTotal, recipeName, prepProtein, prepSide,
          frecency, useCount, PREP_PROTEINS } from "./recipes.js";
 
@@ -16,6 +16,9 @@ export const BASE_PRESETS = [
   { id: "roast", n: "Whole roast chicken", kind: "recipe", rid: "chicken", icon: "chicken" },
   { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
   { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
+  /* NEW 29 Aug 2026 — size and meat are picked at log time. See SHAHS in data.js
+     for why the operator's own published figures could not be used. */
+  { id: "shahs", n: "Shah's Halal platter", icon: "plate",      kind: "shahs", cls: "unv" },
   { id: "bfc",   n: "Birds Eye southern fried chicken", icon: "chicken", m: [238, 13, 20, 12], cls: "fat" },
   { id: "whey",  n: "Protein powder scoop 35 g", icon: "tub", m: [132, 30, 1.2, 0.4] },
   { id: "chick", n: "Bulk chicken 100 g", icon: "chicken",       m: [190, 31, 0, 6.4] },
@@ -99,23 +102,40 @@ export function ordered(list) {
   });
 }
 
+/* ── EVERY ITEM CARRIES ALL FOUR FIGURES ─────────────────────────────────
+   Sam, 29 Aug 2026: "to every item in the log an item list, write the calories,
+   carbs, protein and fat for every one."
+
+   Previously the board showed kcal and protein only, and the two builder items
+   (Assenheims, Shah's) showed no figures at all — you had to open the editor to
+   find out what a click would cost you. The figures shown are for the CURRENT
+   selection, so changing size or meat updates the board line itself. */
+const macroTail = m =>
+  Math.round(m[0]) + " kcal · " + r1(m[1]) + " P · " + r1(m[2]) + " C · " + r1(m[3]) + " F";
+
 export function presetLabel(p) {
+  const m = presetMacros(p);
   if (p.kind === "recipe") {
-    const R = recipe(p.rid), t = recipeTotal(p.rid);
+    const R = recipe(p.rid);
     return R.ing.filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(/[ ,]/)[0].toLowerCase()).join(" · ") +
-           " · " + Math.round(t[0]) + " kcal";
+           " · " + macroTail(m);
   }
   if (p.kind === "plate") {
     const pr = prepProtein(S.prepPick);
-    return pr.n.toLowerCase() + " " + pr.g + "g · " + Math.round(pr.per[0] * pr.g / 100) + " kcal · pick & edit";
+    return pr.n.toLowerCase() + " " + pr.g + "g · " + macroTail(m) + " · pick & edit";
   }
-  if (p.kind === "assen") return "size, bases, sauce · editable";
+  if (p.kind === "assen")
+    return ASSEN.sizeLabel[S.aState.size] + " · " + ASSEN.combos[S.aState.base].n.toLowerCase() +
+           " · " + macroTail(m) + " · editable";
+  if (p.kind === "shahs")
+    return SHAHS.sizeLabel[S.sState.size].toLowerCase() + " " + SHAHS.meats[S.sState.meat].n.toLowerCase() +
+           " · " + macroTail(m) + " · editable";
   if (p.kind === "gram") {
     const G = GRAM[p.gk], s = S.gState[p.gk];
     return s.g + " " + G.unit + (G.oil[0] && s.oil ? " + " + s.oil + " ml oil" : "") +
-           " · " + Math.round(G.per[0] * s.g / 100 + G.oil[0] * s.oil) + " kcal · set your own";
+           " · " + macroTail(m) + " · set your own";
   }
-  return Math.round(p.m[0]) + " kcal · " + r1(p.m[1]) + " g P";
+  return macroTail(m);
 }
 
 /* Macros for a preset at a given multiplier. */
@@ -124,6 +144,19 @@ export function presetMacros(p, mult = 1) {
   if (p.kind === "plate") {
     const pr = prepProtein(S.prepPick);
     return pr.per.map(v => v * pr.g / 100 * mult);
+  }
+  if (p.kind === "assen") {
+    /* Was returning [0,0,0,0], so the board showed Assenheims with no macros at
+       all and macroClass had nothing to file it by. It has a live selection —
+       read it. */
+    const c = ASSEN.combos[S.aState.base], step = ASSEN.sizes[S.aState.size];
+    const o = c.m.slice();
+    if (step) ASSEN.chick100.forEach((v, i) => o[i] += v * step / 100);
+    return o.map(v => v * mult);
+  }
+  if (p.kind === "shahs") {
+    const meat = SHAHS.meats[S.sState.meat], size = SHAHS.sizes[S.sState.size];
+    return meat.m.map(v => v * size * mult);
   }
   if (p.m) return p.m.map(v => v * mult);
   if (p.kind === "gram") {
@@ -143,26 +176,51 @@ export const displayName = p =>
    Sam: "on the everything else dropdown, can we categorise them by protein,
    carb, fat? It just makes the list a bit easier to navigate at a glance."
 
-   Dominant macro by share of CALORIES, not by grams — 30 g of fat and 30 g of
-   carbs are not the same thing, and grams would put nearly everything in carbs.
-   Protein and carbs are 4 kcal/g, fat is 9.
+   ~~Dominant macro by share of CALORIES, not by grams — 30 g of fat and 30 g of
+   carbs are not the same thing, and grams would put nearly everything in carbs.~~
 
-   ⚠ Protein wins ties on purpose. Protein is the floor that does not flex and
-   the anchor the whole system rests on, so a genuinely mixed item is more useful
-   filed where Sam looks first. */
+   🚩 SUPERSEDED 29 AUGUST 2026 — DOMINANT MACRO BY GRAMS.
+   Sam: "whatever the highest metric is on each item, should be the category
+   that it resides in."
+
+   The calorie-share rule filed WHOLE ROAST CHICKEN (48 g protein against 27 g
+   fat) and AIR-FRIED SALMON (33 g against 19 g) under Fat, because fat carries
+   9 kcal/g to protein's 4. The arithmetic was right and the answer was wrong:
+   both are protein sources that happen to contain fat, and hunting for chicken
+   under Fat is not what the grouping is for. The old rule's own comment
+   predicted the cost of grams and it was correct — it just weighed it against
+   the wrong thing.
+
+   ⚠ THE COST, RECORDED BECAUSE IT IS REAL. Five genuinely fatty items move to
+   Carbs: Birds Eye chicken, Gastro chicken, Domino's slice, Greggs sausage roll
+   and Walkers Max. Each carries more carbohydrate than fat by weight.
+   health-targets.md §3.5 names fat — not calories — as the Block 02 watch line,
+   so a rule that hides the fatty items would cost the exact signal that section
+   says to watch.
+
+   ✅ IT IS NOT LOST, AND THIS IS WHY THE CHANGE IS SAFE. The amber fat flag is
+   `cls: "fat"`, set per item and read by render.js — a SEPARATE marker from this
+   function, untouched by it. Those five keep the warning border and the amber
+   macro figure wherever they are filed. The section answers "what is this item
+   mostly made of"; the flag answers "what should I watch". Two questions that
+   were being served by one control, now decoupled.
+
+   ⚠ Protein still wins ties on purpose — it is the floor that does not flex.
+   ⚠ An item with no macros yet returns 0-0-0, which would tie into Protein and
+   file an unconfigured builder as a protein source. Guarded: no macros → carb,
+   matching the old rule's zero-calorie behaviour. */
 export function macroClass(p) {
   const m = presetMacros(p, 1);
-  const kcal = m[0] || (m[1] * 4 + m[2] * 4 + m[3] * 9);
-  if (!kcal) return "carb";
-  const share = [m[1] * 4 / kcal, m[2] * 4 / kcal, m[3] * 9 / kcal];
-  if (share[0] >= share[1] && share[0] >= share[2]) return "protein";
-  return share[2] > share[1] ? "fat" : "carb";
+  const g = [m[1] || 0, m[2] || 0, m[3] || 0];
+  if (!(g[0] + g[1] + g[2])) return "carb";
+  if (g[0] >= g[1] && g[0] >= g[2]) return "protein";
+  return g[2] > g[1] ? "fat" : "carb";
 }
 
 export const MACRO_GROUPS = [
-  { key: "protein", label: "Protein",     hint: "most of the calories are protein" },
-  { key: "carb",    label: "Carbs",       hint: "most of the calories are carbohydrate" },
-  { key: "fat",     label: "Fat",         hint: "most of the calories are fat" }
+  { key: "protein", label: "Protein",     hint: "protein is the largest macro by weight" },
+  { key: "carb",    label: "Carbs",       hint: "carbohydrate is the largest macro by weight" },
+  { key: "fat",     label: "Fat",         hint: "fat is the largest macro by weight" }
 ];
 
 /* ── HOW GOOD IS THIS ITEM? ───────────────────────────────────────────────
