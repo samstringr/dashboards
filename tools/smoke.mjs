@@ -161,8 +161,30 @@ await page.waitForTimeout(200);
 ok("logging the recipe adds one row", (await page.locator("#rows tr").count()) === 1);
 
 console.log("\n── under-eating is the loud flag now ─────────────────────");
+/* 🚩 6 Sep 2026 — THE STACK NO LONGER OPENS BY ITSELF, so this test now has to
+   open it. Sam: "when I log an item, the flags that pop up, I don't want them to
+   pop up anymore. I'd rather them just kind of go into the little alert button."
+   The assertion below is unchanged in intent — a light day must still produce an
+   UNDER flag — but reading #flags without clicking the badge now reads a hidden
+   element and returns empty, which is a test of the old behaviour, not a test of
+   whether the flag is right. */
+const badge = page.locator("#flagbadge");
+ok("the badge appears without the stack opening", await badge.isVisible());
+ok("the badge reads count-then-mark, e.g. 2!",
+   /^\d+[!•✓]$/.test((await badge.innerText()).trim()), (await badge.innerText()).trim());
+ok("🚩 the flag stack stays CLOSED after logging — it no longer pops up",
+   !(await page.locator("#flags").isVisible()));
+
+await badge.click();
+await page.waitForTimeout(400);
+ok("clicking the badge opens the stack", await page.locator("#flags").isVisible());
 const flagText = await page.locator("#flags").innerText();
 ok("a light day flags UNDER, not over", /under/i.test(flagText), flagText.split("\n")[0]?.slice(0, 56));
+await badge.click();
+/* The collapse animates into the badge and only adds `gone` after 320 ms
+   (goneTimer in render.js), so anything under that reads a still-visible node. */
+await page.waitForTimeout(600);
+ok("clicking it again closes the stack", !(await page.locator("#flags").isVisible()));
 
 console.log("\n── how much of THIS item closes the day ──────────────────");
 const hints = await page.locator("#presets .phint").allInnerTexts();
