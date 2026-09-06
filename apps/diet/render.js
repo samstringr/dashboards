@@ -1,11 +1,9 @@
 /* render.js — everything that draws. Reads state, writes DOM, returns nothing. */
 
-import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER, ISO } from "./state.js";
+import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint,
-         macroClass, MACRO_GROUPS, qualityClass, eatHint } from "./presets.js";
+import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint } from "./presets.js";
 import { noteUse, useCount } from "./recipes.js";
-import { icon } from "./icons.js";
 import { totals, flags, hasDay, fileItems } from "./engine.js";
 import { renderEditor, addBatchItem } from "./editors.js";
 import * as TG from "../../shared/targets.js";
@@ -17,12 +15,7 @@ export function wireRender(fns) { onChange = fns.render; }
 export function addItem(rec) { S.log.push(rec); S.justAdded = S.log.length - 1; }
 
 export function addPreset(p) {
-  if (p.kind) {
-    S.editing = p.kind;
-    if (p.gk) S.gTarget = p.gk;
-    if (p.rid) S.gTarget = p.rid;
-    onChange(); return;
-  }
+  if (p.kind) { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; onChange(); return; }
   noteUse(p.id);
   if (p.batch) { addBatchItem(p.batch, p.g); onChange(); return; }
   addItem({ n: displayName(p), m: p.m.slice(), u: p.cls === "unv" || !!p.custom,
@@ -37,103 +30,6 @@ export function renderFlagsInto(host, arr) {
     d.innerHTML = "<span>" + (lv === "good" ? "✓" : lv === "info" ? "•" : "▲") + "</span><span>" + txt + "</span>";
     host.appendChild(d);
   });
-}
-
-/* ── FLAGS ARE TRANSIENT NOW — 18 Aug 2026 ──────────────────────────────────
-   Sam: "the more flags that come up, the more it pushes down the view of what
-   I've eaten in the day, and you can't actually see it… that's obviously a bug.
-   The flags are, like, not that important. I'd rather they flash on the screen
-   and persist for a bit and then disappear into, like, a small exclamation point
-   in the corner of that box."
-
-   He is right that it is a bug and right about the fix. Flags grew with the day —
-   by evening there could be five — and each one stole a row from the food table,
-   which is the thing he opens the app to look at. A warning that hides the data
-   it is warning about is worse than no warning.
-
-   So: show for 7s, then collapse to a badge carrying the count and the worst
-   severity. Click the badge to bring them back. Nothing is lost, and the table
-   keeps its height.
-   ⚠ The risk-check modal is NOT affected — that one has to block, and it does. */
-
-const FLAG_MS = 7000;
-let flagTimer = null, goneTimer = null, flagsOpen = false, lastKey = "";
-
-/* ── THE FLAG STACK ───────────────────────────────────────────────────────
-   Sam, 20 Aug 2026: "when the flags pop up, I wanted [them] to pop up one at a
-   time, kind of overlay on each other, stack on top of each other, and then
-   disappear into the flag, the little icon bit."
-
-   Staggered in, held, then shrunk into the badge. The stack is an absolute
-   overlay (see diet.css), so it cannot move the food table — which is what it
-   did on 18 Aug and, through a half-collapsing grid, was still doing on 20. */
-const STAGGER_MS = 150;
-
-function showFlags(host, badge, arr) {
-  host.classList.remove("gone", "away");
-  [...host.children].forEach((n, i) => {
-    n.style.animation = "none";
-    void n.offsetWidth;                       // restart the animation on re-show
-    n.style.animation = "";
-    n.style.animationDelay = (i * STAGGER_MS) + "ms";
-  });
-  clearTimeout(flagTimer);
-  /* The hold starts when the LAST flag has landed, not the first — otherwise a
-     five-flag day gets less reading time than a one-flag day. */
-  flagTimer = setTimeout(() => hideFlags(host, badge), FLAG_MS + arr.length * STAGGER_MS);
-}
-
-function hideFlags(host, badge) {
-  clearTimeout(flagTimer);
-  flagsOpen = false;
-  /* "Disappear into the little icon bit." The origin is COMPUTED, not written
-     down, because the badge slides along the header as the flag count changes
-     and a hardcoded corner would only be right some of the time. */
-  const b = badge.getBoundingClientRect(), h = host.getBoundingClientRect();
-  if (b.width && h.width) {
-    host.style.transformOrigin =
-      (b.left + b.width / 2 - h.left) + "px " + (b.top + b.height / 2 - h.top) + "px";
-  }
-  host.classList.add("away");
-  clearTimeout(goneTimer);
-  goneTimer = setTimeout(() => host.classList.add("gone"), 320);
-}
-
-export function paintFlags(arr) {
-  const host = el("flags"), badge = el("flagbadge");
-  if (!host || !badge) return;
-
-  const key = arr.map(f => f[0] + f[1]).join("|");
-  const changed = key !== lastKey;
-  lastKey = key;
-
-  if (!arr.length) {
-    host.classList.add("gone"); host.innerHTML = ""; badge.hidden = true;
-    clearTimeout(flagTimer); clearTimeout(goneTimer); flagsOpen = false; return;
-  }
-
-  const worst = arr.some(f => f[0] === "bad") ? "bad"
-              : arr.some(f => f[0] === "warn") ? "warn"
-              : arr.some(f => f[0] === "info") ? "info" : "good";
-  badge.hidden = false;
-  badge.className = "flagbadge " + worst;
-  badge.textContent = (worst === "good" ? "✓" : worst === "info" ? "•" : "!") +
-                      (arr.length > 1 ? " " + arr.length : "");
-  badge.title = arr.length + " flag" + (arr.length > 1 ? "s" : "") + " — click to show";
-
-  renderFlagsInto(host, arr);
-
-  /* Only restart on a real change, or every render re-shows them and they never
-     settle. renderFlagsInto rebuilt the children, so a stack that was already
-     dismissed has to be put straight back into its hidden state. */
-  if (changed || flagsOpen) { flagsOpen = true; showFlags(host, badge, arr); }
-  else host.classList.add("gone", "away");
-
-  badge.onclick = () => {
-    flagsOpen = !flagsOpen;
-    if (flagsOpen) showFlags(host, badge, arr);
-    else hideFlags(host, badge);
-  };
 }
 
 /* ── the goal strip ───────────────────────────────────────────────────────
@@ -155,10 +51,7 @@ function renderGoal() {
       TG.PROFILE.goal_ffmi + ' · ~2-year arc to ' + TG.PROFILE.goal_horizon + '</span>' +
     '<span class="sep">│</span>' +
     (w && !w.fallback
-      ? '<span><b>' + w.kg + ' kg</b> <span style="color:var(--dim)">' + w.date +
-        (w.state ? ' ' + w.state : '') + '</span></span>' +
-        (w.state ? '' : '<span class="warn" title="' + (w.warning || '') +
-          '">⚠ fed or fasted not recorded</span>')
+      ? '<span><b>' + w.kg + ' kg</b> <span style="color:var(--dim)">' + w.date + '</span></span>'
       : '<span class="warn">⚠ weight not in the log</span><span>using the 14 Aug fasted estimate, ' +
         TG.FALLBACK_WEIGHT_KG + ' kg</span>') +
     '<span class="sep">│</span>' +
@@ -185,49 +78,18 @@ function renderGoal() {
 function renderLeft() {
   const host = el("left"); if (!host) return;
   const t = totals(), T = targets();
-  /* 🚩 20 Aug 2026 — the day being logged is named here, every time, whenever it
-     is not today. The bug this replaces was invisible precisely because nothing
-     on screen said which date the food was going to. */
-  const dayLabel = new Date(S.logDate + "T12:00:00")
-    .toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-  const back = S.logDate !== ISO();
-  const pre = back
-    ? '<b class="acc">Logging ' + dayLabel + '</b> <span style="color:var(--dim)">— not today. ' +
-      'This will be saved with the ' + S.logDate + ' date.</span><br>'
-    : "";
-
-  /* Midnight passed while the tab sat open. Do not move the items and do not
-     stay silent — this is the exact failure of 19 → 20 August. */
-  if (S.rolled) {
-    host.innerHTML =
-      '<b class="warn">It is now ' + S.rolled.to + '.</b> These ' + S.log.length +
-      ' item' + (S.log.length === 1 ? "" : "s") + ' were started on <b>' + S.rolled.from +
-      '</b> and are still being logged to that date — nothing has moved. ' +
-      'Use the date control at the top to switch to today if that is wrong.';
-    return;
-  }
-
   if (S.closed) {
-    host.innerHTML = pre + '<b class="ok">Day closed.</b> ' + Math.round(t[0]) + ' kcal · ' +
-      r1(t[1]) + ' g protein, committed to the CSV. ' +
-      '<button class="mini" id="reopen">Re-log this day</button> ' +
-      '<span style="color:var(--dim)">appends a correction that replaces it — it cannot ' +
-      'restore the individual items, only the totals are in the file</span>';
+    host.innerHTML = '<b class="ok">Day closed.</b> ' + Math.round(t[0]) + ' kcal · ' +
+      r1(t[1]) + ' g protein, committed to the CSV.';
     return;
   }
   const pLeft = Math.round(T.protein - t[1]), kLeft = Math.round(T.kcal - t[0]);
-  if (S.reopened) {
-    host.innerHTML = pre + '<b class="warn">Re-logging a day that is already written.</b> ' +
-      'The file has <b>' + S.reopened.kcal + '</b> kcal · <b>' + r1(S.reopened.protein_g) +
-      '</b> g P for ' + S.logDate + '. Saving appends a <b>corrected</b> row that supersedes it.';
-    return;
-  }
   if (!S.log.length) {
-    host.innerHTML = pre + '<b>' + T.kcal.toLocaleString() + '</b> kcal and <b>' + T.protein +
+    host.innerHTML = '<b>' + T.kcal.toLocaleString() + '</b> kcal and <b>' + T.protein +
       '</b> g protein for the day. Each item below shows how much of it would close that.';
     return;
   }
-  host.innerHTML = pre +
+  host.innerHTML =
     (pLeft > 0 ? '<b class="acc">' + pLeft + ' g</b> protein' : '<b class="ok">floor cleared</b>') +
     ' · ' + (kLeft > 0 ? '<b>' + kLeft.toLocaleString() + '</b> kcal to target'
                        : '<b class="warn">' + Math.abs(kLeft) + '</b> kcal over target') +
@@ -237,14 +99,9 @@ function renderLeft() {
 /* ── preset column ────────────────────────────────────────────────────────── */
 function presetRow(p, mode) {
   const b = document.createElement("button");
-  /* The quality class is always attached; whether it PAINTS anything is decided
-     by `.chips.qual` on the container, so toggling the lens is one class change
-     on one element rather than a re-render of every row. */
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
-    (mode === "arch" ? " archrow" : "") + " " + qualityClass(p);
-  const t = document.createElement("span"); t.className = "pn";
-  t.innerHTML = (p.icon ? icon(p.icon) : "") +
-    "<span>" + displayName(p).replace(/[<>&]/g, "") + (p.edited ? " ·" : "") + "</span>";
+    (mode === "arch" ? " archrow" : "") + (p.batch && (S.fridge[p.batch] ?? 0) <= 0 ? " gone" : "");
+  const t = document.createElement("span"); t.textContent = displayName(p) + (p.edited ? " ·" : "");
   const m = document.createElement("span"); m.className = "pm"; m.textContent = presetLabel(p);
   b.append(t, m);
   /* How much of THIS item closes the day. The answer where the decision is. */
@@ -254,14 +111,6 @@ function presetRow(p, mode) {
     h.className = "phint" + (hint.weak ? " weak" : "");
     h.textContent = hint.text;
     b.appendChild(h);
-  }
-  /* Hover only. Built now rather than on mouseenter so there is no flicker on
-     the first hover, and CSS decides when it is visible. */
-  const eat = eatHint(p, totals());
-  if (eat && !S.closed && mode !== "arch") {
-    const e = document.createElement("span");
-    e.className = "peat"; e.textContent = eat;
-    b.appendChild(e);
   }
   b.onclick = e => { if (e.target.closest(".ctl")) return; if (mode === "arch") return; addPreset(p); };
 
@@ -275,8 +124,7 @@ function presetRow(p, mode) {
   if (mode === "arch") {
     mk("↺", "Restore to the list", "", () => { delete S.archived[p.id]; persist(); onChange(); });
   } else {
-    if (p.kind) mk("⋯", "Open the editor", "",
-      () => { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; if (p.rid) S.gTarget = p.rid; onChange(); });
+    if (p.kind) mk("⋯", "Open the editor", "", () => { S.editing = p.kind; if (p.gk) S.gTarget = p.gk; onChange(); });
     else        mk("✎", "Edit name and macros", "", () => { S.editTarget = p.id; S.editing = "new"; onChange(); });
     mk("●", S.pins[p.id] ? "Unpin" : "Pin to the top", S.pins[p.id] ? "on" : "",
        () => { S.pins[p.id] ? delete S.pins[p.id] : S.pins[p.id] = 1; persist(); onChange(); });
@@ -318,19 +166,8 @@ function renderPresets() {
 
   host.appendChild(expander("Everything else", rest.length, S.openMore, () => { S.openMore = !S.openMore; onChange(); }));
   if (S.openMore) {
-    /* Grouped by dominant macro so the list is scannable rather than a wall.
-       Frecency ordering still applies WITHIN each group. */
     const w = document.createElement("div"); w.className = "sub-list";
-    MACRO_GROUPS.forEach(g => {
-      const inGroup = rest.filter(p => macroClass(p) === g.key);
-      if (!inGroup.length) return;
-      const h = document.createElement("div");
-      h.className = "grouphead " + g.key;
-      h.innerHTML = "<span>" + g.label + "</span><span class='gc'>" + inGroup.length + "</span>";
-      h.title = g.hint;
-      w.appendChild(h);
-      inGroup.forEach(p => w.appendChild(presetRow(p, "rest")));
-    });
+    rest.forEach(p => w.appendChild(presetRow(p, "rest")));
     host.appendChild(w);
   }
   if (arch.length) {
@@ -352,6 +189,39 @@ function renderPresets() {
     "decayed over ~3 weeks, so a new staple climbs and an old one drifts down. Pins always win.";
   host.appendChild(hint);
   el("pin-n").textContent = pinned.length + " pinned · " + live.length + " items";
+}
+
+/* ── fridge ───────────────────────────────────────────────────────────────── */
+function renderFridge() {
+  const host = el("fridge"); host.innerHTML = "";
+  Object.keys(BATCH).forEach(k => {
+    if (S.fridge[k] === null) return;
+    const B = BATCH[k], rem = S.fridge[k], pct = Math.max(0, Math.min(100, rem / B.init * 100));
+    const size = k === "mince" ? 320 : 150, portions = rem > 0 ? Math.floor(rem / size) : 0;
+    const row = document.createElement("div"); row.className = "fr";
+    const ft = document.createElement("div"); ft.className = "ft";
+    ft.innerHTML = '<div class="fn">' + B.n + '</div><div class="fd">' + Math.round(rem) + ' g of ' + B.init +
+      ' · ' + B.per[0] + ' kcal / ' + B.per[1] + ' P per 100 g' +
+      (portions ? ' · ~' + portions + ' portions' : ' · empty') +
+      '</div><div class="fb"><i style="width:' + pct + '%" class="' + (pct < 25 ? "low" : "") + '"></i></div>';
+    const btn = document.createElement("button"); btn.className = "mini"; btn.textContent = "Restock";
+    btn.onclick = () => {
+      const v = prompt("Cooked weight in the fridge, grams:", String(B.init));
+      if (v !== null && !isNaN(+v)) { S.fridge[k] = Math.max(0, +v); onChange(); }
+    };
+    const del = document.createElement("button"); del.className = "mini del"; del.textContent = "×";
+    del.title = "Remove from the fridge — binned, eaten elsewhere, gone off";
+    del.onclick = () => { if (confirm("Remove " + B.n + " from the fridge?\n\nIt comes back with Restock."))
+      { S.fridge[k] = null; onChange(); } };
+    row.append(ft, btn, del); host.appendChild(row);
+  });
+  const gone = Object.keys(BATCH).filter(k => S.fridge[k] === null);
+  if (gone.length) {
+    const b = document.createElement("button"); b.className = "addnew";
+    b.textContent = "Restore " + gone.length + " removed item" + (gone.length > 1 ? "s" : "");
+    b.onclick = () => { gone.forEach(k => S.fridge[k] = 0); onChange(); };
+    host.appendChild(b);
+  }
 }
 
 /* ── main render ──────────────────────────────────────────────────────────── */
@@ -378,9 +248,7 @@ export function render() {
     tb.appendChild(tr);
   } else {
     el("empty").style.display = S.log.length ? "none" : "block";
-    el("empty").innerHTML = (S.logDate === ISO() ? "Nothing logged today." :
-      "Nothing logged for " + S.logDate + ".") +
-      "<br><span class='dimcell'>Tap a preset to start.</span>";
+    el("empty").innerHTML = "Nothing logged today.<br><span class='dimcell'>Tap a preset to start.</span>";
     S.log.forEach((r, i) => {
       const tr = document.createElement("tr");
       if (i === S.justAdded) tr.className = "new";
@@ -428,17 +296,12 @@ export function render() {
   const fl = flags();
   if (S.closed) fl.unshift(["good",
     "<b>Closed and committed to health-daily-log.csv.</b> Figures below are the file's, not a local draft — the file wins."]);
-  paintFlags(fl);
+  renderFlagsInto(el("flags"), fl);
 
-  renderEditor(); renderPresets(); renderLeft(); renderGoal();
+  renderEditor(); renderPresets(); renderFridge(); renderLeft(); renderGoal();
 
   const cb = el("close");
   if (S.closed) { cb.disabled = true; cb.textContent = "Day closed"; }
-  else {
-    cb.disabled = !S.log.length;
-    cb.textContent = S.logDate === ISO() ? "Close and save"
-      : "Save " + new Date(S.logDate + "T12:00:00").toLocaleDateString("en-GB",
-          { day: "numeric", month: "short" });
-  }
+  else { cb.disabled = !S.log.length; if (cb.textContent === "Day closed") cb.textContent = "Close and save"; }
   persist();
 }

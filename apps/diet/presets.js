@@ -2,80 +2,39 @@
    Items and macros come from domains/recipes.md. Recipes live there and only there. */
 
 import { S, r1, scale, targets } from "./state.js";
-import { BATCH, GRAM, ASSEN, SHAHS } from "./data.js";
-import { RECIPES, recipe, recipeTotal, recipeName, prepProtein, prepSide,
+import { BATCH, GRAM } from "./data.js";
+import { oats, oatsTotal, oatsName, prepProtein, prepSide,
          frecency, useCount, PREP_PROTEINS } from "./recipes.js";
 
 export const BASE_PRESETS = [
   /* Renamed 17 Aug 2026: "Standard overnight oats" → "Overnight oats", and it is
      now an INGREDIENT recipe rather than a frozen macro block. */
-  { id: "oats",   n: "Overnight oats",      kind: "recipe", rid: "oats",   icon: "grain", cls: "lock" },
-  /* NEW 18 Aug 2026 — salmon, honey, paprika, soy, air fried. */
-  { id: "salmonr", n: "Air-fried salmon",  kind: "recipe", rid: "salmon", icon: "fish" },
-  /* NEW 20 Aug 2026 — cooked whole, logged by cooked weight. See recipes.js. */
-  { id: "roast", n: "Whole roast chicken", kind: "recipe", rid: "chicken", icon: "chicken" },
-  { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
-  { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
-  /* NEW 29 Aug 2026 — size and meat are picked at log time. See SHAHS in data.js
-     for why the operator's own published figures could not be used. */
-  { id: "shahs", n: "Shah's Halal platter", icon: "plate",      kind: "shahs", cls: "unv" },
-  { id: "bfc",   n: "Birds Eye southern fried chicken", icon: "chicken", m: [238, 13, 20, 12], cls: "fat" },
-  { id: "whey",  n: "Protein powder scoop 35 g", icon: "tub", m: [132, 30, 1.2, 0.4] },
-  { id: "chick", n: "Bulk chicken 100 g", icon: "chicken",       m: [190, 31, 0, 6.4] },
-  { id: "yog",   n: "Protein yoghurt 100 g", icon: "pot",    m: [58, 11, 3.5, 0.2] },
-  { id: "ban",   n: "Banana", icon: "berry",                   m: [105, 1.3, 27, 0.4] },
-  { id: "rice",  n: "White rice 150 g cooked", icon: "grain",  m: [195, 4.1, 42.3, 0.5], cls: "unv" },
-  { id: "vegq",  n: "Frozen veg 150 g", icon: "leaf",         m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
-  { id: "swpot", n: "Air-fried sweet potato", icon: "potato",   kind: "gram", gk: "swpot" },
-  { id: "chips", n: "Thick-cut chips", icon: "potato",          kind: "gram", gk: "chips", cls: "unv" },
-  { id: "ched",  n: "Cheddar cheese", icon: "cheese",           kind: "gram", gk: "ched",  cls: "fat" },
-  { id: "ket",   n: "Heinz ketchup", icon: "sauce",            kind: "gram", gk: "ket" },
-  { id: "mayo",  n: "Mayo 30 g", icon: "sauce",                m: [87, 0.2, 2.4, 8.4], cls: "fat" },
-  { id: "sri",   n: "Sriracha 15 g", icon: "sauce",            m: [8, 0, 1.5, 0] },
+  { id: "oats",  n: "Overnight oats",           kind: "recipe", cls: "lock" },
+  { id: "plate", n: "Meal prep plate",          kind: "plate" },
+  { id: "assen", n: "Assenheims",               kind: "assen" },
+  { id: "bfc",   n: "Birds Eye southern fried chicken", m: [238, 13, 20, 12], cls: "fat" },
+  { id: "whey",  n: "Protein powder scoop 35 g", m: [132, 30, 1.2, 0.4] },
+  { id: "chick", n: "Bulk chicken 100 g",       m: [190, 31, 0, 6.4] },
+  { id: "yog",   n: "Protein yoghurt 100 g",    m: [58, 11, 3.5, 0.2] },
+  { id: "ban",   n: "Banana",                   m: [105, 1.3, 27, 0.4] },
+  { id: "rice",  n: "White rice 150 g cooked",  m: [195, 4.1, 42.3, 0.5], cls: "unv" },
+  { id: "vegq",  n: "Frozen veg 150 g",         m: scale(BATCH.veg.per, 150), veg: true, batch: "veg", g: 150, cls: "unv" },
+  { id: "swpot", n: "Air-fried sweet potato",   kind: "gram", gk: "swpot" },
+  { id: "chips", n: "Thick-cut chips",          kind: "gram", gk: "chips", cls: "unv" },
+  { id: "ched",  n: "Cheddar cheese",           kind: "gram", gk: "ched",  cls: "fat" },
+  { id: "ket",   n: "Heinz ketchup",            kind: "gram", gk: "ket" },
+  { id: "mayo",  n: "Mayo 30 g",                m: [87, 0.2, 2.4, 8.4], cls: "fat" },
+  { id: "sri",   n: "Sriracha 15 g",            m: [8, 0, 1.5, 0] },
   /* 10 g soy · 10 g rice wine vinegar · 5 g honey. The honey is 15 of the 24 kcal. */
-  { id: "dip",   n: "Soy, vinegar & honey dip", icon: "sauce", m: [24, 0.8, 5.3, 0] },
-  { id: "gyoza", n: "Itsu chicken gyoza, 12", icon: "plate",   m: [372, 19.7, 48, 10.6] },
-  { id: "coco",  n: "Coconut bean rice 100 g", icon: "grain",  m: [135, 2.9, 22, 3.5], cls: "unv" },
-  { id: "gast",  n: "Gastro chicken ½ bag", icon: "chicken",     m: [526, 28.5, 38, 28.5], cls: "fat" },
-  { id: "pop",   n: "Pop chips, one bag", icon: "plate",       m: [100, 2.8, 14, 2.8], cls: "unv" },
-  { id: "dom",   n: "Domino's slice", icon: "cheese",           m: [300, 13.5, 29, 14.5], cls: "fat" },
+  { id: "dip",   n: "Soy, vinegar & honey dip", m: [24, 0.8, 5.3, 0] },
+  { id: "gyoza", n: "Itsu chicken gyoza, 12",   m: [372, 19.7, 48, 10.6] },
+  { id: "coco",  n: "Coconut bean rice 100 g",  m: [135, 2.9, 22, 3.5], cls: "unv" },
+  { id: "gast",  n: "Gastro chicken ½ bag",     m: [526, 28.5, 38, 28.5], cls: "fat" },
+  { id: "pop",   n: "Pop chips, one bag",       m: [100, 2.8, 14, 2.8], cls: "unv" },
+  { id: "dom",   n: "Domino's slice",           m: [300, 13.5, 29, 14.5], cls: "fat" },
   /* Greggs Sausage Roll, 103 g. 348 kcal / 10.2 P / 24.1 C / 22.2 F, 10.2 g saturated.
      2.9 g protein per 100 kcal — the lowest-density item here bar the dips. */
-  { id: "greg",  n: "Greggs sausage roll", icon: "beef",      m: [348, 10.2, 24.1, 22.2], cls: "fat" },
-
-  /* ── MEAL-DEAL ITEMS, added 19 Aug 2026 ──────────────────────────────────
-     Sam started logging shop-bought lunches, so they need to exist on the board
-     rather than being re-derived from memory every time. Sources below; two of
-     the four are flagged `unv` and the reason is stated rather than implied. */
-
-  /* ⚠ WEAKEST ROW ON THIS BOARD. Sainsbury's does not publish its food-to-go
-     baguettes online — the whole On The Go range is in-store only — so this is
-     Simply Lunch "Chicken & Bacon Caesar in a White Baguette" standing in:
-     559 kcal / 23 P / 63 C / 24.7 F per pack (MyNetDiary, read 19 Aug 2026).
-     A supermarket baguette of this type runs roughly 500–650 kcal, so the real
-     figure could be ±90. READ THE PACK NEXT TIME and correct this row — at
-     ~21% of a day's calories it is the single largest unverified number here. */
-  { id: "bagcbc", n: "Chicken, bacon & Caesar baguette", icon: "plate", m: [559, 23, 63, 24.7], cls: "unv" },
-
-  /* For Goodness Shakes 27G Protein, strawberry, 250 ml: 165 kcal / 27 P /
-     ~13 C / ~0.7 F (forgoodnessshakes.com, read 19 Aug 2026).
-     ⚠ Sam called it a COLLAGEN smoothie. FGS's collagen line is "Glow", and Glow
-     ships only in iced latte and white chocolate — there is no strawberry Glow.
-     The strawberry is the plain 27G. The two are 15 kcal apart (Glow is
-     150/27/12.25/<1.25), so the choice barely moves the day either way, but the
-     name on the bottle is worth checking once. */
-  { id: "fgs27", n: "For Goodness Shakes 27 g, strawberry", icon: "bottle", m: [165, 27, 13, 0.7] },
-
-  /* Walkers Max Strong Jalapeño & Cheese: 531 kcal / 6.5 P / 51 C / 33 F per
-     100 g (walkers.co.uk panel, read 19 Aug 2026), taken at the 45 g grab bag. */
-  { id: "maxjal", n: "Walkers Max jalapeño & cheese 45 g", icon: "plate", m: [239, 2.9, 23, 14.9], cls: "fat" },
-
-  /* Ginsters Large Sausage Roll, 140 g: 480 kcal / 9.3 P / 21.8 C / 34.9 F
-     (FatSecret UK, read 19 Aug 2026). 72% of its calories are fat and it carries
-     1.9 g of protein per 100 kcal — the lowest-density item on the whole board.
-     ⚠ If the packet was a 2-pack of the smaller rolls rather than one Large,
-     halve it: that is a 240 kcal difference, so it is worth knowing which. */
-  { id: "gins",  n: "Ginsters large sausage roll", icon: "beef", m: [480, 9.3, 21.8, 34.9], cls: "fat" }
+  { id: "greg",  n: "Greggs sausage roll",      m: [348, 10.2, 24.1, 22.2], cls: "fat" }
 ];
 
 /* ⚠ FIXED IN THE PORT: the artifact had TWO presets with id "chips" — the gram
@@ -102,61 +61,32 @@ export function ordered(list) {
   });
 }
 
-/* ── EVERY ITEM CARRIES ALL FOUR FIGURES ─────────────────────────────────
-   Sam, 29 Aug 2026: "to every item in the log an item list, write the calories,
-   carbs, protein and fat for every one."
-
-   Previously the board showed kcal and protein only, and the two builder items
-   (Assenheims, Shah's) showed no figures at all — you had to open the editor to
-   find out what a click would cost you. The figures shown are for the CURRENT
-   selection, so changing size or meat updates the board line itself. */
-const macroTail = m =>
-  Math.round(m[0]) + " kcal · " + r1(m[1]) + " P · " + r1(m[2]) + " C · " + r1(m[3]) + " F";
-
 export function presetLabel(p) {
-  const m = presetMacros(p);
   if (p.kind === "recipe") {
-    const R = recipe(p.rid);
-    return R.ing.filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(/[ ,]/)[0].toLowerCase()).join(" · ") +
-           " · " + macroTail(m);
+    const t = oatsTotal();
+    return oats().filter(i => i.g > 0).map(i => r1(i.g) + "g " + i.n.split(" ")[0].toLowerCase()).join(" · ") +
+           " · " + Math.round(t[0]) + " kcal";
   }
   if (p.kind === "plate") {
     const pr = prepProtein(S.prepPick);
-    return pr.n.toLowerCase() + " " + pr.g + "g · " + macroTail(m) + " · pick & edit";
+    return pr.n.toLowerCase() + " " + pr.g + "g · " + Math.round(pr.per[0] * pr.g / 100) + " kcal · pick & edit";
   }
-  if (p.kind === "assen")
-    return ASSEN.sizeLabel[S.aState.size] + " · " + ASSEN.combos[S.aState.base].n.toLowerCase() +
-           " · " + macroTail(m) + " · editable";
-  if (p.kind === "shahs")
-    return SHAHS.sizeLabel[S.sState.size].toLowerCase() + " " + SHAHS.meats[S.sState.meat].n.toLowerCase() +
-           " · " + macroTail(m) + " · editable";
+  if (p.kind === "assen") return "size, bases, sauce · editable";
   if (p.kind === "gram") {
     const G = GRAM[p.gk], s = S.gState[p.gk];
     return s.g + " " + G.unit + (G.oil[0] && s.oil ? " + " + s.oil + " ml oil" : "") +
-           " · " + macroTail(m) + " · set your own";
+           " · " + Math.round(G.per[0] * s.g / 100 + G.oil[0] * s.oil) + " kcal · set your own";
   }
-  return macroTail(m);
+  if (p.batch && (S.fridge[p.batch] ?? 0) <= 0) return "none left";
+  return Math.round(p.m[0]) + " kcal · " + r1(p.m[1]) + " g P";
 }
 
 /* Macros for a preset at a given multiplier. */
 export function presetMacros(p, mult = 1) {
-  if (p.kind === "recipe") return recipeTotal(p.rid).map(v => v * mult);
+  if (p.kind === "recipe") return oatsTotal().map(v => v * mult);
   if (p.kind === "plate") {
     const pr = prepProtein(S.prepPick);
     return pr.per.map(v => v * pr.g / 100 * mult);
-  }
-  if (p.kind === "assen") {
-    /* Was returning [0,0,0,0], so the board showed Assenheims with no macros at
-       all and macroClass had nothing to file it by. It has a live selection —
-       read it. */
-    const c = ASSEN.combos[S.aState.base], step = ASSEN.sizes[S.aState.size];
-    const o = c.m.slice();
-    if (step) ASSEN.chick100.forEach((v, i) => o[i] += v * step / 100);
-    return o.map(v => v * mult);
-  }
-  if (p.kind === "shahs") {
-    const meat = SHAHS.meats[S.sState.meat], size = SHAHS.sizes[S.sState.size];
-    return meat.m.map(v => v * size * mult);
   }
   if (p.m) return p.m.map(v => v * mult);
   if (p.kind === "gram") {
@@ -169,137 +99,8 @@ export function presetMacros(p, mult = 1) {
 }
 
 export const displayName = p =>
-  p.kind === "recipe" ? recipeName(p.rid) :
+  p.kind === "recipe" ? oatsName() :
   p.kind === "plate"  ? "Meal prep plate · " + prepProtein(S.prepPick).n.toLowerCase() : p.n;
-
-/* ── WHAT IS THIS ITEM MOSTLY? ───────────────────────────────────────────
-   Sam: "on the everything else dropdown, can we categorise them by protein,
-   carb, fat? It just makes the list a bit easier to navigate at a glance."
-
-   ~~Dominant macro by share of CALORIES, not by grams — 30 g of fat and 30 g of
-   carbs are not the same thing, and grams would put nearly everything in carbs.~~
-
-   🚩 SUPERSEDED 29 AUGUST 2026 — DOMINANT MACRO BY GRAMS.
-   Sam: "whatever the highest metric is on each item, should be the category
-   that it resides in."
-
-   The calorie-share rule filed WHOLE ROAST CHICKEN (48 g protein against 27 g
-   fat) and AIR-FRIED SALMON (33 g against 19 g) under Fat, because fat carries
-   9 kcal/g to protein's 4. The arithmetic was right and the answer was wrong:
-   both are protein sources that happen to contain fat, and hunting for chicken
-   under Fat is not what the grouping is for. The old rule's own comment
-   predicted the cost of grams and it was correct — it just weighed it against
-   the wrong thing.
-
-   ⚠ THE COST, RECORDED BECAUSE IT IS REAL. Five genuinely fatty items move to
-   Carbs: Birds Eye chicken, Gastro chicken, Domino's slice, Greggs sausage roll
-   and Walkers Max. Each carries more carbohydrate than fat by weight.
-   health-targets.md §3.5 names fat — not calories — as the Block 02 watch line,
-   so a rule that hides the fatty items would cost the exact signal that section
-   says to watch.
-
-   ✅ IT IS NOT LOST, AND THIS IS WHY THE CHANGE IS SAFE. The amber fat flag is
-   `cls: "fat"`, set per item and read by render.js — a SEPARATE marker from this
-   function, untouched by it. Those five keep the warning border and the amber
-   macro figure wherever they are filed. The section answers "what is this item
-   mostly made of"; the flag answers "what should I watch". Two questions that
-   were being served by one control, now decoupled.
-
-   ⚠ Protein still wins ties on purpose — it is the floor that does not flex.
-   ⚠ An item with no macros yet returns 0-0-0, which would tie into Protein and
-   file an unconfigured builder as a protein source. Guarded: no macros → carb,
-   matching the old rule's zero-calorie behaviour. */
-export function macroClass(p) {
-  const m = presetMacros(p, 1);
-  const g = [m[1] || 0, m[2] || 0, m[3] || 0];
-  if (!(g[0] + g[1] + g[2])) return "carb";
-  if (g[0] >= g[1] && g[0] >= g[2]) return "protein";
-  return g[2] > g[1] ? "fat" : "carb";
-}
-
-export const MACRO_GROUPS = [
-  { key: "protein", label: "Protein",     hint: "protein is the largest macro by weight" },
-  { key: "carb",    label: "Carbs",       hint: "carbohydrate is the largest macro by weight" },
-  { key: "fat",     label: "Fat",         hint: "fat is the largest macro by weight" }
-];
-
-/* ── HOW GOOD IS THIS ITEM? ───────────────────────────────────────────────
-   Sam, 20 Aug 2026: "the fat items here are highlighted in yellow. Maybe it'd
-   be cool to highlight or surround or border items in green or red depending on
-   how good they are. And I could turn this on and off with a little switch."
-
-   🚩 "GOOD" IS PROTEIN PER 100 KCAL, AND NOTHING ELSE.
-   Not calories — a 900-kcal Assenheims box with 78 g of protein is a good item
-   and a 100-kcal bag of chips is not. Not fat either; the existing amber `fat`
-   class already covers that and answers a different question. The whole system
-   rests on hitting a protein floor INSIDE a calorie band, so the only ranking
-   that matters is how much protein a calorie buys.
-
-   The bands are lifted from the language already in recipes.md and
-   health-fitness.md, so the colours agree with the prose rather than inventing
-   a second opinion:
-     ≥12 g/100 kcal  a protein source            chicken 16.3 · yoghurt 19 · whey 22.7
-      6–12           carries its weight          mince 13.4 · Assenheims 10.7
-      3–6            "reads as protein,          cheddar 6.1 · gyoza 5.3 · Gastro 5.4
-                      behaves as a fat source"
-      <3             carries none                Greggs roll 2.9 · Ginsters 1.9 · dips
-
-   ⚠ OFF BY DEFAULT. design-system.md allows one accent for the single most
-   important thing on a page; a board where every row is coloured has no accent
-   left. It is a lens Sam switches on, not the resting state. */
-export const QUALITY_BANDS = [
-  { key: "q-hi",  min: 12, label: "a protein source" },
-  { key: "q-ok",  min: 7,  label: "carries its weight" },
-  { key: "q-lo",  min: 3,  label: "reads as protein, behaves as fat" },
-  { key: "q-bad", min: 0,  label: "carries no protein" }
-];
-
-/* 🚩 A DENSITY-ONLY LENS LIBELS SMALL FOOD, and the first version did.
-   Frozen veg is 68 kcal at 5.6 g protein per 100 kcal, which lands it in the
-   same amber band as cheddar and a sausage roll. That is nonsense: an item that
-   contributes 68 calories cannot damage a day no matter what its ratio is.
-
-   So the two NEGATIVE bands need a calorie floor and the positive ones do not.
-   Below FLOOR_KCAL an item simply goes unbanded rather than being called bad —
-   but it can still earn green, because a 58-kcal yoghurt at 19 g/100 kcal is
-   genuinely good and hiding that would be the opposite error.
-
-   Asymmetric on purpose: **we will not call a small item bad, but we are happy
-   to call it good.** */
-const FLOOR_KCAL = 120;
-
-export function qualityClass(p) {
-  const m = presetMacros(p, 1);
-  if (!m[0]) return "";
-  const d = m[1] / m[0] * 100;
-  const band = (QUALITY_BANDS.find(b => d >= b.min) || QUALITY_BANDS[3]).key;
-  if ((band === "q-lo" || band === "q-bad") && m[0] < FLOOR_KCAL) return "";
-  return band;
-}
-
-/* ── WHAT WOULD EATING ONE OF THESE DO? ───────────────────────────────────
-   Sam: "when I hover, tell me how close it would make to the target to eat.
-   That'd be cool. Just when I hover, so it's kind of discreet."
-
-   ⚠ NOT the same question as `closeHint` below, and they are easy to confuse.
-     closeHint  — "how much of this would I need to CLOSE the day?"   (an amount)
-     eatHint    — "if I ate ONE, where would that leave me?"          (a position)
-   The first is a plan, the second is a consequence. Sam asked for the second and
-   the board only had the first. Hover-only because a board with two permanent
-   numbers on every row is a board nobody reads. */
-export function eatHint(p, totals) {
-  const T = targets();
-  const m = presetMacros(p, 1);
-  if (!m[0]) return null;
-
-  const k = totals[0] + m[0], pr = totals[1] + m[1];
-  const pct = Math.round(k / T.kcal * 100);
-  const kTxt = k > T.kcal_hi ? Math.round(k - T.kcal_hi) + " over the band"
-                             : pct + "% of the kcal target";
-  const pGap = Math.round(T.protein - pr);
-  const pTxt = pGap <= 0 ? "floor cleared" : pGap + " g of protein still short";
-  return "eat one → " + kTxt + " · " + pTxt;
-}
 
 /* Protein per 100 kcal — ranks the close-the-day routes so the leanest is first. */
 export const density = m => m[0] > 0 ? m[1] / m[0] * 100 : 0;
