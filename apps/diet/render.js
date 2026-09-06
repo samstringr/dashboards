@@ -117,16 +117,30 @@ export function paintFlags(arr) {
               : arr.some(f => f[0] === "info") ? "info" : "good";
   badge.hidden = false;
   badge.className = "flagbadge " + worst;
-  badge.textContent = (worst === "good" ? "✓" : worst === "info" ? "•" : "!") +
-                      (arr.length > 1 ? " " + arr.length : "");
+  /* 🚩 6 Sep 2026 — NUMBER FIRST, then the mark. Sam: "it should be number then
+     exclamation mark." Always show the count, including at one, so the badge
+     reads 1! / 2! / 3! rather than switching shape between one flag and two. */
+  badge.textContent = arr.length +
+                      (worst === "good" ? "✓" : worst === "info" ? "•" : "!");
   badge.title = arr.length + " flag" + (arr.length > 1 ? "s" : "") + " — click to show";
 
   renderFlagsInto(host, arr);
 
-  /* Only restart on a real change, or every render re-shows them and they never
-     settle. renderFlagsInto rebuilt the children, so a stack that was already
-     dismissed has to be put straight back into its hidden state. */
-  if (changed || flagsOpen) { flagsOpen = true; showFlags(host, badge, arr); }
+  /* 🚩 THE STACK NO LONGER OPENS BY ITSELF — 6 Sep 2026.
+     Sam: "when I log an item, the flags that pop up, I don't want them to pop up
+     anymore. I'd rather them just kind of go into the little alert button."
+
+     Until today a changed flag set auto-opened the stack, so every log threw the
+     flags across the screen and they timed out seven seconds later. The badge
+     already existed as the way in; the auto-open was the part he never asked for.
+     Now the badge is the ONLY route: it updates silently, and the stack opens on
+     click and on nothing else. `changed` is still computed and still assigned to
+     lastKey above, because the modal history view reads the same flag list.
+
+     A stack the user has open stays open across a re-render — renderFlagsInto
+     rebuilt the children, so an open stack has to be re-shown or it would blank
+     out mid-read. */
+  if (flagsOpen) showFlags(host, badge, arr);
   else host.classList.add("gone", "away");
 
   badge.onclick = () => {

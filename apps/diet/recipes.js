@@ -69,6 +69,41 @@ export const RECIPES = {
     ]
   },
 
+  /* NEW 6 Sep 2026 — Sam's pancakes, in his words: "two eggs, a hundred grams of
+     flour, three hundred millilitres of semi-skimmed milk, dash of oil, a little
+     bit of salt, and then I'll eat it with lemon and honey. Say about fifteen
+     grams of honey per pancake. I need two pancakes, so thirty grams as the
+     default, same with the other values."
+
+     ⚠ THE YIELD IS THE OPEN QUESTION AND IT MATTERS MORE THAN ANY OTHER NUMBER
+     HERE. 100 g flour, 2 eggs and 300 ml milk is a classic thin-pancake batter
+     and it usually makes six to eight, not two. This entry takes him literally —
+     the amounts as stated are ONE serving, with honey at 30 g for his two
+     pancakes. If the batter actually yields six and he eats two of them, the
+     first four rows want dividing by three and the real figure is nearer 260 kcal
+     than 770. Grams are editable precisely so that is a ten-second fix. Confirm
+     the yield and this note gets replaced with a number.
+
+     Lemon is not a row. Juice of a wedge is under 5 kcal and rounding it in would
+     be false precision next to a ±3 g flour scoop. */
+  pancakes: {
+    id: "pancakes", n: "Pancakes", icon: "plate",
+    note: "Sam's recipe, stated 6 Sep 2026, honey defaulted to 30 g for two pancakes. " +
+          "⚠ UNCONFIRMED YIELD — the amounts below are entered as one serving. If this " +
+          "batter makes more than two pancakes, scale the egg, flour, milk and oil rows " +
+          "to the share actually eaten. ⚠ Also note the shape of it: about 770 kcal for " +
+          "33 g of protein is roughly 28% of the daily calories for 21% of the protein " +
+          "floor, so it is a carb-led meal and the rest of the day has to carry the protein.",
+    ing: [
+      { id: "egg",   n: "Egg, whole (2 medium)",   icon: "pot",    per: [143, 12.6, 0.7, 9.5],   g: 100, step: 50 },
+      { id: "flour", n: "Plain white flour",       icon: "grain",  per: [341, 9.4, 69.4, 1.3],   g: 100, step: 10 },
+      { id: "milk",  n: "Semi-skimmed milk",       icon: "bottle", per: [50, 3.6, 4.8, 1.8],     g: 300, step: 10 },
+      { id: "oil",   n: "Oil, for the pan",        icon: "sauce",  per: [884, 0, 0, 100],        g: 5,   step: 1 },
+      { id: "salt",  n: "Salt",                    icon: "spice",  per: [0, 0, 0, 0],            g: 1,   step: 1 },
+      { id: "honey", n: "Honey",                   icon: "drop",   per: [306.7, 0, 82.7, 0],     g: 30,  step: 5 }
+    ]
+  },
+
   /* NEW 18 Aug 2026, revised the same day.
 
      First build made this four editable ingredients — salmon, honey, paprika,
