@@ -7,7 +7,27 @@
 .wrap{display:flex;flex-direction:column;gap:9px;padding:13px 15px}
 .head{display:flex;align-items:center;gap:11px;flex:none;flex-wrap:wrap}
 h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
-.when{color:var(--muted);font-size:12px}
+/* ── THE DAY SELECTOR, 20 Aug 2026 ────────────────────────────────────────
+   Was a passive date label. It is now the control that decides which day the
+   log is written to, so it has to look like one and it has to be impossible to
+   misread when it is NOT today — a whole day of food went to the wrong date
+   because nothing on screen changed when midnight passed. */
+.whenbar{display:flex;align-items:center;gap:2px}
+.when{color:var(--muted);font-size:12px;padding:0 4px;white-space:nowrap}
+.when.back{color:var(--accent);font-weight:600}
+.whennav{background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  border-radius:6px;font-size:11px;line-height:1;padding:4px 5px}
+.whennav:hover:not(:disabled){background:var(--s2);color:var(--ink)}
+.whennav:disabled{opacity:.28;cursor:default}
+.whennav.home{border-color:var(--line-2);color:var(--accent);padding:3px 8px;font-weight:600}
+/* The native picker sits UNDER the date text and is invisible — clicking the
+   date opens it. Keeping the native control means the phone gets its own date
+   wheel for free, which a hand-rolled popover would not. */
+#whenpick{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.whenbar{position:relative}
+.when{cursor:pointer}
+/* One unmissable cue that the whole board is pointed at a past day. */
+body.backdated .topbar{box-shadow:inset 0 -2px 0 var(--accent)}
 .spacer{flex:1}
 .sync{font-size:10.5px;color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
 .sync.ok{color:var(--good);border-color:#33402c}
@@ -26,16 +46,39 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
    The log panel is wider because every row now carries a close-the-day amount,
    and the chart got a resolved height instead of sharing a flex column with
    three siblings — which is what was squeezing and clipping it. */
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.32fr 1fr;gap:10px}
-.col{display:flex;flex-direction:column;gap:10px;min-height:0}
+/* ⚠ minmax(0, …), not plain fr. A grid track defaults to min-width:auto, so any
+   wide child — the ingredient macro editor, a long item name — pushes the track
+   past its share and the column runs off the screen. Caught 18 Aug when the
+   per-100 g inputs shoved the whole right column out of the viewport. */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:10px}
+.col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+/* ⚠ overflow:hidden. Without it a card whose children total more than its
+   height simply DRAWS PAST ITS OWN BORDER — no scrollbar, no clip. Caught
+   18 Aug when the flag stack pushed the Today card's table down and the
+   Consistency card was painted straight over the top of it. flex:1 sets the
+   card's SIZE; it does nothing to contain the contents. */
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
-  display:flex;flex-direction:column;min-height:0}
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .card.grow{flex:1}
-.card.today{flex:none}
-.card.today .tbl{max-height:190px}
-/* The chart card owns the rest of the column and gives the canvas a floor.
-   A flex child with no min-height collapses under pressure — that was the clip. */
-.card.chartcard{flex:1;min-height:330px}
+
+/* ⚠ WHO GETS THE SLACK — fixed 18 Aug 2026 on a 1080×1759 window.
+   The chart card was `flex:1`, so on a tall viewport it took ALL the spare
+   height: a 562×1166 canvas with the lines stretched into unreadable spikes.
+   Giving the canvas a floor fixed the clipping; it did not stop the opposite
+   failure.
+
+   The chart now has a BOUNDED height and the Today card takes the slack —
+   which is the right place for it, because the item table is the thing that
+   genuinely benefits from more room. clamp() means it can still shrink on a
+   short laptop screen without collapsing. */
+/* position:relative — the flag overlay is absolutely positioned and needs this
+   card as its containing block, so left/right land on the content box. */
+.card.today{flex:1;min-height:0;position:relative}
+/* ⚠ The table gets a FLOOR. The flag stack pushing it to a few unreadable
+   pixels was the bug; transient flags fix the cause, this stops the symptom
+   ever returning from some other direction. */
+.card.today .tbl{flex:1;min-height:132px;max-height:none}
+.card.chartcard{flex:none}
 .card.fridge{flex:none}
 .col.right{min-height:0}
 .ph{font:600 11px/1.3 var(--font);letter-spacing:.02em;color:var(--muted);margin-bottom:9px;
@@ -60,8 +103,65 @@ h1{font:600 19px/1 var(--font);letter-spacing:-.025em}
 .acc{color:var(--accent)}
 .dimcell{color:var(--dim)}
 
-.fl{display:flex;flex-direction:column;gap:5px;margin-bottom:9px;flex:none}
-.fl:empty{display:none;margin:0}
+/* ═══ FLAGS ARE TRANSIENT — 18 Aug 2026 ═══
+   They used to be a permanent stack that grew with the day and pushed the food
+   table off screen. 18 Aug made them transient. 20 Aug fixed what that left
+   behind and gave them the behaviour Sam actually asked for.
+
+   🚩 THE BUG, and it was in the collapse trick itself.
+   `.fl { display:grid; grid-template-rows:0fr }` animates a container to zero
+   height without a magic pixel value — but ONLY for its first row. `.fl` held
+   the flags as DIRECT children, so with three flags the second and third landed
+   in IMPLICIT rows, which are `auto`. Row one collapsed; rows two and three kept
+   their full height. Measured on 19 Aug: the "closed" stack was still **74px
+   tall**, sitting as dead space between the goal strip and the food table. The
+   0fr→1fr idiom REQUIRES A SINGLE WRAPPER CHILD and this had none.
+
+   ✅ FIXED BY REMOVING THE PROBLEM, not by patching the grid.
+   Sam: "I wanted [them] to pop up one at a time, kind of overlay on each other,
+   and then disappear into the little icon bit."
+
+   The stack is now `position:absolute`, so it is OUT OF FLOW ENTIRELY. It keeps
+   its static position — no `top` is set, so it sits exactly where it used to,
+   under the goal strip — but it can no longer move a single pixel of layout
+   whether it is open, closed, or halfway through an animation. **The class of
+   bug is gone, not the instance:** there is no height left to fail to collapse.
+   The food table never shifts, which is the third time that table has been the
+   casualty of this stack.
+
+   ⚠ `pointer-events:none` — the overlay must never eat a click meant for the
+   row underneath it. The badge in the header is the only control. */
+/* ⚠ SCOPED TO #flags, NOT .fl — and finding out why fixed a second bug.
+   `.fl` is on TWO elements: the transient stack in the Today card and the flag
+   list inside the save-risk modal. The 18 Aug collapse rules were written
+   against `.fl`, so the modal's flags inherited `opacity:0` and a 0fr row and
+   have been INVISIBLE ever since. The modal has been showing "3 things before
+   this is saved" above an empty space. Transient behaviour is now #flags only;
+   #mdl-flags is a plain visible list. */
+.flanchor{position:relative;height:0;flex:none}
+#flags{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;
+  display:flex;flex-direction:column;gap:5px;
+  transform-origin:top left;transition:opacity .30s ease,transform .30s cubic-bezier(.4,0,.6,1)}
+#flags:empty,#flags.gone{visibility:hidden}
+/* Each flag arrives on its own, stepped by an inline animation-delay so the
+   stack builds rather than appearing as a block. */
+#flags .fli{opacity:0;transform:translateY(-7px) scale(.985);animation:flin .26s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes flin{to{opacity:1;transform:none}}
+/* "Disappear into the little icon bit." transform-origin is set in JS to the
+   badge's own centre, because the badge moves as the flag count changes. */
+#flags.away{opacity:0;transform:scale(.05)}
+#flags.away .fli{animation:none;opacity:1;transform:none}
+/* The modal's copy: no animation, no collapse, always readable. */
+#mdl-flags{display:flex;flex-direction:column;gap:5px;margin:12px 0}
+
+.flagbadge{margin-left:8px;border:1px solid var(--line-2);background:var(--s2);color:var(--muted);
+  border-radius:99px;font:600 10px/1 var(--font);padding:4px 8px;cursor:pointer;
+  font-variant-numeric:tabular-nums;transition:var(--ease)}
+.flagbadge:hover{color:var(--ink);border-color:var(--ink)}
+.flagbadge.bad{color:var(--bad);border-color:#4a2426;background:var(--bad-dim)}
+.flagbadge.warn{color:var(--warn);border-color:#4a3a1c;background:var(--warn-dim)}
+.flagbadge.good{color:var(--good);border-color:#33402c;background:var(--good-dim)}
+.flagbadge.info{color:var(--cool);border-color:#25384a;background:var(--cool-dim)}
 .fli{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.45;
   border-radius:8px;padding:6px 9px;border:1px solid}
 .fli.bad{background:var(--bad-dim);border-color:#4a2426;color:#f0a3a4}
@@ -188,7 +288,7 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .btn:disabled:hover{background:transparent;color:var(--muted)}
 
 /* editors */
-.ed{background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;flex:none}
+.ed{background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;flex:none;min-width:0;overflow:hidden}
 .ed .et{font:600 12px/1.3 var(--font);margin-bottom:8px}
 .ed .er{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px}
 .ed .er label{color:var(--muted);min-width:74px}
@@ -221,7 +321,7 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .bm{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:92px;text-align:right}
 
 /* chart */
-.chartbox{flex:1;min-height:150px;position:relative;cursor:crosshair;touch-action:pan-y}
+.chartbox{flex:none;height:clamp(190px,26vh,340px);position:relative;cursor:crosshair;touch-action:pan-y}
 .chartbox canvas{display:block}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px;flex:none}
 .st{background:var(--s2);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 8px}
@@ -342,8 +442,94 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
   .grid{grid-template-columns:none}
   .card.today{flex:none}
   .card.today .tbl{max-height:none}
-  .card.chartcard{min-height:300px}
-  .chartbox{min-height:210px}
+  .card.today{flex:none}
+  .card.today .tbl{flex:none}
+  .chartbox{height:clamp(200px,34vh,300px)}
   .stats{grid-template-columns:1fr 1fr}
   .mic{min-height:32px}
 }
+
+
+/* ═══ 18 Aug 2026 ═══════════════════════════════════════════════════════════ */
+
+/* Icons — 14px, currentColor, so a row turning amber takes its icon with it. */
+.ico{width:14px;height:14px;flex:none;vertical-align:-2px;margin-right:6px;opacity:.75}
+.p .pn{display:flex;align-items:center;gap:0;min-width:0}
+.p .pn>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p.pinned .ico{opacity:1}
+.ed .et .ico{opacity:1;margin-right:7px}
+
+/* Ingredient rows: grams always, macros behind ✎ */
+.ingblock{border-bottom:1px solid var(--line)}
+.ingblock:last-of-type{border-bottom:none}
+.ingrow{gap:6px}
+.inglabel{display:flex;align-items:center;min-width:0;flex:1;color:var(--ink) !important;font-size:11.5px}
+.inglabel>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed input.ig{width:62px;flex:none;min-width:0}
+.ingtog{background:none;border:1px solid transparent;color:var(--dim);cursor:pointer;
+  border-radius:5px;font-size:11px;line-height:1;padding:4px 6px;flex:none;transition:var(--ease)}
+.ingtog:hover{color:var(--ink);background:var(--s3)}
+.ingtog.on{color:var(--accent);border-color:var(--accent)}
+.ingmac{display:none;align-items:center;gap:5px;padding:2px 0 8px 20px;flex-wrap:wrap;max-width:100%}
+.ingmac.on{display:flex}
+.ingmac .pl{font-size:10px;color:var(--dim);margin-right:2px}
+.ed input.im{width:58px;flex:none;min-width:0}
+.ingrow .bm{min-width:0;text-align:right;white-space:nowrap}
+
+/* Chart window label — says what you are looking at */
+.lg .wlabel{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ═══ 18 Aug 2026, second pass ══════════════════════════════════════════════ */
+
+/* "Everything else", grouped by dominant macro so the list is scannable. */
+.grouphead{display:flex;align-items:center;gap:7px;font:600 9.5px/1 var(--font);
+  letter-spacing:.04em;text-transform:uppercase;color:var(--dim);
+  padding:9px 2px 5px;margin-top:2px;border-top:1px solid var(--line)}
+.grouphead:first-child{border-top:none;margin-top:0;padding-top:2px}
+.grouphead .gc{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0}
+.grouphead.protein{color:var(--accent)}
+.grouphead.carb{color:var(--cool)}
+.grouphead.fat{color:var(--warn)}
+
+/* Plan-change legend swatch: a VERTICAL ink rule, matching the rule drawn on
+   the chart. Trend lines were removed 19 Aug 2026 — Sam: "I don't want the
+   trend lines" — so .solid/.slope went with them. */
+.lg i.rule{width:2px;height:11px;border-radius:1px;background:var(--plan)}
+/* The legend spells the symbol out once. sub must not stretch the legend row. */
+.lg sub{font-size:.72em;line-height:0;vertical-align:baseline;position:relative;top:.28em}
+
+/* The multiplier explainer in the goal pane. */
+.explain{background:var(--s3);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px 12px;margin:2px 0 10px;font-size:10.5px;line-height:1.6;color:var(--muted)}
+.explain p{margin:0 0 7px}
+.explain p:last-child{margin-bottom:0}
+.explain b{color:var(--ink);font-weight:600}
+
+/* ── THE QUALITY LENS, 20 Aug 2026 ────────────────────────────────────────
+   Sam: "highlight or surround or border items in green or red depending on how
+   good they are… and I could turn this on and off with a little switch."
+   Border only — never a fill. A filled row competes with the accent and with
+   the amber `fat` class that already means something else. */
+.lens{margin-left:auto;display:flex;align-items:center;gap:6px;background:none;
+  border:1px solid var(--line-2);border-radius:99px;color:var(--dim);cursor:pointer;
+  font:600 10px/1 var(--font);padding:4px 9px 4px 5px;transition:var(--ease)}
+.lens i{width:18px;height:10px;border-radius:99px;background:var(--s3);
+  border:1px solid var(--line-2);position:relative;transition:var(--ease)}
+.lens i::after{content:"";position:absolute;top:1px;left:1px;width:6px;height:6px;
+  border-radius:50%;background:var(--dim);transition:var(--ease)}
+.lens[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.lens[aria-pressed="true"] i{background:var(--accent-dim);border-color:var(--accent)}
+.lens[aria-pressed="true"] i::after{left:9px;background:var(--accent)}
+
+/* Nothing paints until the lens is on. One class on the container, no re-render. */
+.chips.qual .p.q-hi{border-color:var(--good)}
+.chips.qual .p.q-ok{border-color:#3d4a36}
+.chips.qual .p.q-lo{border-color:var(--warn)}
+.chips.qual .p.q-bad{border-color:var(--bad)}
+
+/* ── HOVER: what eating one would do ──────────────────────────────────────
+   "Just when I hover, so it's kind of discreet." Reserves no layout space —
+   max-height 0 → auto would jump, so it fades in over the row's own padding. */
+.peat{display:block;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;
+  max-height:0;opacity:0;overflow:hidden;transition:max-height .16s ease,opacity .16s ease,margin .16s}
+.p:hover .peat,.p:focus-visible .peat{max-height:20px;opacity:1;margin-top:3px}

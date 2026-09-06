@@ -42,7 +42,15 @@ would close the day, batch inventory, and a consistency history with drill-down.
 <div class="wrap">
   <div class="head">
     <h1>Diet</h1>
-    <span class="when" id="when"></span>
+    <!-- 🚩 20 Aug 2026: was a static date label. It is now the control that
+         decides which day the log is written to — see app.js paintWhen(). -->
+    <div class="whenbar">
+      <button class="whennav" id="whenprev" title="Previous day" aria-label="Previous day">◀</button>
+      <span class="when" id="when"></span>
+      <input type="date" id="whenpick" aria-label="Pick a day to log">
+      <button class="whennav" id="whennext" title="Next day" aria-label="Next day">▶</button>
+      <button class="whennav home" id="whenhome" hidden>Today</button>
+    </div>
     <div class="spacer"></div>
     <span class="sync" id="sync"></span>
     <div class="seg" role="group" aria-label="Day type">
@@ -61,7 +69,9 @@ would close the day, batch inventory, and a consistency history with drill-down.
     <!-- LEFT: Today on top, then the chart -->
     <div class="col">
       <div class="card today">
-        <div class="ph">Today <span class="n" id="saved"></span></div>
+        <div class="ph">Today
+          <button class="flagbadge" id="flagbadge" hidden aria-label="Show flags"></button>
+          <span class="n" id="saved"></span></div>
         <div class="mets">
           <div class="met lead" id="m-prot">
             <div class="v" id="v-prot">0</div><div class="k" id="k-prot">protein g</div>
@@ -72,7 +82,14 @@ would close the day, batch inventory, and a consistency history with drill-down.
           <div class="met" id="m-fat"><div class="v" id="v-fat">0</div><div class="k">fat g</div></div>
         </div>
         <div class="goal" id="goal"></div>
-        <div class="fl" id="flags"></div>
+        <!-- ⚠ The anchor is NOT decoration. `.card.today` is a flex column, and an
+             absolutely positioned flex child does NOT keep the position it would
+             have flowed to — the spec puts its static position at the flex
+             container's content-box corner. So the first build of the overlay
+             drew over the metric tiles instead of under the goal strip. This
+             zero-height in-flow div gives the overlay something to hang off at
+             exactly the right y, while contributing no height of its own. -->
+        <div class="flanchor"><div class="fl" id="flags"></div></div>
         <div class="scroll tbl">
           <table>
             <thead><tr><th>Item</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead>
@@ -97,22 +114,26 @@ would close the day, batch inventory, and a consistency history with drill-down.
       </div>
     </div>
 
-    <!-- RIGHT: log (with close-the-day folded in) on top, fridge at the bottom -->
+    <!-- RIGHT: the log board, full height.
+         The "In the fridge" card was removed 18 Aug 2026. Sam: "let's remove the
+         in the fridge section… it's just kind of useless right now." It tracked a
+         batch inventory that had to be kept true by hand, and a stale inventory is
+         worse than none — it greyed out food that was actually there. The
+         grey-out-when-empty behaviour went with it. -->
     <div class="col right">
       <div class="card grow">
         <div class="ph">Log an item
-          <button class="mic" id="mic" title="Say what you ate">🎙</button>
           <span class="n" id="pin-n"></span>
+          <!-- 20 Aug 2026 — the quality lens. Off by default: design-system.md
+               allows ONE accent for the most important thing on a page, and a
+               board where every row is coloured has no accent left. -->
+          <button class="lens" id="qual" aria-pressed="false"
+            title="Colour every item by protein per 100 kcal">
+            <i></i><span>quality</span></button>
         </div>
         <div class="leftline" id="left"></div>
-        <div id="heard" class="heard"></div>
         <div id="editor"></div>
         <div class="scroll"><div class="chips" id="presets"></div></div>
-      </div>
-
-      <div class="card fridge">
-        <div class="ph">In the fridge</div>
-        <div id="fridge"></div>
       </div>
     </div>
   </div>
@@ -153,6 +174,22 @@ would close the day, batch inventory, and a consistency history with drill-down.
 
   <div class="gsec">Calories</div>
   <div class="er"><label>Multiplier</label><input id="g-mult" type="number" step="0.01"><span class="bu">× BMR</span></div>
+  <!-- Sam asked for this, 18 Aug: "can we give a quick explainer as to what the
+       multiplier for the calories thing is?" -->
+  <div class="explain">
+    <p><b>BMR</b> is what you'd burn lying in bed all day — about <b>1,690 kcal</b> at 73 kg.
+    The <b>multiplier</b> is everything on top of that: the cycle commute, the gym, football,
+    walking around. Multiply the two and you get what you actually burn in a day.</p>
+    <p><b>1.66</b> is the current figure. For scale: <b>1.375</b> is a desk job with no training,
+    <b>1.55</b> is three or four sessions a week, <b>1.9</b> is an athlete training twice a day.</p>
+    <p>⚠ <b>It is the least trustworthy number in the app.</b> The old record used <b>1.7</b>,
+    which assumes hard exercise six or seven days a week, against a logged reality of one gym
+    session a week — that single wrong figure overstated the target by 250–400 kcal, the entire
+    size of the intended deficit. The honest error band is still <b>±250–400 kcal</b>.</p>
+    <p><b>So don't tune it by feel — settle it with the scale.</b> Weigh in fasted, and after
+    four weeks: down more than 0.5 kg, add 150 kcal. Up more than 1.0 kg, take 150 off.
+    Anywhere between, it's right. That rule beats any adjustment made from a formula.</p>
+  </div>
   <div class="er"><label>Protein</label><input id="g-prot" type="number" step="1"><span class="bu">g floor</span></div>
   <div class="msub" id="goal-preview" style="margin:8px 0 0"></div>
 

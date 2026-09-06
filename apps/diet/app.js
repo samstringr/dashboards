@@ -9,29 +9,137 @@
    whole hand-off path (sendPrompt, the clipboard fallback chain, the copy-by-hand
    textarea) is deleted rather than ported. */
 
-import { S, el, r1, persist, loadLocal, clearDraft, repoConfig, targets, DAYS, ISO } from "./state.js";
+import { S, el, r1, persist, loadLocal, loadDraft, setLogDate, clearDraft,
+         repoConfig, targets, DAYS, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
 import { render, renderFlagsInto, addItem, wireRender } from "./render.js";
 import { renderEditor, wireEditors } from "./editors.js";
-import { rebuildChart, drawStats, setSeries, wireChartGestures, stats as chartStats } from "./chart.js";
+import { rebuildChart, drawStats, setSeries, wireChartGestures, wireJump,
+         stats as chartStats } from "./chart.js";
 import { risks, buildRecord, totals } from "./engine.js";
 import * as store from "../../shared/store.js";
 import * as TG from "../../shared/targets.js";
-import * as A from "./assistant.js";
-import { noteUse } from "./recipes.js";
-import { PRESETS, presetMacros, displayName } from "./presets.js";
+import { noteUse, RECIPES } from "./recipes.js";
+import { PRESETS, presetMacros, displayName, macroClass, qualityClass } from "./presets.js";
 
 let client = null;
+
+/* ═══════════ WHY THIS FILE IS DEFENSIVE ABOUT THE DOM ═══════════
+   18 Aug 2026: the app shipped a blank page in production. Not a code bug — a
+   VERSION SKEW. The mic button was removed from index.html in the same push
+   that removed its listener from app.js, but GitHub Pages sets a 10-minute
+   Cache-Control on assets, so a browser could load the NEW index.html against
+   a CACHED OLD app.js. `el("mic").addEventListener` hit null, threw at the top
+   level of an ES module, and everything after it — every button, the chart, the
+   preset board — never ran.
+
+   The smoke test could not have caught this: it always serves a matched set.
+   The failure only exists across two versions.
+
+   🚩 THE RULE: a top-level throw in a module kills the whole module. So no
+   top-level DOM wiring may assume an element exists. `on()` no-ops on a missing
+   element and says so once in the console. A stale cache now costs one dead
+   button instead of the entire app.                                            */
+function on(id, evt, fn, opts) {
+  const n = el(id);
+  if (!n) { console.warn("[diet] no #" + id + " — skipping " + evt +
+    " (version skew? hard-refresh)"); return null; }
+  n.addEventListener(evt, fn, opts); return n;
+}
 
 /* ── boot ─────────────────────────────────────────────────────────────────── */
 loadLocal(BATCH, GRAM);
 wireRender({ render: refresh });
 wireEditors({ addItem, render: refresh });
 
-function refresh() { render(); drawStats(); }
+function refresh() { render(); drawStats(); paintLens(); }
 
-el("when").textContent = new Date().toLocaleDateString("en-GB",
+/* ── THE DAY SELECTOR ─────────────────────────────────────────────────────
+   🚩 20 Aug 2026. The header used to print `new Date()` and nothing more — a
+   passive label nobody reads, which is why a whole day's food silently landed
+   on the wrong date. It is now the control that decides where the log goes.
+
+   Sam: "the ability to click into and edit past meal logs… I might wanna do
+   two, three days in one go."
+
+   ◀ steps back a day, ▶ forward, the date itself opens a native picker, and
+   "Today" jumps home. Forward past today is refused — you cannot log food you
+   have not eaten, and an off-by-one there is the same class of bug as the one
+   this replaces. */
+const dayName = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-GB",
   { weekday: "long", day: "numeric", month: "long" });
+
+const shiftDate = (iso, days) => {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString("en-CA");
+};
+
+export function paintWhen() {
+  const w = el("when"); if (!w) return;
+  const back = S.logDate !== ISO();
+  w.textContent = dayName(S.logDate) + (back ? "" : " · today");
+  w.classList.toggle("back", back);
+  const pick = el("whenpick"); if (pick) { pick.value = S.logDate; pick.max = ISO(); }
+  const home = el("whenhome"); if (home) home.hidden = !back;
+  const fwd = el("whennext"); if (fwd) fwd.disabled = !back;
+  document.body.classList.toggle("backdated", back);
+}
+
+function jumpTo(date) {
+  if (date > ISO()) return;                       // never log the future
+  if (!setLogDate(date)) { paintWhen(); return; }
+  applyCsv(lastCsv || "date\n");                  // re-resolve closed/fileToday for the new day
+  paintWhen(); refresh(); rebuildChart();
+}
+/* Exposed so the chart's drill-down can hand a date straight over. */
+export const jumpToDay = jumpTo;
+wireJump(jumpTo);
+
+/* ── The quality lens. One class on the container; the rows already carry their
+   band. Persisted so it survives a reload — a lens you have to re-enable every
+   time is a lens nobody uses. */
+const LENS_KEY = "diet7-qual";
+function paintLens() {
+  const b = el("qual"), host = el("presets");
+  if (!b || !host) return;
+  b.setAttribute("aria-pressed", String(S.qualLens));
+  host.classList.toggle("qual", S.qualLens);
+}
+try { S.qualLens = localStorage.getItem(LENS_KEY) === "1"; } catch { S.qualLens = false; }
+on("qual", "click", () => {
+  S.qualLens = !S.qualLens;
+  try { localStorage.setItem(LENS_KEY, S.qualLens ? "1" : "0"); } catch {}
+  paintLens();
+});
+
+on("whenprev", "click", () => jumpTo(shiftDate(S.logDate, -1)));
+on("whennext", "click", () => jumpTo(shiftDate(S.logDate, +1)));
+on("whenhome", "click", () => jumpTo(ISO()));
+on("whenpick", "change", e => jumpTo(e.target.value));
+/* The date text opens the native picker. showPicker() is the supported way and
+   falls back to a plain click on browsers that lack it. */
+on("when", "click", () => {
+  const p = el("whenpick"); if (!p) return;
+  p.style.pointerEvents = "auto";
+  try { p.showPicker(); } catch { p.click(); }
+});
+paintWhen();
+
+/* ── THE MIDNIGHT WATCHER ─────────────────────────────────────────────────
+   The specific failure of 19 → 20 August: the tab stayed open, the clock moved,
+   and nothing on screen changed. This checks once a minute.
+
+   · Nothing logged yet → follow the clock silently. There is nothing to lose.
+   · Items in the draft → DO NOT move them. Hold the date they were entered
+     under and say so, loudly, because guessing either way can misfile a day. */
+setInterval(() => {
+  const now = ISO();
+  if (now === S.logDate || S.logDate !== S.autoDate) return;
+  if (!S.log.length) { S.logDate = now; S.autoDate = now; loadDraft(); paintWhen(); refresh(); return; }
+  S.rolled = { from: S.logDate, to: now };
+  paintWhen(); refresh();
+}, 60000);
 
 /* ── history from the CSV ─────────────────────────────────────────────────── */
 async function loadHistory() {
@@ -50,18 +158,26 @@ async function loadHistory() {
   refresh(); rebuildChart();
 }
 
+/* The last CSV text we successfully parsed. Kept so switching days can
+   re-resolve "is this day closed?" without another round trip to GitHub. */
+let lastCsv = "";
+
 export function applyCsv(text) {
+  lastCsv = text;
   const rows = store.parseCSV(text);
   S.history = store.currentView(rows);
 
   /* Weight is the engine's only input. Resolve it here, once. */
   S.weight = TG.weightFor(rows, store.latestWeight);
 
-  /* THE FILE WINS. If the CSV already has today, the day is closed: render from
-     the file and discard the local draft. Never merge — merging is how two
-     copies of one fact drift, which this base has hit three times. */
-  const today = ISO();
-  const row = S.history.find(r => r.date === today);
+  /* THE FILE WINS. If the CSV already has the day being logged, that day is
+     closed: render from the file and discard the local draft. Never merge —
+     merging is how two copies of one fact drift, which this base has hit three
+     times.
+
+     ⚠ 20 Aug 2026: keyed on S.logDate, not ISO(). Opening a past day must show
+     what the FILE says about that day, not what the file says about today. */
+  const row = S.history.find(r => r.date === S.logDate);
   if (row && row.kcal != null) {
     S.fileToday = row; S.closed = true; S.log = []; clearDraft();
     const k = Object.keys(DAYS).find(d => DAYS[d].csv === row.day_type);
@@ -70,6 +186,29 @@ export function applyCsv(text) {
     S.fileToday = null; S.closed = false;
   }
 }
+
+/* ── RE-OPENING A CLOSED DAY ──────────────────────────────────────────────
+   A day that is already in the file reads as closed, which is right — the file
+   wins. But Sam needs to be able to fix one: "I might not do something, or
+   might wanna do two, three days in one go."
+
+   ⚠ IT DOES NOT PREFILL, AND IT CANNOT. The CSV stores a day's TOTALS plus a
+   semicolon list of item names — not structured items with macros. There is no
+   honest way to rebuild a clickable log from "Overnight oats; Cheddar 50 g".
+   So re-opening starts an empty board, shows the recorded totals beside it for
+   reference, and whatever gets saved appends a `corrected` row that supersedes
+   the old one wholesale. Half-restoring the items would produce a row that
+   looks reconstructed and is actually invented. */
+/* ⚠ DELEGATED, not bound directly. #reopen is rendered by renderLeft() on every
+   paint, so a direct addEventListener at module load binds to an element that
+   does not exist yet — which is exactly what happened first time: the button
+   drew, clicked, and did nothing. #left is static, so listen there. */
+on("left", "click", e => {
+  if (!e.target.closest("#reopen")) return;
+  if (!S.fileToday) return;
+  S.closed = false; S.log = []; S.reopened = S.fileToday;
+  refresh();
+});
 
 /* ── saving ───────────────────────────────────────────────────────────────── */
 async function doSave() {
@@ -108,7 +247,7 @@ function markClosedLocally(rec) {
   S.closed = true; S.log = []; clearDraft();
 }
 
-el("close").addEventListener("click", () => {
+on("close", "click", () => {
   const r = risks();
   if (!r.length) { doSave(); return; }
   el("mdl-h").textContent = r.length === 1 ? "One thing before this is saved" : r.length + " things before this is saved";
@@ -117,11 +256,11 @@ el("close").addEventListener("click", () => {
   renderFlagsInto(el("mdl-flags"), r);
   el("ov").classList.add("on");
 });
-el("mdl-go").addEventListener("click", () => { el("ov").classList.remove("on"); doSave(); });
-el("mdl-back").addEventListener("click", () => el("ov").classList.remove("on"));
-el("ov").addEventListener("click", e => { if (e.target === el("ov")) el("ov").classList.remove("on"); });
+on("mdl-go", "click", () => { el("ov").classList.remove("on"); doSave(); });
+on("mdl-back", "click", () => el("ov").classList.remove("on"));
+on("ov", "click", e => { if (e.target === el("ov")) el("ov").classList.remove("on"); });
 
-el("clear").addEventListener("click", () => {
+on("clear", "click", () => {
   S.log.forEach(r => { if (r.batch && S.fridge[r.batch] !== null) S.fridge[r.batch] += r.g; });
   S.log = []; refresh();
 });
@@ -162,9 +301,9 @@ function setSync(state, detail) {
 /* ── settings ─────────────────────────────────────────────────────────────── */
 function showSetup(on) { el("setup").classList.toggle("on", !!on); }
 
-el("gear").addEventListener("click", () => showSetup(!el("setup").classList.contains("on")));
-el("setup-cancel").addEventListener("click", () => showSetup(false));
-el("setup-save").addEventListener("click", async () => {
+on("gear", "click", () => showSetup(!el("setup").classList.contains("on")));
+on("setup-cancel", "click", () => showSetup(false));
+on("setup-save", "click", async () => {
   const owner = el("s-owner").value.trim(), repo = el("s-repo").value.trim();
   const tok = el("s-token").value.trim();
   if (!owner || !repo) { el("setup-msg").textContent = "Owner and repo are both needed."; return; }
@@ -178,9 +317,10 @@ el("setup-save").addEventListener("click", async () => {
 
 (function fillSetup() {
   const c = repoConfig.get();
-  el("s-owner").value = c.owner || "";
-  el("s-repo").value = c.repo || "";
-  el("s-has").textContent = store.hasToken() ? "a token is stored on this device" : "no token on this device";
+  if (el("s-owner")) el("s-owner").value = c.owner || "";
+  if (el("s-repo"))  el("s-repo").value  = c.repo || "";
+  if (el("s-has"))   el("s-has").textContent =
+    store.hasToken() ? "a token is stored on this device" : "no token on this device";
 })();
 
 /* ═══════════ GOAL AND MEASUREMENTS ═══════════
@@ -240,11 +380,11 @@ function previewGoal() {
 }
 ["g-weight", "g-mult"].forEach(id => el(id).addEventListener("input", previewGoal));
 
-el("goalbtn").addEventListener("click", openGoal);
-el("goal-close").addEventListener("click", () => el("goalov").classList.remove("on"));
-el("goalov").addEventListener("click", e => { if (e.target === el("goalov")) el("goalov").classList.remove("on"); });
+on("goalbtn", "click", openGoal);
+on("goal-close", "click", () => el("goalov").classList.remove("on"));
+on("goalov", "click", e => { if (e.target === el("goalov")) el("goalov").classList.remove("on"); });
 
-el("goal-save").addEventListener("click", async () => {
+on("goal-save", "click", async () => {
   S.goal = {
     goal_kg: +el("g-gw").value || TG.PROFILE.goal_weight_kg,
     goal_bf: +el("g-gbf").value || TG.PROFILE.goal_bf_lo,
@@ -276,97 +416,24 @@ el("goal-save").addEventListener("click", async () => {
   refresh(); rebuildChart();
 });
 
-/* ═══════════ THE ASSISTANT ═══════════
-   Speech in, items out. See assistant.js for what does and does not need a key. */
+/* ═══════════ THE ASSISTANT — REMOVED 18 Aug 2026 ═══════════
+   Sam: "the login item via the chat function doesn't exist, or it doesn't work.
+   So let's remove that and just code it from here. That can be future functionality."
 
-let listening = false;
-const heardBox = () => el("heard");
+   Correct call, and worth recording WHY it did not work rather than just that it
+   didn't. Two reasons, and only one of them was a bug:
 
-el("mic").addEventListener("click", () => {
-  if (!A.speechAvailable()) {
-    showHeard("<div class='ht'><i>This browser has no speech recognition. " +
-      "Safari on iOS and Chrome do; Firefox does not. You can still type into the search-free board below.</i></div>");
-    return;
-  }
-  if (listening) { A.stopListening(); return; }
-  listening = true; el("mic").classList.add("on"); el("mic").textContent = "● listening";
-  showHeard("<div class='ht'><i>Listening — say what you ate.</i></div>");
-  A.listen({
-    onPartial: t => showHeard("<div class='ht'>" + escapeHtml(t) + "</div>"),
-    onFinal: t => { if (t) handleHeard(t); },
-    onEnd: () => { listening = false; el("mic").classList.remove("on"); el("mic").textContent = "🎙"; }
-  });
-});
+   1. Web Speech API on desktop Chrome routes audio to a Google endpoint and is
+      gated behind a permission prompt this page never surfaced properly, so the
+      mic button did nothing visible and gave no error.
+   2. Even with the transcript, the useful half — costing a food that is not on
+      the board — needs judgement, and judgement needs a model. Open Food Facts
+      covers branded packs and nothing else; it cannot cost "air-fried salmon
+      with honey and paprika", which is exactly the kind of thing Sam adds.
 
-const escapeHtml = s => String(s).replace(/[&<>"]/g, c =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-function showHeard(html) { heardBox().innerHTML = html; heardBox().classList.add("on"); }
-function hideHeard() { heardBox().classList.remove("on"); heardBox().innerHTML = ""; }
-
-async function handleHeard(text) {
-  const parsed = A.parse(text);
-  let html = '<div class="ht">' + escapeHtml(text) + '</div>';
-  const matched = parsed.filter(p => !p.unmatched);
-  const missing = parsed.filter(p => p.unmatched);
-
-  matched.forEach(p => {
-    const r = A.resolve(p);
-    html += '<div class="hrow"><span class="hn">' + escapeHtml(r.name) + '</span>' +
-      '<span class="hm">' + Math.round(r.macros[0]) + ' kcal · ' + r1(r.macros[1]) + ' P</span></div>';
-  });
-  missing.forEach(p => {
-    html += '<div class="hrow miss"><span class="hn">' + escapeHtml(p.query) +
-      ' — not on the board</span><span class="hm">looking up…</span></div>';
-  });
-  html += '<div class="acts" style="margin-top:9px">' +
-    (matched.length ? '<button class="btn p2" id="h-add">Log ' + matched.length + ' item' +
-      (matched.length > 1 ? 's' : '') + '</button>' : '') +
-    '<button class="btn" id="h-cancel">Dismiss</button></div>';
-  showHeard(html);
-
-  el("h-cancel").onclick = hideHeard;
-  const add = el("h-add");
-  if (add) add.onclick = () => {
-    matched.forEach(p => {
-      const r = A.resolve(p);
-      noteUse(p.preset.id);
-      addItem({ n: r.name, m: r.macros, u: true, veg: !!p.preset.veg, fat: p.preset.cls === "fat" });
-    });
-    hideHeard(); refresh();
-  };
-
-  /* Unknowns → Open Food Facts. No key, no account. */
-  for (const p of missing) {
-    try {
-      const hits = await A.lookup(p.query);
-      const host = document.createElement("div"); host.className = "hopts";
-      if (!hits.length) host.innerHTML = '<div style="font-size:10.5px;color:var(--dim)">' +
-        'Nothing found on Open Food Facts. Add it by hand with ＋ New item.</div>';
-      hits.forEach(h => {
-        const b = document.createElement("button"); b.className = "hopt";
-        const g = p.grams || 100;
-        b.innerHTML = '<b>' + escapeHtml(h.name) + '</b> — ' +
-          Math.round(h.per[0] * g / 100) + ' kcal · ' + r1(h.per[1] * g / 100) + ' g P per ' + g + ' g ' +
-          '<span>· ' + h.source + '</span>';
-        b.onclick = () => {
-          S.customs.push({ id: "off" + h.code, n: h.name + " " + g + " g",
-            m: h.per.map(v => v * g / 100), custom: true, cls: "unv",
-            src: h.source });
-          noteUse("off" + h.code);
-          addItem({ n: h.name + " " + g + " g", m: h.per.map(v => v * g / 100), u: true });
-          persist(); hideHeard(); refresh();
-        };
-        host.appendChild(b);
-      });
-      heardBox().appendChild(host);
-    } catch {
-      const d = document.createElement("div"); d.className = "hopts";
-      d.innerHTML = '<div style="font-size:10.5px;color:var(--warn)">Could not reach Open Food Facts.</div>';
-      heardBox().appendChild(d);
-    }
-  }
-}
+   The parser and the Open Food Facts client are kept in assistant.js, unwired,
+   because the matching logic is sound and it is the expensive part. Re-wire it
+   when there is a real answer to (2) — see MIGRATION.md.                       */
 
 /* ── service worker ───────────────────────────────────────────────────────── */
 if ("serviceWorker" in navigator) {
@@ -379,5 +446,8 @@ refresh();
 loadHistory().then(drain);
 
 /* Exposed for the headless harness — see tools/smoke.mjs. Not used by the UI. */
-window.__diet = { S, refresh, applyCsv, targets, totals, store,
+window.__diet = { S, refresh, applyCsv, targets, totals, store, presets: PRESETS, macroClass,
+                  presetMacros, qualityClass,
+                  recipeNote: rid => RECIPES[rid] && RECIPES[rid].note,
+                  buildRecord, jumpToDay: jumpTo, paintWhen,
                   eraStats: () => ({ eras: chartStats().eras }) };
