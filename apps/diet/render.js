@@ -308,13 +308,74 @@ function expander(label, count, open, fn) {
   b.onclick = fn; return b;
 }
 
-function renderPresets() {
+/* ── SEARCH — 6 Sep 2026 ──────────────────────────────────────────────────
+   Sam: "add a search bar too i can to serach that list."
+
+   The list had grown past the point where "Everything else" plus three macro
+   groups is faster than typing four letters, which is the honest reason this
+   earns its place rather than adding a control for its own sake.
+
+   Two design calls worth writing down:
+
+   · A query FLATTENS the list. Pinned / grouped / archived is an ordering that
+     helps you browse and gets in the way when you already know the name. So a
+     search shows one ranked list and says how many it found. Archived items are
+     included, because "where did that go" is exactly when you search.
+
+   · Matching is on the DISPLAY name — what he actually reads — and ranks a
+     prefix hit above a substring one, so typing "co" puts "Cottage cheese"
+     above "Coconut kidney bean rice". No fuzzy matching: a typo returning
+     something confidently wrong is worse than returning nothing. */
+function matches(p, q) {
+  const n = displayName(p).toLowerCase();
+  if (n.startsWith(q)) return 2;
+  return n.includes(q) ? 1 : 0;
+}
+
+export function renderPresets() {
   const host = el("presets"); host.innerHTML = "";
   const all = PRESETS();
   const live = ordered(all.filter(p => !S.archived[p.id]));
   const pinned = live.filter(p => S.pins[p.id]);
   const rest = live.filter(p => !S.pins[p.id]);
   const arch = all.filter(p => S.archived[p.id]);
+
+  const box = el("psearch");
+  const q = (box ? box.value : "").trim().toLowerCase();
+  const clr = el("psearchx");
+  if (clr) clr.hidden = !q;
+
+  if (q) {
+    /* Frecency order is preserved within each rank band, so the ordering you are
+       used to still applies among equally-good matches. */
+    const hits = ordered(all)
+      .map(p => ({ p, r: matches(p, q) }))
+      .filter(x => x.r > 0)
+      .sort((a, b) => b.r - a.r);
+
+    const h = document.createElement("div");
+    h.className = "searchhead";
+    h.innerHTML = "<span>Matching &ldquo;" + q.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])) +
+                  "&rdquo;</span><span class='gc'>" + hits.length + "</span>";
+    host.appendChild(h);
+
+    if (!hits.length) {
+      const d = document.createElement("div");
+      d.className = "noresult";
+      d.textContent = "Nothing matches that. Clear the search to get the full list back, " +
+                      "or use New item or recipe below to add it.";
+      host.appendChild(d);
+    } else {
+      hits.forEach(x => host.appendChild(
+        presetRow(x.p, S.archived[x.p.id] ? "arch" : (S.pins[x.p.id] ? "pinned" : "rest"))));
+    }
+
+    const nb2 = document.createElement("button"); nb2.className = "addnew";
+    nb2.innerHTML = '<span>＋</span><span>New item or recipe</span>';
+    nb2.onclick = () => { S.editing = "new"; onChange(); };
+    host.appendChild(nb2);
+    return;
+  }
 
   /* T10 entry point sits above everything — it is the fast path, not a feature. */
   const bb = document.createElement("button"); bb.className = "addnew build";

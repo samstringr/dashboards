@@ -14,8 +14,10 @@ export const BASE_PRESETS = [
   { id: "salmonr", n: "Air-fried salmon",  kind: "recipe", rid: "salmon", icon: "fish" },
   /* NEW 20 Aug 2026 — cooked whole, logged by cooked weight. See recipes.js. */
   { id: "roast", n: "Whole roast chicken", kind: "recipe", rid: "chicken", icon: "chicken" },
-  /* NEW 6 Sep 2026 — see RECIPES.pancakes; the yield is flagged as unconfirmed. */
+  /* NEW 6 Sep 2026 — see RECIPES.pancakes; the whole mix is one serving. */
   { id: "pancakes", n: "Pancakes", kind: "recipe", rid: "pancakes", icon: "plate" },
+  /* NEW 6 Sep 2026 — ⚠ panel unverified, see RECIPES.cottage. */
+  { id: "cottage", n: "Cottage cheese (Milbona)", kind: "recipe", rid: "cottage", icon: "pot" },
   { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
   { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
   /* NEW 29 Aug 2026 — size and meat are picked at log time. See SHAHS in data.js

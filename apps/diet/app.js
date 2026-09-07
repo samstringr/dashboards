@@ -12,7 +12,7 @@
 import { S, el, r1, persist, loadLocal, loadDraft, setLogDate, clearDraft,
          repoConfig, targets, DAYS, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { render, renderFlagsInto, addItem, wireRender } from "./render.js";
+import { render, renderFlagsInto, addItem, wireRender, renderPresets } from "./render.js";
 import { renderEditor, wireEditors } from "./editors.js";
 import { rebuildChart, drawStats, setSeries, wireChartGestures, wireJump,
          stats as chartStats } from "./chart.js";
@@ -111,6 +111,22 @@ on("qual", "click", () => {
   S.qualLens = !S.qualLens;
   try { localStorage.setItem(LENS_KEY, S.qualLens ? "1" : "0"); } catch {}
   paintLens();
+});
+
+/* ── the preset search — 6 Sep 2026 ───────────────────────────────────────
+   ⚠ This calls renderPresets() and NOT onChange(). onChange() redraws the whole
+   board including the editor, which is both wasteful per keystroke and the
+   documented way to lose focus in this codebase. renderPresets() only rebuilds
+   #presets — and the input sits outside #presets precisely so it survives that.
+   Escape clears, because a search you have to reach for the mouse to undo is a
+   search you stop using. */
+on("psearch", "input", () => renderPresets());
+on("psearch", "keydown", e => {
+  if (e.key === "Escape") { const b = el("psearch"); b.value = ""; renderPresets(); }
+});
+on("psearchx", "click", () => {
+  const b = el("psearch"); if (!b) return;
+  b.value = ""; renderPresets(); b.focus();
 });
 
 on("whenprev", "click", () => jumpTo(shiftDate(S.logDate, -1)));

@@ -75,25 +75,63 @@ export const RECIPES = {
      grams of honey per pancake. I need two pancakes, so thirty grams as the
      default, same with the other values."
 
-     ⚠ THE YIELD IS THE OPEN QUESTION AND IT MATTERS MORE THAN ANY OTHER NUMBER
-     HERE. 100 g flour, 2 eggs and 300 ml milk is a classic thin-pancake batter
-     and it usually makes six to eight, not two. This entry takes him literally —
-     the amounts as stated are ONE serving, with honey at 30 g for his two
-     pancakes. If the batter actually yields six and he eats two of them, the
-     first four rows want dividing by three and the real figure is nearer 260 kcal
-     than 770. Grams are editable precisely so that is a ten-second fix. Confirm
-     the yield and this note gets replaced with a number.
+     ✅ YIELD CONFIRMED 6 Sep 2026, and it was worth asking. Sam: "I just use those
+     values, that mix. 100 g per hour [flour], two eggs, and 300 ml of milk, to
+     make two pancakes. So I eat all of that mix."
+
+     So the batter IS the serving — two thick pancakes, not six thin ones — and the
+     total below stands as one meal. The reason this was flagged rather than
+     assumed: that ratio makes six to eight thin pancakes in most kitchens, and if
+     he had been eating two of six the honest figure would have been nearer 320
+     kcal. A 450 kcal gap is larger than the whole intended daily deficit, so it
+     was not a detail worth guessing at.
 
      Lemon is not a row. Juice of a wedge is under 5 kcal and rounding it in would
      be false precision next to a ±3 g flour scoop. */
+  /* NEW 6 Sep 2026, and ✅ PANEL READ THE SAME DAY.
+
+     Milbona Natural Cottage Cheese, high protein, 300 g pot.
+     Sam read it off the pot: per 100 g — 97 kcal, 11.5 g P, 2.8 g C, 4.5 g F.
+
+     🚩 WHY THIS ENTRY IS THE ARGUMENT FOR recipes-bought.md's RULE, NOT AN
+     EXCEPTION TO IT. The first build of this row shipped a few hours earlier with
+     ESTIMATED figures — a generic plain-cottage-cheese panel — flagged unverified
+     precisely because that rule says look up the published panel, never estimate.
+     The estimate was wrong in both directions that matter:
+
+          estimated  72 kcal · 11 P · 3.5 C · 1.5 F
+          actual     97 kcal · 11.5 P · 2.8 C · 4.5 F
+
+     Calories 26% low. FAT THREE TIMES LOW. Protein, the number he actually buys it
+     for, was near enough — which is the trap: the figure you check is the one that
+     looks right, and the two that were wrong would have quietly under-counted a
+     300 g pot by 75 kcal and 9 g of fat every time he logged it.
+
+     Atwater cross-check on the real panel: 11.5×4 + 2.8×4 + 4.5×9 = 97.7 against a
+     stated 97. Internally consistent, so the pot is trustworthy.
+
+     Default is the FULL 300 g pot — that is how it is sold and how he described it.
+     291 kcal for 34.5 g of protein: 22% of the protein floor for 10% of the day's
+     calories, which is one of the best protein-per-calorie items in the whole list.
+     If he eats half, set it to 150. */
+  cottage: {
+    id: "cottage", n: "Cottage cheese (Milbona)", icon: "pot",
+    note: "✅ Read from the pot, 6 Sep 2026 — Milbona Natural Cottage Cheese, high protein, " +
+          "300 g pot. Per 100 g: 97 kcal, 11.5 g P, 2.8 g C, 4.5 g F. Defaulted to the whole " +
+          "pot; set it to 150 g if you eat half. One of the best protein-per-calorie items " +
+          "on the list — 22% of the protein floor for 10% of the calories.",
+    ing: [
+      { id: "cc", n: "Milbona natural cottage cheese", icon: "pot", per: [97, 11.5, 2.8, 4.5], g: 300, step: 25 }
+    ]
+  },
+
   pancakes: {
     id: "pancakes", n: "Pancakes", icon: "plate",
-    note: "Sam's recipe, stated 6 Sep 2026, honey defaulted to 30 g for two pancakes. " +
-          "⚠ UNCONFIRMED YIELD — the amounts below are entered as one serving. If this " +
-          "batter makes more than two pancakes, scale the egg, flour, milk and oil rows " +
-          "to the share actually eaten. ⚠ Also note the shape of it: about 770 kcal for " +
-          "33 g of protein is roughly 28% of the daily calories for 21% of the protein " +
-          "floor, so it is a carb-led meal and the rest of the day has to carry the protein.",
+    note: "Sam's recipe, and the whole mix is ONE serving — confirmed 6 Sep 2026: this " +
+          "batter makes his two pancakes and he eats all of it. Honey 30 g, 15 g per pancake. " +
+          "⚠ Note the shape of it: 770 kcal for 33 g of protein is 28% of the daily calories " +
+          "for 21% of the protein floor, so it is carb-led and the rest of the day has to " +
+          "carry the protein.",
     ing: [
       { id: "egg",   n: "Egg, whole (2 medium)",   icon: "pot",    per: [143, 12.6, 0.7, 9.5],   g: 100, step: 50 },
       { id: "flour", n: "Plain white flour",       icon: "grain",  per: [341, 9.4, 69.4, 1.3],   g: 100, step: 10 },
