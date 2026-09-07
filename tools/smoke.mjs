@@ -160,6 +160,47 @@ await page.locator(".ed .acts .btn.p2").click();
 await page.waitForTimeout(200);
 ok("logging the recipe adds one row", (await page.locator("#rows tr").count()) === 1);
 
+console.log("\n── the preset search ─────────────────────────────────────");
+{
+  const box = page.locator("#psearch");
+  ok("the search box exists and is outside #presets",
+     await box.isVisible() && (await page.locator("#presets #psearch").count()) === 0);
+
+  await box.fill("cottage");
+  await page.waitForTimeout(150);
+  const txt = await page.locator("#presets").innerText();
+  ok("searching finds the new cottage cheese", /cottage cheese/i.test(txt));
+  /* 🚩 Pin the READ panel, not the estimate it replaced. The first build of this
+     row shipped estimated figures that were 26% low on calories and 3x low on fat;
+     the protein, the number it is bought for, happened to be near enough, which is
+     exactly why an eyeball check would have passed it. 300 g pot = 291 kcal. */
+  ok("cottage cheese carries the panel read off the pot, not an estimate",
+     /29[01] kcal/.test(txt) || /34\.5/.test(txt), txt.match(/Cottage cheese[^\n]*/i)?.[0]?.slice(0, 60));
+  ok("a query flattens the list — no macro group headings",
+     (await page.locator("#presets .grouphead").count()) === 0);
+  ok("it says how many it found", /Matching/i.test(txt) && /\b1\b|\b2\b/.test(txt));
+
+  /* The focus test is the point of putting the input outside #presets. */
+  await box.focus(); await box.type("x");
+  await page.waitForTimeout(150);
+  ok("🚩 the caret survives a keystroke — input is outside the re-rendered node",
+     await box.evaluate(n => document.activeElement === n));
+  ok("a query with no hits says so rather than showing an empty list",
+     /Nothing matches/i.test(await page.locator("#presets").innerText()));
+
+  await page.locator("#psearchx").click();
+  await page.waitForTimeout(150);
+  ok("the clear button restores the full list",
+     (await box.inputValue()) === "" &&
+     (await page.locator("#presets").innerText()).includes("Everything else"));
+
+  await box.fill("pancak");
+  await page.waitForTimeout(150);
+  ok("pancakes is searchable too", /pancakes/i.test(await page.locator("#presets").innerText()));
+  await box.fill("");
+  await page.waitForTimeout(150);
+}
+
 console.log("\n── under-eating is the loud flag now ─────────────────────");
 /* 🚩 6 Sep 2026 — THE STACK NO LONGER OPENS BY ITSELF, so this test now has to
    open it. Sam: "when I log an item, the flags that pop up, I don't want them to
