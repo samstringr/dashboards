@@ -2,7 +2,7 @@
 
 import { S, el, r1, persist, targets, DAYS, FAT_WARN, FAT_BAD, UNDER, ISO } from "./state.js";
 import { BATCH, GRAM } from "./data.js";
-import { PRESETS, presetLabel, presetMacros, displayName, ordered, closeHint,
+import { PRESETS, presetLabel, presetMacros, displayName, ordered, isNewlyAdded, closeHint,
          macroClass, MACRO_GROUPS, qualityClass, eatHint } from "./presets.js";
 import { noteUse, useCount } from "./recipes.js";
 import { icon } from "./icons.js";
@@ -255,6 +255,7 @@ function presetRow(p, mode) {
      by `.chips.qual` on the container, so toggling the lens is one class change
      on one element rather than a re-render of every row. */
   b.className = "p" + (p.cls ? " " + p.cls : "") + (mode === "pinned" ? " pinned" : "") +
+    (mode === "fresh" ? " freshrow" : "") +
     (mode === "arch" ? " archrow" : "") + " " + qualityClass(p);
   const t = document.createElement("span"); t.className = "pn";
   t.innerHTML = (p.icon ? icon(p.icon) : "") +
@@ -337,7 +338,10 @@ export function renderPresets() {
   const all = PRESETS();
   const live = ordered(all.filter(p => !S.archived[p.id]));
   const pinned = live.filter(p => S.pins[p.id]);
-  const rest = live.filter(p => !S.pins[p.id]);
+  /* Newly added items come out of `rest` entirely rather than appearing twice —
+     see the JUST ADDED note in presets.js for why they get their own band. */
+  const fresh = live.filter(p => !S.pins[p.id] && isNewlyAdded(p));
+  const rest = live.filter(p => !S.pins[p.id] && !isNewlyAdded(p));
   const arch = all.filter(p => S.archived[p.id]);
 
   const box = el("psearch");
@@ -391,6 +395,16 @@ export function renderPresets() {
     host.appendChild(d);
   }
 
+  if (fresh.length) {
+    const h = document.createElement("div");
+    h.className = "grouphead fresh";
+    h.innerHTML = "<span>Just added</span><span class='gc'>" + fresh.length + "</span>";
+    h.title = "Added in the last three weeks and not logged yet. Each one drops into " +
+              "the main list the first time you log it.";
+    host.appendChild(h);
+    fresh.forEach(p => host.appendChild(presetRow(p, "fresh")));
+  }
+
   host.appendChild(expander("Everything else", rest.length, S.openMore, () => { S.openMore = !S.openMore; onChange(); }));
   if (S.openMore) {
     /* Grouped by dominant macro so the list is scannable rather than a wall.
@@ -426,7 +440,8 @@ export function renderPresets() {
   hint.innerHTML = "✎ edit · ● pin · ⌫ archive. <b>Order is by how often you log it</b>, " +
     "decayed over ~3 weeks, so a new staple climbs and an old one drifts down. Pins always win.";
   host.appendChild(hint);
-  el("pin-n").textContent = pinned.length + " pinned · " + live.length + " items";
+  el("pin-n").textContent = (fresh.length ? fresh.length + " just added · " : "") +
+                          pinned.length + " pinned · " + live.length + " items";
 }
 
 /* ── main render ──────────────────────────────────────────────────────────── */
