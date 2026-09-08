@@ -47,7 +47,12 @@ const base = `http://127.0.0.1:${server.address().port}`;
 let CSV = await readFile(join(ROOT, "data/health-daily-log.csv"), "utf8");
 let commits = [];
 
-const browser = await chromium.launch();
+/* Playwright's bundled-browser path differs between Sam's machine and the cloud
+   sandbox the suite also runs in, and a hard-coded path breaks whichever one it
+   is not written for. Honour an explicit override, otherwise let Playwright find
+   its own browser as before. */
+const CHROME = process.env.SMOKE_CHROMIUM || "";
+const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 
 await ctx.route("**/api.github.com/**", async route => {
@@ -199,6 +204,48 @@ console.log("\n── the preset search ─────────────�
   ok("pancakes is searchable too", /pancakes/i.test(await page.locator("#presets").innerText()));
   await box.fill("");
   await page.waitForTimeout(150);
+}
+
+console.log("\n── just added: findable WITHOUT searching for it ──────────");
+/* 🚩 8 Sep 2026 — THE TEST THAT SHOULD HAVE EXISTED ON 6 SEP.
+
+   The four assertions above prove cottage cheese and pancakes are searchable.
+   Every one of them passed on 6 Sep, and Sam still opened the board on 8 Sep and
+   said "I don't see the cottage cheese or any new changes." Both items were
+   there, both were correct, and both were ranked to the bottom by frecency and
+   folded inside the collapsed "Everything else" group — so the only way to reach
+   a brand new item was to already know it existed and type its name.
+
+   Searchable is not the same as findable. These assertions test the second one:
+   a newly added item appears in the default view, before any typing, before any
+   group is expanded. */
+{
+  const presets = page.locator("#presets");
+  const head = page.locator("#presets .grouphead.fresh");
+  ok("a 'Just added' band exists in the default view", (await head.count()) === 1);
+
+  /* The whole point: read the list as it renders, with nothing typed and nothing
+     expanded, and the new items must be in it. */
+  const openText = await presets.innerText();
+  ok("🚩 cottage cheese is visible without searching", /cottage cheese/i.test(openText));
+  ok("🚩 pancakes is visible without searching", /pancakes/i.test(openText));
+
+  ok("the new rows are marked, not silently mixed in",
+     (await page.locator("#presets .p.freshrow").count()) >= 2);
+  ok("the counter says how many are new", /just added/i.test(await page.locator("#pin-n").innerText()),
+     await page.locator("#pin-n").innerText());
+
+  /* Not pinned. A pin is Sam's statement about what he eats often; the app must
+     not write one on his behalf and outrank the things he actually chose. */
+  ok("🚩 they are NOT auto-pinned — a pin stays his to give",
+     (await page.locator("#presets .p.freshrow.pinned").count()) === 0);
+
+  /* And they are not double-counted: an item in the band is out of the group. */
+  await page.locator("#presets .exp, #presets .expand").first().click().catch(() => {});
+  await page.waitForTimeout(200);
+  const cottageRows = await page.locator("#presets .p").evaluateAll(
+    ns => ns.filter(n => /cottage cheese/i.test(n.innerText)).length);
+  ok("it appears once, not in both the band and the group", cottageRows === 1, cottageRows + " row(s)");
 }
 
 console.log("\n── under-eating is the loud flag now ─────────────────────");
