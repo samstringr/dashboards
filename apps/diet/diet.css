@@ -504,6 +504,12 @@ tbody tr.new td{animation:pop .42s cubic-bezier(.4,0,.2,1)}
 .grouphead.protein{color:var(--accent)}
 .grouphead.carb{color:var(--cool)}
 .grouphead.fat{color:var(--warn)}
+/* JUST ADDED — the band that exists because two correct new items shipped on
+   6 Sep and Sam could not find either of them. Marked with the accent so it
+   reads as "look here", and deliberately quieter than a pin: a pin is his
+   choice, this is only the app admitting it just changed under him. */
+.grouphead.fresh{color:var(--accent)}
+.p.freshrow{border-color:color-mix(in srgb,var(--accent) 38%,var(--line))}
 
 /* Plan-change legend swatch: a VERTICAL ink rule, matching the rule drawn on
    the chart. Trend lines were removed 19 Aug 2026 — Sam: "I don't want the
