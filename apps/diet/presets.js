@@ -15,9 +15,9 @@ export const BASE_PRESETS = [
   /* NEW 20 Aug 2026 — cooked whole, logged by cooked weight. See recipes.js. */
   { id: "roast", n: "Whole roast chicken", kind: "recipe", rid: "chicken", icon: "chicken" },
   /* NEW 6 Sep 2026 — see RECIPES.pancakes; the whole mix is one serving. */
-  { id: "pancakes", n: "Pancakes", kind: "recipe", rid: "pancakes", icon: "plate" },
-  /* NEW 6 Sep 2026 — ⚠ panel unverified, see RECIPES.cottage. */
-  { id: "cottage", n: "Cottage cheese (Milbona)", kind: "recipe", rid: "cottage", icon: "pot" },
+  { id: "pancakes", n: "Pancakes", kind: "recipe", rid: "pancakes", icon: "plate", added: "2026-09-06" },
+  /* NEW 6 Sep 2026 — panel read off the pot the same day, see RECIPES.cottage. */
+  { id: "cottage", n: "Cottage cheese (Milbona)", kind: "recipe", rid: "cottage", icon: "pot", added: "2026-09-06" },
   { id: "plate", n: "Meal prep plate", icon: "plate",          kind: "plate" },
   { id: "assen", n: "Assenheims", icon: "plate",               kind: "assen" },
   /* NEW 29 Aug 2026 — size and meat are picked at log time. See SHAHS in data.js
@@ -95,6 +95,34 @@ export const PRESETS = () => BASE_PRESETS.concat(S.customs).map(p => {
    "The more often I use a certain item, the more preference it is at the top."
    Pins still win — an explicit choice outranks an inferred one — then frecency,
    then the shipped order as a stable tiebreak so the board never jitters. */
+/* ── JUST ADDED ───────────────────────────────────────────────────────────────
+   Sam, 8 Sep 2026: "I don't see the cottage cheese or any new changes."
+
+   Both items were there. Both were CORRECT. Both were invisible, and the reason
+   is this file's own ordering rule: the list is ranked by frecency, a brand new
+   item has been logged zero times, so it sorts to the bottom and lands inside
+   the collapsed "Everything else" group. Adding something and hiding it in the
+   same commit is a straight design fault — the moment an item is most likely to
+   be looked for is the day it is added, which is precisely the moment this
+   ordering buries it.
+
+   So: an item carrying an `added` date surfaces in its own band under the pins
+   until he logs it once, or until the window closes. Both exits matter. Logging
+   it gives it real frecency and the normal rules take over; the window stops the
+   band becoming permanent furniture for something he added and never wanted.
+
+   Deliberately NOT auto-pinning. A pin is his explicit statement about what he
+   eats often, and writing pins on his behalf would put words in his mouth and
+   quietly outrank the things he actually chose. */
+const NEW_WINDOW_DAYS = 21;
+
+export function isNewlyAdded(p, now) {
+  if (!p || !p.added) return false;
+  if (useCount(p.id) > 0) return false;
+  const days = ((now || Date.now()) - new Date(p.added + "T00:00:00Z")) / 864e5;
+  return days >= 0 && days <= NEW_WINDOW_DAYS;
+}
+
 export function ordered(list) {
   const base = new Map(BASE_PRESETS.map((p, i) => [p.id, i]));
   return [...list].sort((a, b) => {
