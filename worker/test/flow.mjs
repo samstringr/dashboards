@@ -24,7 +24,7 @@ const list = await mcp('tools/list', {});
 check('tools/list', list.result.tools.length >= 10, list.result.tools.map(t => t.name).join(','));
 check('get_rev readOnly', list.result.tools.find(t => t.name === 'get_rev').annotations.readOnlyHint === true);
 const imp = await tool('import_data', { days: seed.days, config: seed.config, mode: 'missing' });
-check('import_data', imp.days === seed.days.length && imp.config === 4, JSON.stringify(imp));
+check('import_data', imp.days === seed.days.length && imp.config === Object.keys(seed.config).length, JSON.stringify(imp));
 const imp2 = await tool('import_data', { days: seed.days, config: seed.config, mode: 'missing' });
 check('import_data idempotent', imp2.days === 0 && imp2.config === 0);
 const snap = await tool('get_snapshot', {});
@@ -56,7 +56,7 @@ await reset();
 const u = { update_id: 777777, message: { message_id: 1, from: { id: 5016806156 }, chat: { id: 5016806156 }, text: '/today' } };
 for (let i = 0; i < 2; i++) await fetch(W + '/telegram', { method: 'POST', headers: { 'x-telegram-bot-api-secret-token': secret, 'content-type': 'application/json' }, body: JSON.stringify(u) });
 check('duplicate update processed once', (await calls()).filter(c => c.method === 'sendMessage').length === 1);
-check('/today shows totals', /Protein/.test((await lastMsg()).text), (await lastMsg()).text.split('\n').slice(0, 2).join(' | '));
+check('/today replies', /Protein|Nothing logged yet/.test((await lastMsg()).text), (await lastMsg()).text.split('\n').slice(0, 2).join(' | '));
 
 // --- unknown dish → research → proposal → correction → confirm
 await reset();
@@ -132,10 +132,76 @@ check('send_workout via MCP', sw.ok && /WORKOUT Pl/.test((await lastMsg()).text)
 const sum = await tool('get_summary', { days: 7 });
 check('get_summary', sum.days.length === 7 && sum.targets.ok, 'targets ' + sum.targets.kcal + ' / ' + sum.targets.protein);
 
-// --- cron: reminders + backup
+// --- voice note → Whisper → parsed like text
 await reset();
-await fetch(W + '/__test/hourly?t=2026-11-04T21:05:00Z');
-check('evening nudge', /protein|Nothing logged/.test((await lastMsg())?.text || ''), ((await lastMsg())?.text || 'none').slice(0, 80));
+await tgSend({ voice: { file_id: 'voice1', duration: 6, mime_type: 'audio/ogg' } });
+cs = await calls();
+check('voice: turbo Whisper called with base64', cs.some(c => c.api === 'ai' && /whisper-large-v3-turbo/.test(c.model) && typeof c.body.audio === 'string' && c.body.language === 'en'));
+check('voice: transcript echoed', cs.some(c => c.method === 'sendMessage' && /🎙/.test(c.body.text) && /hines light mayo/.test(c.body.text)));
+check('voice: then logged like text', /Logged/.test((await lastMsg()).text));
+await tgCb(JSON.stringify((await lastMsg()).reply_markup).match(/undo:[a-z0-9]+/)[0]);
+await reset(); await fetch(M + '/turbo-fail');
+await tgSend({ voice: { file_id: 'voice2', duration: 6 } });
+cs = await calls();
+check('voice: falls back to whisper (byte array)', cs.some(c => c.api === 'ai' && /openai\/whisper$/.test(c.model) && typeof c.body.audio === 'number'));
+await tgCb(JSON.stringify((await lastMsg()).reply_markup).match(/undo:[a-z0-9]+/)[0]);
+await reset();
+await tgSend({ voice: { file_id: 'voice3', duration: 400 } });
+check('voice: over 5 min refused', /over 5 minutes/.test((await lastMsg()).text));
+
+// --- supplements: checklist, tick by button, tick by text, reminders
+const TD = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+await reset();
+await tgSend({ text: '/supps' });
+m = await lastMsg();
+check('/supps checklist', /Supplements/.test(m.text) && /◻️ Creatine/.test(m.text) && m.reply_markup.inline_keyboard.flat().some(b => b.callback_data === 'sp:creatine:' + TD), m.text.split('\n').slice(0, 2).join(' | '));
+await reset();
+await fetch(W + '/telegram', { method: 'POST', headers: { 'x-telegram-bot-api-secret-token': secret, 'content-type': 'application/json' }, body: JSON.stringify({ update_id: ++uid, callback_query: { id: 'cb' + uid, from: { id: 5016806156 }, data: 'sp:creatine:' + TD, message: { message_id: 9, text: '💊 Supplements', reply_markup: m.reply_markup } } }) });
+cs = await calls();
+const ed = cs.find(c => c.method === 'editMessageText');
+check('tick button redraws in place', ed && /✅ Creatine/.test(ed.body.text) && /1 of 5/.test(ed.body.text));
+day = (await tool('get_day', { date: TD })).day;
+check('tick stored on the day', !!day.supps?.creatine);
+await reset();
+await tgSend({ text: 'took creatine and zinc' });
+day = (await tool('get_day', { date: TD })).day;
+check('tick by text', !!day.supps?.zinc && !!day.supps?.creatine && /Supplements/.test((await lastMsg()).text));
+await reset();
+await fetch(W + '/__test/hourly?t=' + TD + 'T14:05:00Z');
+check('14:00: nothing due (lunch ones ticked)', (await calls()).filter(c => c.method === 'sendMessage').length === 0);
+await reset();
+await fetch(W + '/__test/hourly?t=' + TD + 'T21:05:00Z');
+const eve = (await calls()).filter(c => c.method === 'sendMessage').map(c => c.body);
+check('evening nudge', eve.some(b => /protein|Nothing logged/.test(b.text)), (eve[0]?.text || 'none').slice(0, 80));
+m = eve.find(b => /Supplements check/.test(b.text));
+check('21:00: reminder lists only the untaken', m && /Omega-3/.test(m.text) && /Magnesium/.test(m.text) && !/Creatine/.test(m.text), m && m.text.replace(/\n/g, ' | '));
+await reset();
+await fetch(W + '/__test/hourly?t=' + TD + 'T21:30:00Z');
+check('reminder only once', (await calls()).filter(c => c.method === 'sendMessage').length === 0);
+
+// --- away mode: set, reminders paused, back
+await reset();
+await tgSend({ text: '/away 7' });
+m = await lastMsg();
+check('/away 7', /Away/.test(m.text) && /7 days/.test(m.text) && /Reminders are off/.test(m.text), m.text.split('\n')[0]);
+const away = (await tool('get_snapshot', {})).config.away;
+check('away stored as config', away?.ranges?.length === 1 && away.ranges[0].from === TD, JSON.stringify(away));
+await reset();
+await fetch(W + '/__test/hourly?t=' + TD + 'T07:05:00Z');
+await fetch(W + '/__test/hourly?t=' + TD + 'T14:05:00Z');
+check('away: no reminders', (await calls()).filter(c => c.method === 'sendMessage').length === 0);
+await reset();
+await tgSend({ text: '/back' });
+check('/back', /Back/.test((await lastMsg()).text));
+const away2 = (await tool('get_snapshot', {})).config.away;
+check('back removes a same-day range', away2.ranges.length === 0, JSON.stringify(away2));
+await reset();
+await tgSend({ text: 'going on holiday until the 20th' });
+m = await lastMsg();
+check('holiday in plain words → away', /Away: Holiday/.test(m.text) && /Fri 20 Nov/.test(m.text), m.text.split('\n')[0]);
+await tgSend({ text: '/back' });
+
+// --- cron: reminders + backup
 await reset();
 await fetch(W + '/__test/hourly?t=2026-11-04T21:35:00Z');
 check('nudge only once a day', (await calls()).filter(c => c.method === 'sendMessage').length === 0);

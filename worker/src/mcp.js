@@ -9,7 +9,7 @@ import { claude } from './ai.js';
 export const TOOLS = [
   { name: 'get_rev', description: 'Latest change stamp for the whole database. Cheap; poll it to know when to refetch.', readOnly: true,
     inputSchema: { type: 'object', properties: {} }, run: async env => ({ rev: await getRev(env) }) },
-  { name: 'get_snapshot', description: 'Every day document and config document (settings, library, plan, layout). Pass since (a rev) to get only what changed after it.', readOnly: true,
+  { name: 'get_snapshot', description: 'Every day document and config document (settings, library, plan, layout, supplements, away). Pass since (a rev) to get only what changed after it.', readOnly: true,
     inputSchema: { type: 'object', properties: { since: { type: 'number' } } },
     run: async (env, a) => {
       const since = +a.since || 0, rev = await getRev(env);
@@ -27,7 +27,7 @@ export const TOOLS = [
       const doc = await putDay(env, { ...a.doc, date: a.date, updated: Math.max(cur?.updated || 0, a.doc.updated || 0) });
       return { ok: true, doc, rev: await getRev(env) };
     } },
-  { name: 'put_config', description: 'Replace a config document: settings, library, plan or layout.',
+  { name: 'put_config', description: 'Replace a config document: settings, library, plan, layout, supplements or away.',
     inputSchema: { type: 'object', properties: { id: { type: 'string', enum: CONFIG_IDS }, doc: { type: 'object' } }, required: ['id', 'doc'] },
     run: async (env, a) => { if (!CONFIG_IDS.includes(a.id)) throw new Error('unknown config id'); await putConfig(env, a.id, a.doc); return { ok: true, rev: await getRev(env) }; } },
   { name: 'import_data', description: 'Bulk import day and config documents (used once, to move data in). mode "missing" only adds what is not already stored.',

@@ -1,21 +1,31 @@
 /* Health DB · cron.js */
 import { json, r1, fmt, today, localParts, sha256hex, b64utf8 } from './util.js';
-import { getDay, allDays, allConfig, getKV, setKV } from './store.js';
+import { allDays, allConfig, getKV, setKV } from './store.js';
 import { dayTotals, targets, loadCtx } from './model.js';
 import { send, qtyTxt, proteinTip } from './bot.js';
+import { quietState, quietNote, suppReminder } from './extras.js';
 
 /* ============================================================ cron */
 export async function hourly(env, now) {
   const { hour, wd } = localParts(now), td = today();
   const once = async (key, fn) => { const k = 'sent:' + key + ':' + td; if (await getKV(env, k)) return; await setKV(env, k, 1); await fn(); };
-  if (env.TELEGRAM_TOKEN && hour === 7 && ['Mon', 'Wed', 'Fri'].includes(wd)) {
-    const d = await getDay(env, td);
-    if (!d?.body?.w) await once('weigh', () => send(env, '⚖️ <b>Weigh-in morning.</b> On waking, after the toilet, before food or water. Step on the scale; Apple Health syncs it, or send me the Fit Profile screenshot.'));
-  }
-  if (env.TELEGRAM_TOKEN && hour === 21) {
-    const ctx = await loadCtx(env), t = dayTotals(ctx.days.find(x => x.date === td)), T = targets(ctx);
-    if (T.ok && (!t || t.kcal == null)) await once('nudge', () => send(env, '🍽 Nothing logged today. Send me what you ate, even roughly. A partial day is still data.'));
-    else if (T.ok && t.p < T.protein - 15) await once('nudge', () => send(env, `🍗 You’re at <b>${fmt(t.p)} g</b> of ${T.protein} g protein and ${fmt(t.kcal)} of ${fmt(T.kcal)} kcal.${proteinTip(ctx, T.protein - t.p, T.kcal - t.kcal)}`));
+  const remindHours = [7, 14, 21];
+  if (env.TELEGRAM_TOKEN && remindHours.includes(hour)) {
+    const ctx = await loadCtx(env), q = quietState(ctx, td);
+    if (q.quiet) await quietNote(env, q);      // away, or 2+ empty days: no reminders (one heads-up per gap)
+    else {
+      if (hour === 7 && ['Mon', 'Wed', 'Fri'].includes(wd)) {
+        const d = ctx.days.find(x => x.date === td);
+        if (!d?.body?.w) await once('weigh', () => send(env, '⚖️ <b>Weigh-in morning.</b> On waking, after the toilet, before food or water. Step on the scale; Apple Health syncs it, or send me the Fit Profile screenshot.'));
+      }
+      if (hour === 14) await once('supps-lunch', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any']));
+      if (hour === 21) {
+        const t = dayTotals(ctx.days.find(x => x.date === td)), T = targets(ctx);
+        if (T.ok && (!t || t.kcal == null)) await once('nudge', () => send(env, '🍽 Nothing logged today. Send me what you ate, even roughly. A partial day is still data.'));
+        else if (T.ok && t.p < T.protein - 15) await once('nudge', () => send(env, `🍗 You’re at <b>${fmt(t.p)} g</b> of ${T.protein} g protein and ${fmt(t.kcal)} of ${fmt(T.kcal)} kcal.${proteinTip(ctx, T.protein - t.p, T.kcal - t.kcal)}`));
+        await once('supps-eve', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any', 'dinner', 'bed']));
+      }
+    }
   }
   if (hour === 3 && env.GITHUB_TOKEN && env.GITHUB_REPO) await once('backup', () => backup(env));
   if (hour === 4) await env.DB.prepare('DELETE FROM seen WHERE at < ?').bind(Date.now() - 14 * 864e5).run();
@@ -25,10 +35,10 @@ export async function backup(env) {
   const data = JSON.stringify({ exportedAt: new Date().toISOString(), days, config }, null, 1);
   const hash = await sha256hex(data.replace(/"exportedAt":\s*"[^"]*"/, ''));
   if (hash === await getKV(env, 'backup:hash')) return { ok: true, skipped: true };
-  const rows = [['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'source', 'partial', 'weight_kg', 'bf_pct', 'smm_kg', 'waist_cm', 'sessions', 'training', 'items']];
+  const rows = [['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'source', 'partial', 'weight_kg', 'bf_pct', 'smm_kg', 'waist_cm', 'sessions', 'training', 'supplements', 'items']];
   for (const d of days) {
     const t = dayTotals(d), b = d.body || {}, ws = d.workouts || [];
-    rows.push([d.date, t?.kcal != null ? Math.round(t.kcal) : '', t?.p != null ? r1(t.p) : '', t?.c != null ? r1(t.c) : '', t?.f != null ? r1(t.f) : '', t?.src || '', t?.partial ? 'yes' : '', b.w ?? '', b.bf ?? '', b.smm ?? '', b.waist ?? '', ws.length || '', ws.map(w => w.label || w.kind).join(' / '), (d.items || []).map(i => i.n + ' ' + qtyTxt(i)).join('; ')]);
+    rows.push([d.date, t?.kcal != null ? Math.round(t.kcal) : '', t?.p != null ? r1(t.p) : '', t?.c != null ? r1(t.c) : '', t?.f != null ? r1(t.f) : '', t?.src || '', t?.partial ? 'yes' : '', b.w ?? '', b.bf ?? '', b.smm ?? '', b.waist ?? '', ws.length || '', ws.map(w => w.label || w.kind).join(' / '), Object.keys(d.supps || {}).join(' / '), (d.items || []).map(i => i.n + ' ' + qtyTxt(i)).join('; ')]);
   }
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n') + '\n';
   const msg = 'Nightly backup ' + today();

@@ -11,6 +11,10 @@ workers_dev = true
 binding = "DB"
 database_name = "health-db"
 
+# Workers AI: transcribes Telegram voice notes (Whisper)
+[ai]
+binding = "AI"
+
 [triggers]
 crons = ["0 * * * *"]
 
