@@ -1,0 +1,24 @@
+# Health DB: Sam's backend. Deployed by Cloudflare from GitHub (Workers Builds).
+# Secrets are set in the Cloudflare dashboard, never here:
+#   TELEGRAM_TOKEN, ANTHROPIC_API_KEY, GITHUB_TOKEN, API_KEY
+name = "health-db"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Wrangler creates this database on the first deploy (automatic provisioning).
+[[d1_databases]]
+binding = "DB"
+database_name = "health-db"
+
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+ALLOWED_TELEGRAM_ID = "5016806156"
+GITHUB_REPO = "samstringr/dashboards-data"
+MODEL_FAST = "claude-haiku-5-5"
+MODEL_SMART = "claude-sonnet-5-5"
+
+[observability]
+enabled = true
