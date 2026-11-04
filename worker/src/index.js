@@ -1,6 +1,7 @@
-import { text, json, r1, fmt, today, validDate, authorized, webhookSecret } from './util.js';
+import { text, json, r1, fmt, today, validDate, authorized, webhookSecret, dLong, diffDays } from './util.js';
 import { ensureSchema, getDay, mutateDay } from './store.js';
-import { targets } from './model.js';
+import { targets, loadCtx, weighins, rollAvg } from './model.js';
+import { creatineStart } from './extras.js';
 import { tg, send, telegramWebhook, command } from './bot.js';
 import { hourly, backup } from './cron.js';
 import { mcpHandler } from './mcp.js';
@@ -50,13 +51,27 @@ export async function healthIngest(req, env) {
   if (w) body.w = Math.round(w * 100) / 100;
   if (bf != null) body.bf = bf < 1 ? r1(bf * 100) : r1(bf);
   if (!body.w && body.bf == null) return json({ ok: false, error: 'no weight or body fat in the request' }, 400);
-  const prev = await getDay(env, date);
+  const prev = (await getDay(env, date))?.body || {};
+  // The Shortcut fires every time Fit Profile closes, so the same reading can arrive twice: only acknowledge news.
+  const same = prev.w === body.w && (body.bf == null || prev.bf === body.bf) && (!lean || prev.scale?.ffmKg === lean);
   await mutateDay(env, date, d => {
     const scale = { ...(d.body?.scale || {}) }; if (lean) scale.ffmKg = lean; if (bmi) scale.bmi = bmi;
     d.body = { ...(d.body || {}), ...body, ...(Object.keys(scale).length ? { scale } : {}), src: d.body?.src || 'apple-health' };
   });
-  if (env.TELEGRAM_TOKEN && !prev?.body?.w) await send(env, `⚖️ Synced from Apple Health · <b>${fmt(body.w, 2)} kg</b>${body.bf != null ? ` · ${fmt(body.bf, 1)}% fat` : ''}`);
-  return json({ ok: true, date, body });
+  if (env.TELEGRAM_TOKEN && !same) await send(env, await weighAck(env, date, body, lean, !!prev.w));
+  return json({ ok: true, date, body, acknowledged: !same });
+}
+/* "Got it" message for an Apple Health weigh-in: the numbers, the trend, and what might be skewing them. */
+async function weighAck(env, date, body, lean, updated) {
+  const ctx = await loadCtx(env), wl = weighins(ctx.days).filter(x => x.w);
+  const before = wl.filter(x => x.date < date).pop(), avg = rollAvg(wl, date, 'w');
+  const leanKg = lean || (body.w && body.bf != null ? body.w * (1 - body.bf / 100) : null);
+  let s = `⚖️ <b>Weigh-in ${updated ? 'updated' : 'received'}</b> from Apple Health · ${dLong(date)}\n<b>${fmt(body.w, 2)} kg</b>${body.bf != null ? ` · ${fmt(body.bf, 1)}% fat` : ''}${leanKg ? ` · ${fmt(leanKg, 1)} kg lean` : ''}`;
+  if (avg) s += `\n7-day average ${fmt(avg, 2)} kg`;
+  if (before && body.w) { const d = body.w - before.w; s += ` · ${d >= 0 ? '+' : '−'}${fmt(Math.abs(d), 2)} kg vs ${dLong(before.date)}`; }
+  const cs = creatineStart(ctx);
+  if (cs && diffDays(cs, date) >= 0 && diffDays(cs, date) <= 35) s += `\n💧 Creatine since ${dLong(cs)}: expect up to 1–2 kg of extra water this month, and the scale’s body fat % to read a little low. The 4-week check allows for it.`;
+  return s + '\nSaved to Health DB.';
 }
 
 /* ============================================================ setup */
