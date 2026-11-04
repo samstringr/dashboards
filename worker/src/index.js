@@ -10,7 +10,8 @@ import { mcpHandler } from './mcp.js';
      /telegram  the bot: log food, weigh-ins and sessions; get your workout sent to you
      /mcp       the dashboard and Claude chats, through a custom connector
      /health    Apple Health (iOS Shortcut) weigh-in sync
-   Plus an hourly cron: weigh-in reminders, an evening protein nudge and a nightly GitHub backup.
+   Plus an hourly cron: weigh-in reminders, supplement checks, an evening protein nudge and a nightly GitHub backup.
+   Reminders go quiet by themselves while Sam is away (see extras.js).
    Data shape matches the dashboard exactly: one JSON doc per day, plus config docs
    (settings, library, plan, layout). */
 
@@ -65,13 +66,14 @@ export async function setup(req, env, url) {
   checks.push(['Database', 'ok']);
   checks.push(['API key for Claude', env.ANTHROPIC_API_KEY ? 'set' : 'MISSING']);
   checks.push(['GitHub backup token', env.GITHUB_TOKEN ? 'set' : 'missing (backups off)']);
+  checks.push(['Voice notes (Workers AI)', env.AI ? 'on' : 'off: add the [ai] binding']);
   if (!env.TELEGRAM_TOKEN) checks.push(['Telegram', 'MISSING token']);
   else {
     const hook = await tg(env, 'setWebhook', { url: url.origin + '/telegram', secret_token: await webhookSecret(env), allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
     checks.push(['Telegram webhook', hook.ok ? 'connected' : 'FAILED: ' + (hook.description || '')]);
     await tg(env, 'setMyCommands', { commands: [
       { command: 'today', description: 'Today so far vs targets' }, { command: 'workout', description: 'Send me the next session in my plan' },
-      { command: 'week', description: 'The last 7 days' }, { command: 'undo', description: 'Undo the last thing logged' }, { command: 'help', description: 'What you can send me' }] });
+      { command: 'supps', description: 'Today’s supplements checklist' }, { command: 'week', description: 'The last 7 days' }, { command: 'away', description: 'Pause reminders while you’re away' }, { command: 'back', description: 'End away mode' }, { command: 'undo', description: 'Undo the last thing logged' }, { command: 'help', description: 'What you can send me' }] });
     if (hook.ok) await send(env, '✅ <b>Health DB is connected.</b> Send /help to see what I can do.');
   }
   const days = await env.DB.prepare('SELECT COUNT(*) AS n FROM days').first();

@@ -3,6 +3,7 @@ import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, vali
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, topOfRange, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
+import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
 
 /* ============================================================ Telegram */
 export async function tg(env, method, body) {
@@ -36,8 +37,17 @@ export const YES = /^(y|yes|yep|yeah|ok|okay|log( it)?|confirm|✅|👍|correct|
 export const NO = /^(n|no|nope|cancel|stop|❌|✖️?|discard)[.! ]*$/i;
 
 export async function onMessage(env, msg) {
-  const raw = (msg.text || msg.caption || '').trim();
+  let raw = (msg.text || msg.caption || '').trim();
+  const voice = msg.voice || msg.audio;
+  if (voice) {
+    if ((voice.duration || 0) > 300) return send(env, 'That voice note is over 5 minutes. Keep it shorter, or split it.');
+    await tg(env, 'sendChatAction', { chat_id: chatId(env), action: 'typing' });
+    raw = await transcribe(env, voice.file_id);
+    if (!raw) return send(env, 'I couldn’t hear anything in that voice note. Try again, or type it.');
+    await send(env, `🎙 <i>“${esc(raw.slice(0, 600))}”</i>`);
+  }
   if (raw.startsWith('/')) return command(env, raw);
+  await welcomeBack(env, await loadCtx(env), today());
   let image = null;
   if (msg.photo?.length) image = await tgImage(env, msg.photo[msg.photo.length - 1].file_id, 'image/jpeg');
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) image = await tgImage(env, msg.document.file_id, msg.document.mime_type);
@@ -73,6 +83,7 @@ export async function onCallback(env, cq) {
   }
   if (act === 'undo') { await strip(); return undoLast(env, token); }
   if (act === 'wk') return sendWorkout(env, token || null);
+  if (act === 'sp' || act === 'sa') return onSuppCallback(env, await loadCtx(env), cq);
 }
 
 /* ---------- acting on what Claude parsed ---------- */
@@ -111,6 +122,21 @@ export function proteinTip(ctx, pl, kl) {
 }
 export async function handleParsed(env, ctx, r, pending) {
   const td = today();
+  const ids = new Set(suppList(ctx).items.map(s => s.id));
+  const sp = (r.supps?.taken || []).filter(id => ids.has(id));
+  if (sp.length) {
+    const sd = validDate(r.supps.date, td);
+    await tickSupps(env, sd, sp, true);
+    if (r.intent === 'supps' || r.intent === 'answer') return sendSupps(env, ctx, sd);
+    await send(env, '💊 Ticked: ' + sp.map(id => esc(suppList(ctx).items.find(s => s.id === id).n)).join(', '));
+  }
+  if (r.intent === 'supps') return sendSupps(env, ctx, validDate(r.supps?.date, td));
+  if (r.intent === 'away' && r.away) {
+    if (r.away.back) return (await endAway(env, ctx, td)) || send(env, 'You weren’t marked as away. Carry on.');
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(r.away.from || '') ? r.away.from : td, to = /^\d{4}-\d{2}-\d{2}$/.test(r.away.to || '') ? r.away.to : null;
+    if (to && to < from) return send(env, 'That end date is before the start. Try again.');
+    return setAway(env, ctx, from, to, r.away.note);
+  }
   if (r.intent === 'food' && r.food?.items?.length) {
     const date = validDate(r.food.date, td), items = normaliseItems(ctx, r.food.items);
     const certain = items.every(i => i.lib && !i.est) && !r.food.ask;
@@ -214,15 +240,26 @@ Just tell me things:
 • <i>“mum’s shepherd’s pie, full plate, with green beans”</i>. I’ll look up anything new and check with you first
 • <i>“save mum’s chilli: 500 g beef mince, 2 tins tomatoes…”</i> to add a recipe
 • a Fit Profile screenshot, or <i>“72.4 kg 16.8%”</i>
-• <i>“ran 5 km in 28 min”</i>, or a filled-in /workout
+• <i>“ran 5 km in 28 min”</i>, <i>“football, 60 min”</i>, or a filled-in /workout
+• <i>“took creatine and zinc”</i>
+• a 🎙 voice note saying any of the above
 /today · where you are vs targets
 /workout · the next session in your plan
+/supps · today’s supplements checklist
 /week · the last 7 days
+/away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/week') return send(env, await weekHtml(env));
   if (c === '/undo') return undoLast(env, null);
+  if (c === '/supps') return sendSupps(env, await loadCtx(env), today());
+  if (c === '/back') { const ctx = await loadCtx(env); return (await endAway(env, ctx, today())) || send(env, 'You weren’t marked as away. Carry on.'); }
+  if (c === '/away') {
+    const ctx = await loadCtx(env), a = parseAwayArgs(today(), rest);
+    if (a) return a.to && a.to < a.from ? send(env, 'That end date is before today.') : setAway(env, ctx, a.from, a.to, null);
+    return handleParsed(env, ctx, await parseMessage(env, ctx, 'I am away: ' + rest.join(' '), null, null), null);
+  }
   return send(env, 'I don’t know that command. Try /help.');
 }
 export async function todayHtml(env) {

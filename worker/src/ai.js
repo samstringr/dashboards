@@ -2,6 +2,7 @@
 import { TZ, text, json, r1, today, dLong, normName } from './util.js';
 import { dayTotals, targets, allWorkouts, planState } from './model.js';
 import { send } from './bot.js';
+import { suppList } from './extras.js';
 
 /* ---------- Claude ---------- */
 export async function claude(env, { model, system, messages, tools, max_tokens = 1500 }) {
@@ -41,11 +42,13 @@ export function exerciseNames(ctx) {
   for (const s of (ctx.plan?.sessions || [])) for (const e of s.ex) m.set(normName(e.n), e.n);
   return [...m.values()];
 }
-export const SCHEMA = `{"intent":"food"|"weight"|"workout"|"recipe"|"answer",
+export const SCHEMA = `{"intent":"food"|"weight"|"workout"|"recipe"|"supps"|"away"|"answer",
  "food":{"date":"YYYY-MM-DD","items":[{"name":str,"qty":num,"unit":"g"|"ml"|"serving","kcal":num,"p":num,"c":num,"f":num,"libId":str|null,"estimated":bool,"research":bool}],"assumptions":[str],"ask":str|null},
  "weight":{"date":"YYYY-MM-DD","weight_kg":num|null,"bf_pct":num|null,"smm_kg":num|null,"smm_pct":num|null,"waist_cm":num|null,"extra":{"muscle_kg":num,"ffm_kg":num,"visceral":num,"water_pct":num,"bone_kg":num,"bmr_kcal":num,"bmi":num,"metabolic_age":num,"protein_pct":num,"subq_pct":num}},
  "workout":{"date":"YYYY-MM-DD","kind":"gym"|"football"|"run"|"swim"|"cycle"|"walk"|"other","label":str,"planCode":str|null,"minutes":num|null,"distance_km":num|null,"exercises":[{"name":str,"sets":[{"kg":num|null,"reps":num|null,"rpe":num|null}]}],"note":str|null},
  "recipe":{"name":str,"per100":{"kcal":num,"p":num,"c":num,"f":num},"servingG":num|null,"assumptions":[str]},
+ "supps":{"date":"YYYY-MM-DD","taken":[str]},
+ "away":{"from":"YYYY-MM-DD"|null,"to":"YYYY-MM-DD"|null,"note":str|null,"back":bool},
  "answer":str}`;
 export async function parseMessage(env, ctx, raw, image, pending) {
   const T = targets(ctx), td = today(), tt = dayTotals(ctx.days.find(d => d.date === td));
@@ -58,11 +61,15 @@ Rules:
 - recipe: when Sam gives a recipe to save ("save mum's chilli: ..."), work out per-100 g macros of the FINISHED dish. Raw ingredient totals divided by the cooked weight; estimate the cooked yield if not given (stews ~85-90% of raw weight, mash-topped bakes ~90%).
 - weight: from text or a Fit Profile screenshot (dates in the app are US format MM/DD/YYYY). "Skeletal Muscle" as % → smm_pct; in kg → smm_kg. "Muscle Mass" is a different number (extra.muscle_kg).
 - workout: "3x8 at 60" = three sets of 8 at 60 kg. Bodyweight sets: kg null. Reuse EXERCISE names when they match. A message starting "WORKOUT <code>" is a filled-in session from the plan: planCode = that code, kind gym, and parse each line's text after the colon into sets; skip lines with nothing after the colon. Runs/swims: kind run/swim with minutes or distance.
+- supps: whenever Sam says he took supplements, add "supps" with the SUPPLEMENT ids he named ("took my vitamins" = all of them), alongside the main intent if the message also logs food etc. A message only about supplements has intent "supps"; "what have I taken?" is intent "supps" with taken [].
+- away: going on holiday or away ("away until the 28th", "on holiday for a week" = to is today+6) → from/to dates, note like "Holiday". "I'm back" → back true.
+- Messages may come from a voice note transcription: expect odd spellings ("hines" = Heinz) and spoken numbers.
 - answer: for questions or chat. Max 80 words, numbers first, British English, direct. Use CONTEXT only.
 - Dates: "yesterday", weekday names etc. are relative to today. Default date is today.
 LIBRARY (id | name | per qty unit | kcal P C F):
 ${libraryBlock(ctx)}
 EXERCISES: ${exerciseNames(ctx).join('; ') || 'none yet'}
+SUPPLEMENTS (id = name): ${suppList(ctx).items.map(x => x.id + '=' + x.n).join(', ')}
 PLAN SESSIONS: ${ctx.plan ? ctx.plan.sessions.map(s => s.code + '=' + s.name).join(', ') : 'none'}${ps ? ' (next: ' + ps.next.code + ')' : ''}
 CONTEXT: targets ${T.ok ? T.kcal + ' kcal, ' + T.protein + ' g protein' : 'unknown'}; today so far ${tt && tt.kcal != null ? Math.round(tt.kcal) + ' kcal, ' + Math.round(tt.p) + ' g protein' : 'nothing logged'}.`;
   const content = [];

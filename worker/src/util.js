@@ -2,7 +2,7 @@
 import { tg } from './bot.js';
 
 export const TZ = 'Europe/London';
-export const CONFIG_IDS = ['settings', 'library', 'plan', 'layout'];
+export const CONFIG_IDS = ['settings', 'library', 'plan', 'layout', 'supplements', 'away'];
 /* ============================================================ helpers */
 export const text = (s, status = 200) => new Response(s, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 export const json = (o, status = 200, headers = {}) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', ...headers } });
