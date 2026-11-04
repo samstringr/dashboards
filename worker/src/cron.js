@@ -9,7 +9,7 @@ import { quietState, quietNote, suppReminder } from './extras.js';
 export async function hourly(env, now) {
   const { hour, wd } = localParts(now), td = today();
   const once = async (key, fn) => { const k = 'sent:' + key + ':' + td; if (await getKV(env, k)) return; await setKV(env, k, 1); await fn(); };
-  const remindHours = [7, 14, 21];
+  const remindHours = [7, 10, 14, 21];
   if (env.TELEGRAM_TOKEN && remindHours.includes(hour)) {
     const ctx = await loadCtx(env), q = quietState(ctx, td);
     if (q.quiet) await quietNote(env, q);      // away, or 2+ empty days: no reminders (one heads-up per gap)
@@ -18,6 +18,9 @@ export async function hourly(env, now) {
         const d = ctx.days.find(x => x.date === td);
         if (!d?.body?.w) await once('weigh', () => send(env, '⚖️ <b>Weigh-in morning.</b> On waking, after the toilet, before food or water. Step on the scale; Apple Health syncs it, or send me the Fit Profile screenshot.'));
       }
+      // If the morning weigh-in hasn't arrived by 10:00, say so: it's how you find out the Shortcut didn't fire.
+      if (hour === 10 && ['Mon', 'Wed', 'Fri'].includes(wd) && !ctx.days.find(x => x.date === td)?.body?.w)
+        await once('weigh-miss', () => send(env, '⚖️ No weigh-in has reached me yet today. If you stepped on the scale, the Shortcut didn’t send it: open Shortcuts and run <b>Send weigh-in to H&amp;F</b> by hand, or send me the Fit Profile screenshot. Skipping today is fine too.'));
       if (hour === 14) await once('supps-lunch', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any']));
       if (hour === 21) {
         const t = dayTotals(ctx.days.find(x => x.date === td)), T = targets(ctx);

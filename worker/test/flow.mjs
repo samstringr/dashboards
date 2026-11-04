@@ -179,6 +179,25 @@ await reset();
 await fetch(W + '/__test/hourly?t=' + TD + 'T21:30:00Z');
 check('reminder only once', (await calls()).filter(c => c.method === 'sendMessage').length === 0);
 
+// --- Apple Health: acknowledged once per new reading; a missing weigh-in is flagged at 10:00 on weigh days
+const wdNow = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', weekday: 'short' }).format(new Date());
+await reset();
+await fetch(W + '/__test/hourly?t=' + TD + 'T10:05:00Z');
+const miss = (await calls()).filter(c => c.method === 'sendMessage').map(c => c.body.text).join(' ');
+check('10:00 flags a missing weigh-in on weigh days', ['Mon', 'Wed', 'Fri'].includes(wdNow) ? /No weigh-in has reached me/.test(miss) : !/No weigh-in/.test(miss), wdNow);
+const post = b => fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify(b) });
+await reset();
+await post({ weight_kg: '72.40', bf_pct: 0.168, lean_kg: 60.2 });
+m = await lastMsg();
+check('Shortcut weigh-in acknowledged', /Weigh-in received/.test(m?.text) && /72.40 kg/.test(m.text) && /60.2 kg lean/.test(m.text) && /7-day average/.test(m.text), (m?.text || 'none').replace(/\n/g, ' | ').slice(0, 200));
+check('creatine note while it loads', /Creatine since/.test(m?.text || ''));
+await reset();
+await post({ weight_kg: '72.40', bf_pct: 0.168, lean_kg: 60.2 });
+check('identical repeat not re-sent', (await calls()).filter(c => c.method === 'sendMessage').length === 0);
+await reset();
+await post({ weight_kg: '72.35', bf_pct: 0.168, lean_kg: 60.2 });
+check('changed reading → "updated"', /Weigh-in updated/.test((await lastMsg())?.text || ''));
+
 // --- away mode: set, reminders paused, back
 await reset();
 await tgSend({ text: '/away 7' });

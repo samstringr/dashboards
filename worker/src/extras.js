@@ -18,6 +18,8 @@ export const DEFAULT_SUPPS = { remind: true, items: [
   { id: 'd3k2', n: 'D3 + K2', dose: '1 capsule', slot: 'dinner', why: 'Fat-soluble: take with your largest meal.' },
   { id: 'magnesium', n: 'Magnesium', dose: 'per label', slot: 'bed', why: '30–60 min before bed; may help sleep quality.' }] };
 export const SLOTS = { morning: 'Morning', lunch: 'With lunch', dinner: 'With dinner', bed: 'Before bed', any: 'Any time' };
+/* First day creatine was ticked: the start of its water-weight bump (about 1–2 kg over 3–4 weeks at 3–5 g a day). */
+export const creatineStart = ctx => (ctx.days.find(d => d.supps && d.supps.creatine) || {}).date || null;
 export const suppList = ctx => (ctx.config?.supplements?.items?.length ? ctx.config.supplements : DEFAULT_SUPPS);
 
 export function suppsText(list, taken, date, head = '💊 <b>Supplements</b>') {
