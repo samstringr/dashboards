@@ -61,6 +61,13 @@ export function planState(ctx) {
   return { next: P.sessions[idx], idx, count: done.length, nextNo, deload };
 }
 export const topOfRange = reps => { const m = String(reps || '').match(/(\d+)\s*[-–]\s*(\d+)/); return m ? +m[2] : null; };
+/* Double progression: add load when the first logged set reached the top of the plan's rep range at or under
+   the plan's effort. Sets planned to failure (RPE 10, Block 04 from 5 Nov 2026) can't come in "under 9", so
+   the cap is the plan's own RPE, never below 9. No RPE logged counts as on target. */
+export function addLoadDue(planEx, logged) {
+  const top = topOfRange(planEx?.reps), s1 = logged?.sets?.[0]; if (!top || !s1) return false;
+  return (+s1.r || 0) >= top && (s1.rpe == null || +s1.rpe <= Math.max(9, +planEx.rpe || 0));
+}
 export function libMacros(item, qty) { const k = (+qty || 0) / (item.q || 1); return item.m.map(v => v * k); }
 export async function loadCtx(env) {
   const [days, config] = await Promise.all([allDays(env), allConfig(env)]);
