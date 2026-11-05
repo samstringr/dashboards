@@ -1,7 +1,7 @@
 /* Health DB · bot.js */
 import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, validDate, normName, webhookSecret, b64 } from './util.js';
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
-import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, topOfRange, libMacros, loadCtx } from './model.js';
+import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
 
@@ -186,7 +186,7 @@ export async function handleParsed(env, ctx, r, pending) {
     const token = uid(); await setKV(env, 'last', { token, kind: 'workout', date, id: rec.id });
     let flags = '';
     if (planS) {
-      const ups = planS.ex.filter(pe => { const e = ex.find(x => normName(x.n) === normName(pe.n)); const top = topOfRange(pe.reps); return e && top && (+e.sets[0].r || 0) >= top && (e.sets[0].rpe == null || +e.sets[0].rpe <= 9); });
+      const ups = planS.ex.filter(pe => addLoadDue(pe, ex.find(x => normName(x.n) === normName(pe.n))));
       if (ups.length) flags = '\n\n⬆️ Add load next time: ' + ups.map(u => esc(u.n)).join(', ');
     }
     const ctx2 = await loadCtx(env), ps = planState(ctx2);

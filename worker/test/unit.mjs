@@ -15,6 +15,14 @@ check('/away 7', JSON.stringify(parseAwayArgs('2026-12-01', ['7'])) === '{"from"
 check('/away date', parseAwayArgs('2026-12-01', ['2026-12-28']).to === '2026-12-28');
 check('/away open', parseAwayArgs('2026-12-01', []).to === null);
 check('/away words → Claude', parseAwayArgs('2026-12-01', ['until', 'the', '28th']) === null);
+// double progression with sets to failure
+import { addLoadDue } from '../src/model.js';
+const pe9 = { reps: '8-12', rpe: 9 }, pe10 = { reps: '10-15', rpe: 10 };
+check('add load: top of range at RPE 9', addLoadDue(pe9, { sets: [{ r: 12, rpe: 9 }] }));
+check('no add load: RPE 10 on an RPE 9 plan', !addLoadDue(pe9, { sets: [{ r: 12, rpe: 10 }] }));
+check('add load: to-failure plan, top of range at RPE 10', addLoadDue(pe10, { sets: [{ r: 15, rpe: 10 }] }));
+check('no add load: below the top of the range', !addLoadDue(pe10, { sets: [{ r: 13, rpe: 10 }] }));
+check('add load: no RPE logged', addLoadDue(pe10, { sets: [{ r: 15 }] }));
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
 // welcome-back with a stubbed env (D1 + Telegram)
 import { welcomeBack } from '../src/extras.js';
