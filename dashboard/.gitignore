@@ -1,0 +1,5 @@
+build/
+test/out/
+src/atlas/node_modules/
+src/atlas/package/
+*.tgz

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Bakes the dashboard body (body.b64) from the Svitylo/Z-Anatomy atlas. Only needed to re-bake; the built page uses body.b64 as committed.",
+  "scripts": { "bake": "node bake.mjs" },
+  "dependencies": { "meshoptimizer": "^0.21.0" }
+}

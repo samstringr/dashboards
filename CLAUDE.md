@@ -2,7 +2,7 @@
 
 > ⚠ **2 Nov 2026: health data has a new home.** Food, weigh-ins and training now live in
 > **Health DB** (`worker/`): a Cloudflare Worker + D1 database that the Telegram bot, the
-> Health & Fitness Dashboard (a Claude artifact, via the "Health DB" connector) and Claude
+> Health & Fitness Dashboard (a Claude artifact, source in **`dashboard/`**, via the "Health DB" connector) and Claude
 > chats all share, with a nightly backup to `dashboards-data/backup/`. The CSV-as-database
 > rules below describe the **legacy `apps/diet` app**, which is retired once Health DB is live.
 > Why: the CSV approach needed a GitHub token on every device and broke three times in
