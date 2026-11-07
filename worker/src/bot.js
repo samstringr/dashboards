@@ -3,6 +3,7 @@ import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, vali
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
+import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
 
 /* ============================================================ Telegram */
@@ -29,9 +30,19 @@ export async function telegramWebhook(request, env) {
     else if (upd.message) await onMessage(env, upd.message);
   } catch (e) {
     console.error('handler', e && e.stack || e);
-    await send(env, '⚠️ That didn’t work: ' + esc(String(e.message || e)).slice(0, 300) + '\nNothing was saved. Try again.');
+    await logError(env, e).catch(() => {});
+    const retry = e.raw ? uid() : null;
+    if (retry) await setKV(env, 'retry', { token: retry, raw: e.raw, at: Date.now() }).catch(() => {});
+    await send(env, '⚠️ That didn’t work: ' + esc(String(e.message || e)).slice(0, 300) + '\nNothing was saved.' + (retry ? ' Tap to try the same message again.' : ' Try again.'), retry ? buttons([[['🔁 Try again', 'rt:' + retry]]]) : {});
   }
   return text('ok');
+}
+/* The last 20 failures, so a "that didn't work" can be diagnosed afterwards (MCP get_bot_errors).
+   WHY: on 7 Nov a message failed and nothing recorded why; Cloudflare's own logs are not kept. */
+export async function logError(env, e) {
+  const log = (await getKV(env, 'errlog')) || [];
+  log.unshift({ at: new Date().toISOString(), error: String(e?.message || e).slice(0, 300), ...(e?.status ? { status: e.status } : {}), ...(e?.detail ? { detail: e.detail } : {}), ...(e?.raw ? { message: String(e.raw).slice(0, 300) } : {}), where: String(e?.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 200) });
+  await setKV(env, 'errlog', log.slice(0, 20));
 }
 export const YES = /^(y|yes|yep|yeah|ok|okay|log( it)?|confirm|✅|👍|correct|good|fine|sure)[.! ]*$/i;
 export const NO = /^(n|no|nope|cancel|stop|❌|✖️?|discard)[.! ]*$/i;
@@ -57,8 +68,10 @@ export async function onMessage(env, msg) {
   if (!raw && !image) return;
   await tg(env, 'sendChatAction', { chat_id: chatId(env), action: 'typing' });
   const ctx = await loadCtx(env);
-  const parsed = await parseMessage(env, ctx, raw, image, pending);
-  return handleParsed(env, ctx, parsed, pending);
+  try {
+    const parsed = await parseMessage(env, ctx, raw, image, pending);
+    return await handleParsed(env, ctx, parsed, pending);
+  } catch (e) { if (raw && !image) e.raw = raw; throw e; }
 }
 export async function tgImage(env, fileId, mime) {
   const f = await tg(env, 'getFile', { file_id: fileId });
@@ -82,21 +95,19 @@ export async function onCallback(env, cq) {
     return commitPending(env, pending, true);
   }
   if (act === 'undo') { await strip(); return undoLast(env, token); }
+  if (act === 'rt') {
+    await strip();
+    const r = await getKV(env, 'retry');
+    if (!r || r.token !== token) return send(env, 'That message has expired. Send it again.');
+    await delKV(env, 'retry');
+    await send(env, `🔁 Trying again: <i>“${esc(r.raw.slice(0, 300))}”</i>`);
+    return onMessage(env, { text: r.raw });
+  }
   if (act === 'wk') return sendWorkout(env, token || null);
   if (act === 'sp' || act === 'sa') return onSuppCallback(env, await loadCtx(env), cq);
 }
 
 /* ---------- acting on what Claude parsed ---------- */
-export function normaliseItems(ctx, items) {
-  return (items || []).map(x => {
-    const lib = x.libId && ctx.library.find(l => l.id === x.libId);
-    let qty = +x.qty || (lib ? lib.d || lib.q : 1), unit = x.unit || (lib ? lib.u : 'serving');
-    let m = [x.kcal, x.p, x.c, x.f].map(v => +v || 0);
-    if (lib) { if (unit !== lib.u && lib.u === 'serving') unit = 'serving'; m = libMacros(lib, qty); }
-    return { id: uid(), t: new Date().toISOString(), n: String(lib ? lib.n : (x.name || 'Food')).slice(0, 120), q: r1(qty), u: lib ? lib.u : unit,
-      kcal: Math.round(m[0]), p: r1(m[1]), c: r1(m[2]), f: r1(m[3]), ...(lib ? { lib: lib.id } : { est: true }), src: 'telegram' };
-  });
-}
 export const qtyTxt = it => it.q == null ? '' : (it.u === 'serving' ? fmt(it.q, it.q % 1 ? 1 : 0) + '×' : fmt(it.q, it.q % 1 ? 1 : 0) + ' ' + it.u);
 export function itemsHtml(items) {
   const lines = items.map(i => `• ${esc(i.n)} <i>${esc(qtyTxt(i))}</i>${i.est ? '*' : ''} — ${fmt(i.kcal)} kcal · ${fmt(i.p, 1)} P · ${fmt(i.c)} C · ${fmt(i.f)} F`);
@@ -139,7 +150,7 @@ export async function handleParsed(env, ctx, r, pending) {
   }
   if (r.intent === 'food' && r.food?.items?.length) {
     const date = validDate(r.food.date, td), items = normaliseItems(ctx, r.food.items);
-    const certain = items.every(i => i.lib && !i.est) && !r.food.ask;
+    const certain = allKnown(items) && !r.food.ask && !r.food.lookupFailed;
     if (certain && !pending) {
       await mutateDay(env, date, d => { (d.items ||= []).push(...items); });
       const token = uid(); await setKV(env, 'last', { token, kind: 'food', date, ids: items.map(i => i.id) });
@@ -151,10 +162,36 @@ export async function handleParsed(env, ctx, r, pending) {
       + (items.some(i => i.est) ? '\n<i>* estimated</i>' : '')
       + (ass.length ? '\n\nAssumed: ' + ass.map(esc).join('; ') : '')
       + (r.food.ask ? '\n\n❓ ' + esc(r.food.ask) : '')
+      + (r.food.lookupFailed ? `\n\n⚠️ Couldn’t look these up (${esc(String(r.food.lookupFailed).slice(0, 120))}), so the starred ones are my own estimates.` : '')
+      + (items.some(i => i.ref) ? '\n<i>Repeats reuse the numbers you logged before.</i>' : '')
       + '\n\nTap ✅, or reply with what to change.', buttons([[['✅ Log it', 'ok:' + p.id], ['✖️ Cancel', 'no:' + p.id]]]));
     p.messageId = msg?.result?.message_id;
     await setKV(env, 'pending', p);
     return;
+  }
+  if (r.intent === 'preset' && r.preset?.name && r.preset.items?.length) {
+    const pr = r.preset, parts = normaliseItems(ctx, pr.items), { entry, old } = presetEntry(ctx, pr, parts);
+    if (pending) await clearPending(env, pending);
+    const p = { id: uid(), kind: 'preset', payload: pr, entry, created: Date.now() };
+    const ass = (pr.assumptions || []).filter(Boolean);
+    const msg = await send(env, `📗 <b>${old ? 'Update' : 'Save'} preset “${esc(entry.n)}”?</b>${old && normName(old.n) !== normName(pr.name) ? ` <i>(you called it “${esc(pr.name)}”)</i>` : ''}\n`
+      + `${entry.servings > 1 ? `These make ${entry.servings} servings:` : 'One serving is:'}\n${itemsHtml(parts)}`
+      + `\n\nPer serving: <b>${fmt(entry.m[0])} kcal · ${fmt(entry.m[1], 1)} g protein</b> · ${fmt(entry.m[2])} C · ${fmt(entry.m[3])} F`
+      + (old ? `\nWas ${fmt(old.m[0])} kcal · ${fmt(old.m[1], 1)} g protein${old.u === 'serving' ? '' : ' per ' + fmt(old.q) + ' ' + old.u}.` : '')
+      + (parts.some(i => i.est) ? '\n<i>* estimated</i>' : '') + (ass.length ? '\nAssumed: ' + ass.map(esc).join('; ') : '')
+      + (pr.lookupFailed ? `\n⚠️ Couldn’t look these up (${esc(String(pr.lookupFailed).slice(0, 120))}), so the starred ones are my own estimates.` : '')
+      + `\n\nThen just send “${esc((entry.al[0] || entry.n).toLowerCase())}”, or “half of ${esc((entry.al[0] || entry.n).toLowerCase())}”.`, buttons([[['✅ Save', 'ok:' + p.id], ['✖️ Cancel', 'no:' + p.id]]]));
+    p.messageId = msg?.result?.message_id; await setKV(env, 'pending', p); return;
+  }
+  if (r.intent === 'howmuch' && r.howmuch) {
+    if (pending) await clearPending(env, pending);
+    const date = validDate(r.howmuch.date, td), h = howMuch(ctx, r.howmuch, date);
+    if (h.why || h.q <= 0) return send(env, howMuchHtml(h, date));
+    const items = normaliseItems(ctx, [{ ...h.U.item, name: h.U.name, qty: h.q, unit: h.U.u, kcal: h.add[0], p: h.add[1], c: h.add[2], f: h.add[3] }]);
+    const p = { id: uid(), kind: 'food', date, payload: { date, items: [{ ...h.U.item, name: h.U.name, qty: h.q, unit: h.U.u }] }, items, created: Date.now() };
+    const qs = h.U.u === 'serving' ? fmt(h.q, h.q % 1 ? 1 : 0) + '×' : fmt(h.q) + ' ' + h.U.u;
+    const msg = await send(env, howMuchHtml(h, date), buttons([[['✅ Log ' + qs, 'ok:' + p.id], ['✖️ No thanks', 'no:' + p.id]]]));
+    p.messageId = msg?.result?.message_id; await setKV(env, 'pending', p); return;
   }
   if (pending) await clearPending(env, pending);
   if (r.intent === 'weight' && r.weight) {
@@ -213,6 +250,11 @@ export async function commitPending(env, p, fromButton) {
     const t = p.items.reduce((a, i) => [a[0] + i.kcal, a[1] + i.p], [0, 0]);
     return send(env, `✅ Logged ${p.items.length} item${p.items.length > 1 ? 's' : ''} · ${fmt(t[0])} kcal · ${fmt(t[1], 1)} g protein${await remainingLine(env, ctx, p.date)}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
   }
+  if (p.kind === 'preset') {
+    const entry = p.entry, ctx2 = await loadCtx(env);
+    await putConfig(env, 'library', savePreset(ctx2, entry));
+    return send(env, `📗 Saved <b>${esc(entry.n)}</b>: ${fmt(entry.m[0])} kcal · ${fmt(entry.m[1], 1)} g protein a serving.\nSend “${esc((entry.al[0] || entry.n).toLowerCase())}” to log it. /foods lists your presets.`);
+  }
   if (p.kind === 'recipe') {
     const rc = p.payload, lib = ctx.library.slice();
     const id = 'r-' + normName(rc.name).slice(0, 24) + '-' + uid().slice(-4);
@@ -239,6 +281,8 @@ Just tell me things:
 • <i>“2 tins of tuna, 60 g Heinz light mayo, 2 slices of bread”</i>
 • <i>“mum’s shepherd’s pie, full plate, with green beans”</i>. I’ll look up anything new and check with you first
 • <i>“save mum’s chilli: 500 g beef mince, 2 tins tomatoes…”</i> to add a recipe
+• <i>“my standard overnight oats are 100 g oats, 40 g protein powder…”</i> to save a preset; then just send <i>“standard overnight oats”</i>
+• <i>“how much of the leftover pork belly closes the day?”</i> or <i>“how much chicken to hit my protein?”</i>
 • a Fit Profile screenshot, or <i>“72.4 kg 16.8%”</i>
 • <i>“ran 5 km in 28 min”</i>, <i>“football, 60 min”</i>, or a filled-in /workout
 • <i>“took creatine and zinc”</i>
@@ -247,11 +291,13 @@ Just tell me things:
 /workout · the next session in your plan
 /supps · today’s supplements checklist
 /week · the last 7 days
+/foods · your presets and saved foods
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/week') return send(env, await weekHtml(env));
+  if (c === '/foods' || c === '/presets') return send(env, foodsHtml(await loadCtx(env)));
   if (c === '/undo') return undoLast(env, null);
   if (c === '/supps') return sendSupps(env, await loadCtx(env), today());
   if (c === '/back') { const ctx = await loadCtx(env); return (await endAway(env, ctx, today())) || send(env, 'You weren’t marked as away. Carry on.'); }

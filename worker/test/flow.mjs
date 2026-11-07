@@ -5,6 +5,7 @@ const W = 'http://127.0.0.1:8787', M = 'http://127.0.0.1:9999';
 const secret = crypto.createHash('sha256').update('tg:123:abc').digest('hex').slice(0, 48);
 let uid = 1000; const results = []; let fails = 0;
 const check = (name, cond, extra = '') => { results.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); if (!cond) fails++; };
+process.on('uncaughtException', e => { console.log(results.join('\n')); console.log('\nCRASHED: ' + (e.stack || e)); process.exit(1); });
 const mcp = async (method, params, id = 1) => (await (await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })).json());
 const tool = async (name, args) => { const r = await mcp('tools/call', { name, arguments: args }); if (r.result?.isError) throw new Error(name + ': ' + r.result.content[0].text); return r.result.structuredContent; };
 const tgSend = async (message) => fetch(W + '/telegram', { method: 'POST', headers: { 'x-telegram-bot-api-secret-token': secret, 'content-type': 'application/json' }, body: JSON.stringify({ update_id: ++uid, message: { message_id: uid, from: { id: 5016806156 }, chat: { id: 5016806156 }, date: 0, ...message } }) });
@@ -219,6 +220,58 @@ await tgSend({ text: 'going on holiday until the 20th' });
 m = await lastMsg();
 check('holiday in plain words → away', /Away: Holiday/.test(m.text) && /Fri 20 Nov/.test(m.text), m.text.split('\n')[0]);
 await tgSend({ text: '/back' });
+
+// --- 7 Nov 2026 quality of life: Sam's exact burger message, repeats, presets, how much, failures
+const YD = new Date(Date.parse(TD + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+await tool('put_day', { date: YD, doc: { date: YD, items: [
+  { id: 'yb1', n: 'Brioche bun', q: 2, u: 'serving', kcal: 340, p: 10, c: 56, f: 10, est: true, src: 'telegram' },
+  { id: 'yp1', n: "Nando's Perinaise peri-peri mayo", q: 25, u: 'g', kcal: 77, p: 0.1, c: 3.3, f: 7, est: true, src: 'telegram' },
+  { id: 'yk1', n: 'Homemade Chinese braised pork belly', q: 238, u: 'g', kcal: 922, p: 39.3, c: 11.9, f: 79.7, est: true, src: 'telegram' }] } });
+await reset();
+await tgSend({ text: '2 brioche buns, 2 servings of nandos peri mayo, 4 slices of sliced gherkins, 1 burger patty (1 patty from an 8 pack multipack), 1 nandos boineless chicken thigh, 30g cheddar cheese' });
+cs = await calls(); m = await lastMsg();
+const rs = cs.filter(c => c.api === 'claude' && c.tools);
+check('burger: lookup tried Sonnet, then Haiku, after rate limits', rs.some(c => /sonnet/.test(c.model)) && rs.some(c => /haiku/.test(c.model)), rs.map(c => c.model).join(','));
+check('burger: still proposes all 6 items, says the lookup failed', /Check this/.test(m.text) && (m.text.match(/^• /gm) || []).length === 6 && /Couldn’t look these up \(rate limit/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
+check('burger: repeats reuse yesterday', /Brioche bun <i>2×<\/i>\*? — 340 kcal/.test(m.text) && /Perinaise peri-peri mayo <i>50 g<\/i>\*? — 154 kcal/.test(m.text), (m.text.match(/• [^\n]*(Brioche|Perinaise)[^\n]*/g) || []).join(' / '));
+await reset(); await tgSend({ text: 'yes' });
+day = (await tool('get_day', { date: TD })).day;
+check('burger: logged with refs', day.items.filter(i => i.ref).length === 2 && day.items.length >= 6, day.items.map(i => i.n + (i.ref ? '→' + i.ref : '')).join(', '));
+// presets
+await reset();
+await tgSend({ text: 'my standard overnight oats are 100 g oats, 40 g bulk chocolate powder and 180 ml semi skimmed milk' });
+m = await lastMsg();
+check('preset: proposes an update of the existing oats entry', /Update preset “Overnight oats \(current build\)”/.test(m.text) && /Per serving: <b>[\d,]+ kcal/.test(m.text), m.text.split('\n').slice(0, 2).join(' | '));
+await reset(); await tgSend({ text: 'yes' });
+m = await lastMsg();
+let plib = (await tool('get_snapshot', {})).config.library.items, oats = plib.find(x => x.id === 'oats');
+check('preset: saved with parts and aliases', /Saved/.test(m.text) && oats.parts?.length === 3 && oats.al.includes('standard overnight oats') && oats.al.includes('my oats') && oats.m[0] === Math.round(375 + 156.8 + 90), JSON.stringify({ m: oats.m, al: oats.al }));
+await reset(); await tgSend({ text: 'standard overnight oats' });
+m = await lastMsg();
+check('preset: name logs straight away', /✅ Logged/.test(m.text) && /Overnight oats \(current build\)/.test(m.text), m.text.split('\n').slice(0, 2).join(' | '));
+await reset(); await tgSend({ text: '/foods' });
+check('/foods lists presets', /Overnight oats \(current build\)/.test((await lastMsg()).text) && /also: /.test((await lastMsg()).text));
+// how much of the leftovers closes the day
+await reset();
+await tgSend({ text: 'how much of the leftover pork belly from yesterday should I eat to close the day? I have about 300 g' });
+m = await lastMsg();
+check('how much: answers with an amount and a log button', /closes the day/.test(m.text) && /→ <b>/.test(m.text) && /ok:/.test(JSON.stringify(m.reply_markup)), m.text.replace(/\n/g, ' | ').slice(0, 300));
+const before = (await tool('get_day', { date: TD })).totals;
+const amt = +(m.text.match(/<b>([\d,]+) g<\/b>/) || [])[1]?.replace(',', '');
+await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard[0][0].callback_data);
+const after = (await tool('get_day', { date: TD })).totals;
+check('how much: Log adds exactly that amount from the leftovers', amt > 0 && amt <= 300 && Math.abs((after.kcal - before.kcal) - 922 * amt / 238) < 1.5, `${amt} g, +${after.kcal - before.kcal} kcal`);
+// failures: a non-JSON reply gets one more go; a real failure is logged and can be retried
+await reset(); await tgSend({ text: 'flaky tuna message' });
+check('non-JSON reply retried once, then logs', /✅ Logged/.test((await lastMsg()).text), (await lastMsg()).text.split('\n')[0]);
+await reset(); await tgSend({ text: 'garbage in' });
+m = await lastMsg();
+check('failure: says why, offers Try again', /That didn’t work: I couldn’t read that/.test(m.text) && /rt:/.test(JSON.stringify(m.reply_markup)), m.text.split('\n')[0]);
+const errs = (await tool('get_bot_errors', {})).errors;
+check('failure: recorded for get_bot_errors', errs[0]?.message === 'garbage in' && /couldn’t read/.test(errs[0].error) && /Still not sure/.test(errs[0].detail || ''), JSON.stringify(errs[0]).slice(0, 200));
+await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard[0][0].callback_data);
+cs = await calls();
+check('Try again re-runs the same message', cs.some(c => c.method === 'sendMessage' && /Trying again/.test(c.body.text)) && cs.filter(c => c.api === 'claude').length === 2);
 
 // --- cron: reminders + backup
 await reset();

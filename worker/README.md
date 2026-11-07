@@ -12,6 +12,11 @@ An hourly cron sends weigh-in reminders (Mon/Wed/Fri 07:00 UK), a supplements ch
 
 Every new Apple Health weigh-in gets a Telegram acknowledgement (weight, body fat, lean mass, 7-day average, change since the last one; exact repeats are skipped). If no weigh-in has arrived by 10:00 on a weigh day, the bot says so, which is how a Shortcut that didn't fire shows up.
 
+**Food logging.** A message is read by Claude Haiku into items. Library foods (and their "also" names) and repeats of anything logged in the last 7 days reuse known numbers and are logged straight away; anything new is estimated, looked up on the web if it's a restaurant, branded or home-cooked item (Sonnet, then Haiku if Sonnet is rate-limited), and shown for a ✅ first. If the lookup fails, the bot still shows its own estimates and says so, rather than failing the message. Since 7 Nov 2026:
+- **Presets:** "my standard overnight oats are 100 g oats, 40 g protein powder…" saves (or updates) one serving as a library entry that keeps its parts; sending the name logs it. `/foods` lists them.
+- **How much:** "how much of the leftover pork belly closes the day?" works out the amount from what's left of today's calories and protein, capped by how much he says he has, with a button to log it. The maths is done in `food.js`, not by the model.
+- **Failures** are kept (last 20) and readable through the MCP tool `get_bot_errors`; the failure message has a 🔁 Try again button. WHY: on 7 Nov a six-item message failed with "I couldn't read that" and nothing recorded why.
+
 Voice notes are transcribed by Workers AI Whisper (the `[ai]` binding), echoed back, then handled like typed text.
 
 **Away mode.** Doing nothing is fine: gaps stay blank and are skipped by every average. After 2 days with nothing logged the reminders go quiet by themselves (one message says so), and the first thing sent after 3+ empty days gets a short welcome-back note. `/away 7`, `/away 2026-12-28` or "on holiday until the 28th" silence reminders up front; `/back` ends it.
@@ -44,5 +49,5 @@ npm install
 node test/mock.mjs &          # fake Telegram, Claude and GitHub
 npx wrangler dev --local      # needs a .dev.vars, see test/flow.mjs
 node test/flow.mjs test/seed.json
-node test/unit.mjs            # away/quiet logic
+node test/unit.mjs            # away/quiet logic, food maths
 ```

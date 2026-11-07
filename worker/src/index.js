@@ -88,7 +88,7 @@ export async function setup(req, env, url) {
     checks.push(['Telegram webhook', hook.ok ? 'connected' : 'FAILED: ' + (hook.description || '')]);
     await tg(env, 'setMyCommands', { commands: [
       { command: 'today', description: 'Today so far vs targets' }, { command: 'workout', description: 'Send me the next session in my plan' },
-      { command: 'supps', description: 'Today’s supplements checklist' }, { command: 'week', description: 'The last 7 days' }, { command: 'away', description: 'Pause reminders while you’re away' }, { command: 'back', description: 'End away mode' }, { command: 'undo', description: 'Undo the last thing logged' }, { command: 'help', description: 'What you can send me' }] });
+      { command: 'supps', description: 'Today’s supplements checklist' }, { command: 'week', description: 'The last 7 days' }, { command: 'foods', description: 'My presets and saved foods' }, { command: 'away', description: 'Pause reminders while you’re away' }, { command: 'back', description: 'End away mode' }, { command: 'undo', description: 'Undo the last thing logged' }, { command: 'help', description: 'What you can send me' }] });
     if (hook.ok) await send(env, '✅ <b>Health DB is connected.</b> Send /help to see what I can do.');
   }
   const days = await env.DB.prepare('SELECT COUNT(*) AS n FROM days').first();

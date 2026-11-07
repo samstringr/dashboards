@@ -1,6 +1,6 @@
 /* Health DB · mcp.js */
 import { CONFIG_IDS, text, json, r1, mean, uid, clamp, today, addDays, validDate, authorized } from './util.js';
-import { getDay, putDay, mutateDay, putConfig, getRev } from './store.js';
+import { getDay, putDay, mutateDay, putConfig, getRev, getKV } from './store.js';
 import { dayTotals, targets, loadCtx } from './model.js';
 import { sendWorkout } from './bot.js';
 import { claude } from './ai.js';
@@ -61,6 +61,9 @@ export const TOOLS = [
       const full = out.filter(x => x.kcal != null && !x.partial && x.date !== td);
       return { targets: targets(ctx), days: out, averages: { kcal: mean(full.map(x => x.kcal)), protein: mean(full.map(x => x.protein)), completeDays: full.length } };
     } },
+  { name: 'get_bot_errors', description: 'The Telegram bot’s last 20 failures (newest first): when, the error, and the message that failed. Use it to work out why the bot said “That didn’t work”.', readOnly: true,
+    inputSchema: { type: 'object', properties: {} },
+    run: async env => ({ errors: (await getKV(env, 'errlog')) || [] }) },
   { name: 'log_food', description: 'Append food items to a day. Each item: name, qty, unit (g|ml|serving), kcal, p, c, f, estimated (bool).',
     inputSchema: { type: 'object', properties: { date: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, qty: { type: 'number' }, unit: { type: 'string' }, kcal: { type: 'number' }, p: { type: 'number' }, c: { type: 'number' }, f: { type: 'number' }, estimated: { type: 'boolean' } }, required: ['name', 'kcal', 'p', 'c', 'f'] } } }, required: ['items'] },
     run: async (env, a) => {

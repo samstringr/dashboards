@@ -23,6 +23,25 @@ check('no add load: RPE 10 on an RPE 9 plan', !addLoadDue(pe9, { sets: [{ r: 12,
 check('add load: to-failure plan, top of range at RPE 10', addLoadDue(pe10, { sets: [{ r: 15, rpe: 10 }] }));
 check('no add load: below the top of the range', !addLoadDue(pe10, { sets: [{ r: 13, rpe: 10 }] }));
 check('add load: no RPE logged', addLoadDue(pe10, { sets: [{ r: 15 }] }));
+// 7 Nov 2026: food helpers (repeats, presets, how much closes the day)
+import { normaliseItems, allKnown, presetEntry, howMuch } from '../src/food.js';
+import { targets } from '../src/model.js';
+import { today } from '../src/util.js';
+const TDu = today();
+const fctx = { settings: { height: 172, dob: '2001-09-17', mult: 1.55, protFloor: 145, protPerKg: 2.15, sex: 'm', phase: 'recomp' }, config: {},
+  library: [{ id: 'chick', n: 'Chicken breast, cooked', q: 100, u: 'g', m: [190, 31, 0, 6.4] }, { id: 'oats', n: 'Overnight oats', q: 1, u: 'serving', m: [766, 58.4, 108.7, 11.8], al: ['oats'] }],
+  days: [{ date: TDu, body: { w: 72.5 }, items: [{ id: 'k1', n: 'Pork belly', q: 238, u: 'g', kcal: 922, p: 39.3, c: 11.9, f: 79.7, est: true }, { id: 'x1', kcal: 900, p: 60, c: 100, f: 20, q: 1, u: 'serving', n: 'Lunch' }] }] };
+const ni = normaliseItems(fctx, [{ name: 'pork', qty: 119, unit: 'g', ref: 'k1' }, { name: 'chicken', qty: 150, unit: 'g', libId: 'chick' }]);
+check('ref rescales the logged item', ni[0].kcal === 461 && ni[0].ref === 'k1' && ni[0].est === true, JSON.stringify(ni[0]));
+check('repeats + library are known, so no confirm', allKnown(ni) && !allKnown(normaliseItems(fctx, [{ name: 'x', qty: 1, unit: 'serving', kcal: 100 }])));
+const pe = presetEntry(fctx, { name: 'standard overnight oats', aliases: ['my oats'], replaces: 'oats', servings: 2 }, normaliseItems(fctx, [{ name: 'chicken', qty: 200, unit: 'g', libId: 'chick' }]));
+check('preset replaces in place, halves for 2 servings, keeps aliases', pe.entry.id === 'oats' && pe.entry.m[0] === 190 && pe.entry.al.join() === 'oats,my oats,standard overnight oats', JSON.stringify({ m: pe.entry.m, al: pe.entry.al }));
+const T = targets(fctx), kl = T.kcal - 1822, pl = T.protein - 99.3;
+const h = howMuch(fctx, { food: { libId: 'chick' }, aim: 'close' });
+check('how much: chicken, protein-bound', h.q === Math.round(Math.min(pl / 0.31, kl / 1.9) / 10) * 10 && h.bound === (kl / 1.9 < pl / 0.31 ? 'kcal' : 'protein'), `${h.q} g, kl ${kl}, pl ${pl}`);
+const h2 = howMuch(fctx, { food: { ref: 'k1' }, aim: 'close', have: { qty: 100, unit: 'g' } });
+check('how much: capped by what is left over', h2.q === 100 && h2.capped);
+check('how much: unknown food → a reason', !!howMuch(fctx, { food: { name: 'mystery' } }).why);
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
 // welcome-back with a stubbed env (D1 + Telegram)
 import { welcomeBack } from '../src/extras.js';
