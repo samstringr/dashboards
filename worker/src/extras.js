@@ -13,10 +13,10 @@ import { tg, send, chatId } from './bot.js';
    The day doc stores supps: { id: ISO time ticked }. A new day is a new doc, so it resets itself. */
 export const DEFAULT_SUPPS = { remind: true, items: [
   { id: 'creatine', n: 'Creatine', dose: '5 g', slot: 'lunch', why: 'Timing barely matters; taking it every day does. Lunch is the easiest anchor.' },
-  { id: 'zinc', n: 'Zinc', dose: '1 tablet', slot: 'lunch', why: 'With food so it doesn’t upset your stomach, and hours apart from magnesium.' },
-  { id: 'omega3', n: 'Omega-3', dose: 'per label', slot: 'dinner', why: 'Absorbs much better with a meal that contains fat.' },
+  { id: 'zinc', n: 'Zinc', dose: '1 tablet', slot: 'dinner', why: 'The label says with your largest meal, usually dinner: food stops it upsetting your stomach. Hours apart from magnesium at bedtime.' },
+  { id: 'omega3', n: 'Omega-3', dose: '2 softgels', slot: 'dinner', why: 'Absorbs much better with a meal that contains fat.' },
   { id: 'd3k2', n: 'D3 + K2', dose: '1 capsule', slot: 'dinner', why: 'Fat-soluble: take with your largest meal.' },
-  { id: 'magnesium', n: 'Magnesium', dose: 'per label', slot: 'bed', why: '30–60 min before bed; may help sleep quality.' }] };
+  { id: 'magnesium', n: 'Magnesium', dose: '2 tablets', slot: 'bed', why: '30–60 min before bed; may help sleep quality.' }] };
 export const SLOTS = { morning: 'Morning', lunch: 'With lunch', dinner: 'With dinner', bed: 'Before bed', any: 'Any time' };
 /* First day creatine was ticked: the start of its water-weight bump (about 1–2 kg over 3–4 weeks at 3–5 g a day). */
 export const creatineStart = ctx => (ctx.days.find(d => d.supps && d.supps.creatine) || {}).date || null;

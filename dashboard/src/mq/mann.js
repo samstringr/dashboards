@@ -153,7 +153,9 @@ function liftView(host0, opt = {}) {
   const el = renderer.domElement; el.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:grab'; wrap.append(el);
   const scene = new T.Scene(); lights(scene);
   const shadow = new T.Mesh(new T.PlaneGeometry(2.2, 1.6), new T.MeshBasicMaterial({map: shadowTex(), transparent: true, depthWrite: false})); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.001; scene.add(shadow);
-  const man = buildMannequin(); scene.add(man.root);
+  // the physique's own body (skin.js); the jointed mannequin only if the body can't be built
+  let man; try { man = buildSkinned(opt.comp || null); } catch (e) { console.error(e); man = buildMannequin(); }
+  scene.add(man.root);
   const cam = new T.PerspectiveCamera(27, 1, 0.05, 50), M = new T.Matrix4();
   const st = {playing: !opt.still && !window.__F3D_STATIC};
   let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null;

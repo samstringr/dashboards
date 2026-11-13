@@ -40,7 +40,9 @@ const INFO = {
   skull: {"muscles": {"triceps": 1, "forearms": 0.2}, "cues": ["Upper arms stay close to vertical", "Lower the bar to just behind your head", "Extend without flaring the elbows"]},
   splitsquat: {"muscles": {"quads": 1, "glutes": 0.85, "adductors": 0.5, "hams": 0.25}, "cues": ["Back foot on the bench, laces down", "Front shin roughly vertical, slight forward lean", "Drop the back knee straight down", "Drive up through the whole front foot"]},
   squat: {"muscles": {"quads": 1, "glutes": 0.85, "adductors": 0.6, "erectors": 0.45, "hams": 0.3, "abs": 0.3, "calves": 0.15}, "cues": ["Bar over mid-foot the whole way down and up", "Brace, then sit down between your hips", "Knees track out over your toes", "Hip crease to knee height or lower"]},
+  shrug: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Stand tall, dumbbells at your sides", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
   stand: {"muscles": {}, "cues": []},
+  uprow: {"muscles": {"sdelt": 1, "traps": 0.75, "fdelt": 0.4, "biceps": 0.3, "forearms": 0.3}, "cues": ["Rope or bar from a low pulley, hands about shoulder-width", "Lead with the elbows, not the hands", "Elbows up to shoulder height, no higher"]},
   straightarm: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Hinge a little, arms straight", "Sweep the bar to your thighs with your lats", "Let it rise until your arms are overhead"]}
 };
 const MATCH = [
@@ -48,7 +50,7 @@ const MATCH = [
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
   [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
   [/shoulder press|overhead press|military|ohp/, 'ohp'], [/straight.?arm|pullover/, 'straightarm'], [/pull.?up|chin.?up/, 'pullup'], [/pull.?down/, 'pulldown'], [/chest.?supported/, 'chestrow'],
-  [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
+  [/upright row/, 'uprow'], [/shrug/, 'shrug'], [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
   [/knee raise|leg raise/, 'kneeraise'], [/hip thrust|glute bridge/, 'hipthrust'], [/adductor|inner thigh|copenhagen/, 'adductor'], [/crunch|sit.?up/, 'crunch'], [/bench|press/, 'flatpress']
 ];

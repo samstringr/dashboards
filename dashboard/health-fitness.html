@@ -278,7 +278,7 @@ select.inp{padding-right:6px}
 @media (max-width:560px){
   #top{gap:8px}
   .brand b{display:none}
-  .datenav .lbl{min-width:0;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+  .datenav .lbl{min-width:0;max-width:88px;overflow:hidden;text-overflow:ellipsis}
   .datenav .lbl small{display:none}
   .actions{gap:2px}
   .actions .btn{width:30px;height:30px;padding:0;justify-content:center;border-color:transparent;background:none}
@@ -286,8 +286,8 @@ select.inp{padding-right:6px}
   /* a phone is list view by design (one scrolling column), so the canvas/list switch goes; it stays if a phone is somehow in canvas, so it can switch back */
   .stack-mode .actions [data-act=mode]{display:none}
   .actions{gap:0}
-  .actions .btn,.actions .icon-btn{width:28px}
-  .datenav .icon-btn{width:26px}
+  .actions .btn,.actions .icon-btn{width:26px}   /* 26 not 28 since the Photos button (13 Nov 2026), so the row still clears the date */
+  .datenav .icon-btn{width:24px}
   #cmd kbd{display:none}
 }
 /* ---------- v5 additions ---------- */
@@ -409,6 +409,24 @@ select.inp{padding-right:6px}
 .vp{height:20px;border-radius:5px;border:1px solid var(--line-2);background:none;font:500 10px/1 var(--mono);color:var(--dim)}
 .vp.grow{color:var(--cat-train);border-color:#1d4a3a}
 .vb{position:relative;height:8px;background:var(--s3);border-radius:4px}
+.term{border-bottom:1px dotted var(--muted);cursor:help}
+.term:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+#termpop{position:fixed;z-index:90;background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;line-height:1.45;color:var(--ink)}
+#termpop p{margin:4px 0 8px;color:var(--muted)}
+.gloss{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:6px 14px;margin:0}
+.gloss dt{font-weight:600}.gloss dd{margin:0;color:var(--muted)}
+@media (max-width:600px){.gloss{grid-template-columns:1fr}.gloss dd{margin-bottom:6px}}
+.mdmap{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mdside{display:flex;flex-direction:column;align-items:center;min-height:0}.mdside .cap{margin-top:2px}
+.mdc{flex:1;width:100%;min-height:0}
+.mdtip{position:absolute;left:0;right:0;bottom:4px;margin:auto;width:max-content;max-width:94%;background:var(--s3);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;line-height:1.4;text-align:center}
+.ph-row,.ph-add{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:8px 0}
+.ph-th{display:block;padding:0;border:1px solid var(--line-2);border-radius:var(--r-sm);overflow:hidden;background:var(--s2);aspect-ratio:3/4;width:100%;cursor:pointer}
+.ph-th img{width:100%;height:100%;object-fit:cover;display:block}.ph-th.blur img{filter:blur(14px) saturate(.4);transform:scale(1.1)}
+.ph-empty{display:flex;align-items:center;justify-content:center;aspect-ratio:3/4;border:1px dashed var(--line-2);border-radius:var(--r-sm);color:var(--dim);font-size:12px;text-align:center;padding:4px}
+.ph-slot{display:flex;flex-direction:column;gap:4px;font-size:12px;cursor:pointer}
+.ph-cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.ph-cmp figure{margin:0}.ph-cmp img{width:100%;border-radius:var(--r-sm);display:block}
+.ph-cmp figcaption{font-size:12px;color:var(--muted);margin-top:4px}
 .vb .band{position:absolute;top:-2px;bottom:-2px;border:1px dashed var(--dim);border-radius:4px}
 .vb .val{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--bad)}
 .vb .val.ok{background:var(--good)}.vb .val.high{background:var(--warn)}
@@ -468,6 +486,7 @@ select.inp{padding-right:6px}
       <button class="btn" data-act="weigh"><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M5.5 6.5a3.5 3.5 0 0 1 5 0M8 6.5 9 5"/></svg><span class="lbl-txt">Weigh-in</span></button>
       <button class="btn" data-act="session"><svg class="i" viewBox="0 0 16 16"><path d="M2 8h12M4 5.5v5M12 5.5v5M2.5 6.5v3M13.5 6.5v3"/></svg><span class="lbl-txt">Session</span></button>
       <button class="btn" data-act="cardio" title="Log cardio or sport"><svg class="i" viewBox="0 0 16 16"><path d="M1.5 8.5h3l1.5-3.5 3 7 1.5-3.5h4"/></svg><span class="lbl-txt">Cardio</span></button>
+      <button class="btn ghost" data-act="photos" title="Progress photos (private)"><svg class="i" viewBox="0 0 16 16"><rect x="1.8" y="4" width="12.4" height="9" rx="2"/><circle cx="8" cy="8.5" r="2.4"/><path d="M5.5 4l1-1.6h3L10.5 4"/></svg><span class="lbl-txt">Photos</span></button>
       <button class="btn ghost" data-act="widgets" title="Add a widget"><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><path d="M11.25 9v4.5M9 11.25h4.5"/></svg><span class="lbl-txt">Widgets</span></button>
       <button class="icon-btn" data-act="mode" id="mode-btn" title="Switch between canvas and list"><svg class="i" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10"/></svg></button>
       <button class="icon-btn" data-act="help" title="How this works (?)" aria-label="How this works"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 1 1 2.6 1.6c-.6.3-.9.7-.9 1.3v.3"/><circle cx="8" cy="11.4" r=".4"/></svg></button>
@@ -499,8 +518,8 @@ select.inp{padding-right:6px}
 <script>
 /* ============================================================
    FIG3D v9. Physique: the atlas man (Z-Anatomy, CC BY-SA 4.0) as a matte white mannequin, shaped by
-   your lean and fat mass. Form demos: a jointed mannequin on a 172 cm rig, one demo per exercise,
-   built from form footage, with the working muscles painted red (most work) to yellow (helping).
+   your lean and fat mass, also drawn flat as a front-and-back muscle chart. Form demos: one per exercise,
+   choreographed on a 172 cm rig and played on the same body, working muscles red (most) to yellow.
    ============================================================ */
 const Fig3D = (() => {
 'use strict';
@@ -1381,6 +1400,105 @@ function lerpPose(A, B, k) {
   for (const key of ['pron', 'curl']) if (A[key]) o[key] = A[key].map((v, i) => B[key] ? v + (B[key][i] - v) * k : v);
   return o;
 }
+/* The physique body's rig under one name, for the form demos: their own scope reuses SK, V and solve (13 Nov 2026). */
+const ATLAS_RIG = {get SK() { return SK; }, get LEN() { return LEN; }, get REST_J() { return REST_J; }, ik, frames, poseSkeleton, makeSkeleton, bodyData, bodyGeometry, bodyMaterial, SKIN};
+
+/* ---------- MAP: the flat front-and-back muscle chart (Muscle development widget) ----------
+   WHY 2D (13 Nov 2026): Sam wanted a front-and-back chart like the strength apps' muscle maps (Symmetric
+   Strength's strength-by-muscle diagram, Fitbod's body map), both sides visible at once instead of a turning
+   figure, each muscle filled by its level. It is drawn from the same body as the 3D physique, flat-on through an
+   orthographic camera, so the outline is his and it changes with lean and fat mass between now, 4 weeks and the
+   goal. Two renders per side: muscle ids (one flat colour per triangle, for outlines and tapping) and soft
+   shading; the chart itself is composed per pixel on a 2D canvas, so the fills are exact level colours. */
+let MAPR = null;
+function mapRenderer() {
+  if (MAPR) return MAPR;
+  MAPR = new T.WebGLRenderer({antialias: false, alpha: true, preserveDrawingBuffer: true});
+  MAPR.setPixelRatio(1); MAPR.outputEncoding = T.LinearEncoding;
+  return MAPR;
+}
+/* The standing photo pose, skinned once on the CPU, then split into flat triangles labelled by muscle. */
+function mapGeometry(d) {
+  if (d._map) return d._map;
+  const geo = bodyGeometry(d, true), mesh = new T.SkinnedMesh(geo, new T.MeshBasicMaterial()), rig = makeSkeleton(d);
+  rig.bones.forEach(b => mesh.add(b)); mesh.bind(rig.sk, new T.Matrix4());
+  poseSkeleton(rig, d, solve(standPose())); mesh.updateMatrixWorld(true); rig.sk.update();
+  const nv = d.pos.length / 3, n = MUSCLES.length, P = new Float32Array(nv * 3), v3 = new T.Vector3();
+  for (let v = 0; v < nv; v++) { v3.fromBufferAttribute(geo.attributes.position, v); mesh.boneTransform(v, v3); P[v * 3] = v3.x; P[v * 3 + 1] = v3.y; P[v * 3 + 2] = v3.z; }
+  const lab = new Int8Array(nv);
+  for (let v = 0; v < nv; v++) { let b = -1, bw = 0.5; for (let i = 0; i < n; i++) { const w = d.muscleW[v * n + i]; if (w > bw) { bw = w; b = i; } } lab[v] = b; }
+  const I = d.idx, nt = I.length / 3, pos = new Float32Array(nt * 9), id = new Float32Array(nt * 9);
+  const tmp = new T.BufferGeometry(); tmp.setAttribute('position', new T.BufferAttribute(P, 3)); tmp.setIndex(new T.BufferAttribute(I, 1)); tmp.computeVertexNormals();
+  const N = tmp.attributes.normal.array, nrm = new Float32Array(nt * 9);
+  let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+  for (let t = 0; t < nt; t++) {
+    const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2], la = lab[a], lb = lab[b], lc = lab[c];
+    const L = la === lb || la === lc ? la : lb === lc ? lb : la, code = (L + 2) / 255;   // 1 = not a muscle, 2.. = muscle index + 2
+    [a, b, c].forEach((v, k) => { for (let q = 0; q < 3; q++) { pos[t * 9 + k * 3 + q] = P[v * 3 + q]; nrm[t * 9 + k * 3 + q] = N[v * 3 + q]; } id[t * 9 + k * 3] = code; id[t * 9 + k * 3 + 1] = 1; });
+  }
+  for (let v = 0; v < nv; v++) { x0 = Math.min(x0, P[v * 3]); x1 = Math.max(x1, P[v * 3]); y0 = Math.min(y0, P[v * 3 + 1]); y1 = Math.max(y1, P[v * 3 + 1]); }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('normal', new T.BufferAttribute(nrm, 3)); g.setAttribute('color', new T.BufferAttribute(id, 3));
+  geo.dispose(); tmp.dispose();
+  return (d._map = {g, box: [x0, x1, y0, y1]});
+}
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const MAP_UNTESTED = [238, 240, 243], MAP_SKIN = [196, 200, 209], MAP_LINE = [28, 30, 38];
+function mapColour(sc) {
+  if (sc == null) return MAP_UNTESTED;
+  const H = LEVEL_HEX.map(hexRGB);
+  if (sc <= 1) return MAP_UNTESTED.map((c, k) => c + (H[0][k] - c) * Math.max(0, sc));
+  const i = Math.min(3, Math.floor(sc - 1)), t = Math.min(1, sc - 1 - i);
+  return H[i].map((c, k) => c + (H[i + 1][k] - c) * t);
+}
+/* Borders follow triangle edges, so they zig-zag. A mode filter (each body pixel takes the most common label
+   within r pixels) rounds them off without moving the silhouette. */
+function smoothIds(ids, W, H, r) {
+  const src = ids.slice(), cnt = new Int16Array(24);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const p = y * W + x; if (src[p] === -2) continue;
+    cnt.fill(0); let best = src[p], bc = 0;
+    for (let yy = Math.max(0, y - r); yy <= Math.min(H - 1, y + r); yy++) for (let xx = Math.max(0, x - r); xx <= Math.min(W - 1, x + r); xx++) {
+      const q = src[yy * W + xx]; if (q === -2) continue; const c = ++cnt[q + 2]; if (c > bc) { bc = c; best = q; }
+    }
+    ids[p] = best;
+  }
+}
+/* opt: {comp, levels, w, h} (CSS pixels per side; drawn at 2×). Returns {front, back}, each {canvas, ids, w, h},
+   ids holding a muscle index per pixel (-1 skin, -2 background) for tapping. */
+function mapViews(opt) {
+  const d = bodyData(opt.comp), M = mapGeometry(d), r = mapRenderer(), dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  const W = Math.round(opt.w * dpr), H = Math.round(opt.h * dpr); r.setSize(W, H, false);
+  const [x0, x1, y0, y1] = M.box, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, bh = (y1 - y0) * 1.04, bw = (x1 - x0) * 1.06;
+  const half = Math.max(bh / 2, bw / 2 * H / W), cam = new T.OrthographicCamera(-half * W / H, half * W / H, half, -half, 0.1, 20);
+  const idMat = new T.MeshBasicMaterial({vertexColors: true}), shMat = new T.MeshLambertMaterial({color: 0xffffff});
+  const scene = new T.Scene(), mesh = new T.Mesh(M.g, idMat); scene.add(mesh);
+  const amb = new T.AmbientLight(0xffffff, 0.45), key = new T.DirectionalLight(0xffffff, 0.75); scene.add(amb, key);
+  const out = {};
+  for (const [side, z] of [['front', 1], ['back', -1]]) {
+    cam.position.set(cx, cy, 5 * z); cam.lookAt(cx, cy, 0); key.position.set(0.8 * z, 2.5, 3 * z);
+    const grab = mat => { mesh.material = mat; r.setClearColor(0x000000, 0); r.render(scene, cam); const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(r.domElement, 0, 0); return x.getImageData(0, 0, W, H).data; };
+    const idp = grab(idMat), shp = grab(shMat);
+    const ids = new Int8Array(W * H);
+    for (let p = 0; p < W * H; p++) ids[p] = idp[p * 4 + 3] < 128 ? -2 : Math.round(idp[p * 4]) - 2;
+    smoothIds(ids, W, H, Math.round(2.5 * dpr));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx2 = cv.getContext('2d'), img = cx2.createImageData(W, H), o = img.data;
+    const pal = MUSCLES.map(m => mapColour(opt.levels && opt.levels[m] != null ? opt.levels[m] : null));
+    const lw = Math.max(1, Math.round(dpr * 0.75));
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const p = y * W + x, id = ids[p]; if (id === -2) continue;
+      let edge = 0;
+      for (let k = 1; k <= lw && !edge; k++) for (const [dx, dy] of [[k, 0], [-k, 0], [0, k], [0, -k]]) { const xx = x + dx, yy = y + dy; const q = xx < 0 || yy < 0 || xx >= W || yy >= H ? -2 : ids[yy * W + xx]; if (q !== id) { edge = q === -2 ? 2 : Math.max(edge, 1); } }
+      const base = id >= 0 ? pal[id] : MAP_SKIN, lum = shp[p * 4] / 255, s = 0.8 + 0.2 * lum;
+      let c = base.map(v => v * s);
+      if (edge === 2) c = MAP_LINE; else if (edge === 1) c = c.map(v => v * 0.58);
+      o[p * 4] = c[0]; o[p * 4 + 1] = c[1]; o[p * 4 + 2] = c[2]; o[p * 4 + 3] = 255;
+    }
+    cx2.putImageData(img, 0, 0);
+    out[side] = {canvas: cv, ids, w: W, h: H};
+  }
+  idMat.dispose(); shMat.dispose();
+  return out;
+}
 
 /* ---------- FORM DEMOS (own scope: the rig reuses names like V, SK and solve) ---------- */
 const MQ = (() => {
@@ -1559,7 +1677,9 @@ const INFO = {
   skull: {"muscles": {"triceps": 1, "forearms": 0.2}, "cues": ["Upper arms stay close to vertical", "Lower the bar to just behind your head", "Extend without flaring the elbows"]},
   splitsquat: {"muscles": {"quads": 1, "glutes": 0.85, "adductors": 0.5, "hams": 0.25}, "cues": ["Back foot on the bench, laces down", "Front shin roughly vertical, slight forward lean", "Drop the back knee straight down", "Drive up through the whole front foot"]},
   squat: {"muscles": {"quads": 1, "glutes": 0.85, "adductors": 0.6, "erectors": 0.45, "hams": 0.3, "abs": 0.3, "calves": 0.15}, "cues": ["Bar over mid-foot the whole way down and up", "Brace, then sit down between your hips", "Knees track out over your toes", "Hip crease to knee height or lower"]},
+  shrug: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Stand tall, dumbbells at your sides", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
   stand: {"muscles": {}, "cues": []},
+  uprow: {"muscles": {"sdelt": 1, "traps": 0.75, "fdelt": 0.4, "biceps": 0.3, "forearms": 0.3}, "cues": ["Rope or bar from a low pulley, hands about shoulder-width", "Lead with the elbows, not the hands", "Elbows up to shoulder height, no higher"]},
   straightarm: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Hinge a little, arms straight", "Sweep the bar to your thighs with your lats", "Let it rise until your arms are overhead"]}
 };
 const MATCH = [
@@ -1567,7 +1687,7 @@ const MATCH = [
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
   [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
   [/shoulder press|overhead press|military|ohp/, 'ohp'], [/straight.?arm|pullover/, 'straightarm'], [/pull.?up|chin.?up/, 'pullup'], [/pull.?down/, 'pulldown'], [/chest.?supported/, 'chestrow'],
-  [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
+  [/upright row/, 'uprow'], [/shrug/, 'shrug'], [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
   [/knee raise|leg raise/, 'kneeraise'], [/hip thrust|glute bridge/, 'hipthrust'], [/adductor|inner thigh|copenhagen/, 'adductor'], [/crunch|sit.?up/, 'crunch'], [/bench|press/, 'flatpress']
 ];
@@ -2157,6 +2277,100 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
   });
 }
 
+/* ---------- DEMOS 5: the exercises new in Mesocycle 05 (13 Nov 2026) ----------
+   Weighted dip (chest & triceps day), seated cable row and DB shrug (back & biceps), cable upright row and DB
+   shrug (shoulders & arms). Built like the others: start and end of the rep as it is coached, the joints follow. */
+
+/* ---- Weighted dip ----
+   Cues: on parallel bars, a dip belt with a plate at the hips. Start at the top, arms straight, shoulders down.
+   Lean the chest forward a little and lower until the upper arms are about level with the bars; elbows go back,
+   not out. Knees bent, ankles crossed behind. Press back up to straight arms. */
+{
+  const HAND = [0.255, 1.3, 0.04];
+  demo('dip', {
+    cam: {yaw: 58, pitch: 6, dist: 4.4, target: [0, 1.2, 0]}, tempo: [1.8, 0.4, 1.0, 0.5],
+    props: [tube([0.27, 1.27, -0.38], [0.27, 1.27, 0.42], 0.022), tube([-0.27, 1.27, -0.38], [-0.27, 1.27, 0.42], 0.022),
+      tube([0.27, 0, 0.38], [0.27, 1.27, 0.38], 0.03), tube([-0.27, 0, 0.38], [-0.27, 1.27, 0.38], 0.03), tube([0.27, 0, -0.34], [0.27, 1.27, -0.34], 0.03), tube([-0.27, 0, -0.34], [-0.27, 1.27, -0.34], 0.03),
+      ['plate', 'Q', [0, 0, -0.012], [0, 0, 0.012], 0.11, {mat: 'iron'}]],
+    frames: ['plate'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);   // 0 = top (arms straight), 1 = bottom
+      const lean = lerp1(12, 30, k);
+      let p = {root: {p: [0, lerp1(1.36, 1.1, ease(k)), lerp1(-0.02, -0.07, k)], pitch: lean}, spine: [lerp1(2, 6, k), lerp1(2, 6, k)], neck: -lean * 0.6,
+        arm: {clav: [lerp1(-10, 6, k), lerp1(-6, 6, k)]}};
+      // knees bent about 90°, shins back, the right ankle crossed over the left
+      const B0 = solve(p), hipL = B0.thighL.o;
+      p = legsTo(p, V.add(hipL, [-0.06, -0.36, -0.42]), [0.1, 0.1, 1], [0.05, -0.6, -0.8]);
+      const C = solve(p).chest, pole = V.norm(V.lerp(fDir(C, [0.25, -0.2, -1]), fDir(C, [0.2, 0.1, -1]), k));
+      p = armsTo(p, HAND, mirP(HAND), pole, mirP(pole), {arm: {palm: [-1, 0, 0.05]}, armR: {palm: [1, 0, 0.05]}});
+      const P = solve(p).pelvis, hang = fAt(P, [0, -0.2, 0.15]);
+      return {pose: p, frames: {plate: F([hang[0], hang[1] - 0.18, hang[2]], [1, 0, 0], [0, 1, 0], [0, 0, 1])}, segs: [[V.add(hang, [-0.06, 0.08, 0]), [hang[0], hang[1] - 0.08, hang[2]], 0.004], [V.add(hang, [0.06, 0.08, 0]), [hang[0], hang[1] - 0.08, hang[2]], 0.004]]};
+    }
+  });
+}
+
+/* ---- Seated cable row (V-handle) ----
+   Cues: feet on the plate, knees soft, chest tall. Start with a small forward reach at the hips, arms long.
+   Pull the handle to the belly button, elbows close to your sides, and squeeze the shoulder blades together;
+   sit upright at the end, no swinging back. Return over 2 s. */
+{
+  const PUL = [0, 0.42, 1.0], base = {spine: [0, 0], neck: 0};
+  demo('cablerow', {
+    cam: {yaw: 70, pitch: 10, dist: 4.0, target: [0, 0.8, 0.35]}, tempo: [1.0, 0.5, 2.0, 0.4],
+    props: [pad([0, 0.4, -0.05], [0.17, 0.035, 0.32]), tube([0, 0.0, -0.05], [0, 0.37, -0.05], 0.035), tube([0, 0.02, -0.3], [0, 0.02, 1.0], 0.03),
+      ['world', 'B', [0, 0.3, 0.68], [0.18, 0.12, 0.02], 0.01, {mat: 'pad', rot: [-25, 0, 0]}], tube([0, 0, 1.06], [0, 1.6, 1.06], 0.045),
+      ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 1.1], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      ['handle', 'Y', [-0.045, 0, 0], [0.045, 0, 0], 0.016, {mat: 'steel'}], ['handle', 'Y', [0, 0, 0], [0, 0, 0.09], 0.01, {mat: 'steel'}]],
+    frames: ['handle'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);   // 0 = arms long, 1 = handle at the belly
+      let p = {...base, root: {p: [0, 0.5, lerp1(0.0, -0.04, k)], pitch: lerp1(16, -3, ease(k))}, spine: [lerp1(4, -2, k), lerp1(4, -4, k)], neck: lerp1(-8, 2, k),
+        arm: {clav: [lerp1(2, -4, k), lerp1(16, -16, k)]}};
+      p = legsTo(p, [0.12, 0.33, 0.7], [0.15, 0.35, 1], [0.08, 0.55, 1]);
+      const C = solve(p).chest, gL = V.lerp([0.04, 0.68, 0.66], [0.045, 0.83, 0.2], ease(k)), pole = V.norm(V.lerp(fDir(C, [0.3, -1, -0.2]), fDir(C, [0.25, -0.5, -1]), k));
+      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [-1, 0, 0])}, armR: {palm: V.mx(fDir(C, [-1, 0, 0]))}});
+      const B = solve(p), m = V.lerp(gripOf(B, 'L'), gripOf(B, 'R'), 0.5), z = V.norm(V.sub(PUL, m));
+      return {pose: p, frames: {handle: F(m, [1, 0, 0], V.norm(V.cross(z, [1, 0, 0])), z)}, segs: [[PUL, V.add(m, V.sc(z, 0.09)), 0.006]]};
+    }
+  });
+}
+
+/* ---- Dumbbell shrug ----
+   Cues: stand tall, dumbbells at your sides, palms in, arms long. Lift the shoulders straight up towards the
+   ears, no rolling; pause a second at the top and lower over 2 s. The arms only hang: no bending at the elbows. */
+demo('shrug', {
+  cam: {yaw: 28, pitch: 8, dist: 3.8, target: [0, 1.15, 0]}, tempo: [0.8, 1.0, 1.8, 0.3],
+  props: [...db('handL'), ...db('handR')],
+  pose(t) {
+    const k = phaseK(t, this.tempo);
+    let p = STAND({root: {p: [0, 0.95, 0], pitch: 2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-6, 26, ease(k)), lerp1(2, -6, k)]}});
+    const C = solve(p).chest;
+    return {pose: {...p, arm: armFix(C, [0.06, -1, 0.02], [0.04, -1, 0.04], [-1, 0, 0.05], {clav: p.arm.clav})}};
+  }
+});
+
+/* ---- Cable upright row (straight bar) ----
+   Cues: face a low pulley, hands a little narrower than shoulder-width, palms towards you. Lead with the elbows
+   and draw the bar up close to the body until the elbows reach shoulder height; the hands stay below the
+   elbows. Lower over 2 s. */
+{
+  const PUL = [0, 0.08, 0.6];
+  demo('uprow', {
+    cam: {yaw: 34, pitch: 8, dist: 3.9, target: [0, 1.1, 0.12]}, tempo: [1.0, 0.4, 2.0, 0.4],
+    props: [tube([0, 0, 0.7], [0, 1.6, 0.7], 0.045), ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 0.75], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      ['bar', 'Y', [-0.25, 0, 0], [0.25, 0, 0], 0.014, {mat: 'steel'}]],
+    frames: ['bar'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      let p = STAND({root: {p: [0, 0.95, -0.02], pitch: 4}, spine: [1, 1], neck: -2, arm: {clav: [lerp1(-4, 14, ease(k)), lerp1(4, -2, k)]}});
+      const C = solve(p).chest, gL = V.lerp([0.12, 0.8, 0.16], [0.11, 1.3, 0.17], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.2, -0.15]), fDir(C, [1, 0.55, -0.25]), k));
+      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.1, -1])}, armR: {palm: V.mx(fDir(C, [0, 0.1, -1]))}});
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[PUL, m, 0.006]]};
+    }
+  });
+}
+
 /* ---------- MANNEQUIN: the form-demo figure ----------
    WHY rigid parts: one stretched skin (v7) smeared the chest and lats whenever an arm moved, which is
    the "weird stuff under the arms". An artist's mannequin can't do that: every part is solid and turns
@@ -2312,7 +2526,9 @@ function liftView(host0, opt = {}) {
   const el = renderer.domElement; el.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:grab'; wrap.append(el);
   const scene = new T.Scene(); lights(scene);
   const shadow = new T.Mesh(new T.PlaneGeometry(2.2, 1.6), new T.MeshBasicMaterial({map: shadowTex(), transparent: true, depthWrite: false})); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.001; scene.add(shadow);
-  const man = buildMannequin(); scene.add(man.root);
+  // the physique's own body (skin.js); the jointed mannequin only if the body can't be built
+  let man; try { man = buildSkinned(opt.comp || null); } catch (e) { console.error(e); man = buildMannequin(); }
+  scene.add(man.root);
   const cam = new T.PerspectiveCamera(27, 1, 0.05, 50), M = new T.Matrix4();
   const st = {playing: !opt.still && !window.__F3D_STATIC};
   let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null;
@@ -2379,11 +2595,74 @@ function liftSnapshot(opt, w, h) {
   const url = v.snapshot(); v.dispose(); box.remove(); return url;
 }
 
+/* ---------- SKIN: the form demos on the physique body (13 Nov 2026) ----------
+   WHY: Sam asked for the demos to use the physique's body instead of the jointed mannequin. Each demo keeps its
+   choreography: every frame the demo rig (rig.js) is solved as before, then its joint angles are copied onto the
+   physique body's skeleton (body.js), which has the body's own bone lengths. The torso takes the rig's pelvis,
+   lumbar, chest and head turns; the shoulders move with the rig's shoulder girdle (shrugs, reaches); the hands
+   are placed where the rig's hands are and the feet where its feet are, so grips, seats and footplates stay in
+   contact with the props, and the elbows and knees bend the way the rig's do. */
+const AR = ATLAS_RIG;
+const mad = (a, b, s) => V.add(a, V.sc(b, s));
+let REST_MQ = null;
+// a vector in the rig's rest frame f0, carried to its posed frame f1
+const carry = (f0, f1, v) => { const l = [V.dot(v, f0.x), V.dot(v, f0.y), V.dot(v, f0.z)]; return V.add(V.add(V.sc(f1.x, l[0]), V.sc(f1.y, l[1])), V.sc(f1.z, l[2])); };
+function toAtlas(B) {
+  const S = AR.SK, L = AR.LEN, RJ = AR.REST_J; if (!REST_MQ) REST_MQ = solve({});
+  const fr = f => ({l: f.x, u: f.y, f: f.z}), F0 = fr(B.pelvis), F1 = fr(B.lumbar), F2 = fr(B.chest), F3 = fr(B.head);
+  // hips where the rig's hips are, so the body sits on the same seat
+  const hipMid = V.lerp(B.thighL.o, B.thighR.o, 0.5), P = V.sub(hipMid, V.add(V.sc(F0.u, S.hp[1]), V.sc(F0.f, S.hp[2])));
+  const A = mad(P, F0.u, L.pelvis), C = mad(A, F1.u, L.abdomen), N = mad(C, F2.u, L.chest), H = mad(mad(N, F3.u, S.head[1]), F3.f, S.head[2]);
+  const J = {P, A, C, N, H, F0, F1, F2, F3, side: {}};
+  for (const [k, sg] of [['L', 1], ['R', -1]]) {
+    const shNo = sg > 0 ? fAt(B.chest, SK.shoulder) : V.mx(fAt(fMirP(B.chest), SK.shoulder)), girdle = V.sub(B['upper' + k].o, shNo);
+    const sh = V.add(mad(mad(mad(N, F2.l, sg * S.sh[0]), F2.u, S.sh[1]), F2.f, S.sh[2]), girdle);
+    const hp = mad(mad(mad(P, F0.l, sg * S.hp[0]), F0.u, S.hp[1]), F0.f, S.hp[2]);
+    const ep = V.sc(B['upper' + k].z, -1), kp = B['thigh' + k].z;   // elbow point and kneecap, from the rig's hinges
+    const [el, wr] = AR.ik(sh, B['hand' + k].o, L.ua, L.fa, ep), [kn, an] = AR.ik(hp, B['foot' + k].o, L.th, L.sh, kp);
+    const rs = RJ.side[k], toe = V.add(an, carry(REST_MQ['foot' + k], B['foot' + k], V.sub(rs.toe, rs.an)));
+    const bend = Math.acos(Math.max(-1, Math.min(1, V.dot(B['hand' + k].y, B['fing2' + k].y)))) / D2R;   // how closed the rig's fingers are
+    J.side[k] = {sg, sh, el, wr, hp, kn, an, toe, ep, kp, pron: 0, curl: Math.min(95, 12 + bend * 0.5)};
+  }
+  // forearm turn: the palm on the body faces where the rig's palm faces (the rig's palm is its hand's -x)
+  const B0 = AR.frames(J);
+  for (const [k, sg] of [['L', 1], ['R', -1]]) {
+    const fa = B0['fa' + k], y = fa.y, palm = V.sc(B['hand' + k].x, -1), t = V.sub(palm, V.sc(y, V.dot(palm, y)));
+    if (V.len(t) < 1e-4) continue;
+    const tn = V.norm(t), ang = Math.atan2(V.dot(V.cross(fa.z, tn), y), V.dot(fa.z, tn));
+    J.side[k].pron = ang / D2R / sg;
+  }
+  return J;
+}
+/* Working muscles painted on the skin: red does most of the work, yellow helps (the mannequin's ramp). */
+function paintWork(g, d, shares) {
+  const nv = d.pos.length / 3, n = MUS.length, col = g.attributes.color.array, L = MUS.map(k => (shares && shares[k]) || 0), base = AR.SKIN;
+  for (let v = 0; v < nv; v++) {
+    let lv = 0; for (let i = 0; i < n; i++) if (L[i]) lv = Math.max(lv, L[i] * d.muscleW[v * n + i]);
+    const on = ss(0.1, 0.3, lv), c = ramp2(lv);
+    for (let q = 0; q < 3; q++) col[v * 3 + q] = base[q] + (Math.pow(c[q], 2.2) - base[q]) * on;
+  }
+  g.attributes.color.needsUpdate = true;
+}
+function buildSkinned(comp) {
+  const d = AR.bodyData(comp), geo = AR.bodyGeometry(d, true), mat = AR.bodyMaterial(true, false), rig = AR.makeSkeleton(d), mesh = new T.SkinnedMesh(geo, mat);
+  rig.bones.forEach(b => mesh.add(b)); mesh.bind(rig.sk, new T.Matrix4()); mesh.frustumCulled = false;
+  const root = new T.Group(); root.add(mesh);
+  const groups = {}; if (!REST_MQ) REST_MQ = solve({});
+  // every frame the rig solves gets an empty group, so equipment can ride on a hand or the pelvis as before
+  for (const n of Object.keys(REST_MQ)) { const q = new T.Group(); q.matrixAutoUpdate = false; groups[n] = q; root.add(q); }
+  const M = new T.Matrix4();
+  return {root, groups, skinned: true,
+    paint(shares) { paintWork(geo, d, shares); },
+    pose(B) { for (const [n, q] of Object.entries(groups)) { const f = B[n]; if (!f) continue; frameMatrix(M, f); q.matrix.copy(M); q.matrixWorldNeedsUpdate = true; } AR.poseSkeleton(rig, d, toAtlas(B)); },
+    dispose() { geo.dispose(); mat.dispose(); }};
+}
+
 return {liftView, liftSnapshot, moveFor, EX, solve, V, fAt, F};
 })();
 return {load, view: (h, o) => o && o.mode === 'lift' ? MQ.liftView(h, o) : view(h, o), snapshot: (o, w, h) => o && o.mode === 'lift' ? MQ.liftSnapshot(o, w, h) : snapshot(o, w, h),
   moveFor: MQ.moveFor, cues: k => (MQ.EX[k] || MQ.EX.stand).cues || [], muscles: k => (MQ.EX[k] || MQ.EX.stand).muscles || {},
-  levelHex: LEVEL_HEX, has: k => !!MQ.EX[k] && k !== 'stand', ready: k => !!(MQ.EX[k] && MQ.EX[k].pose), list: () => Object.keys(MQ.EX),
+  map: mapViews, musclesList: MUSCLES, levelHex: LEVEL_HEX, has: k => !!MQ.EX[k] && k !== 'stand', ready: k => !!(MQ.EX[k] && MQ.EX[k].pose), list: () => Object.keys(MQ.EX),
   _dbg: {MQ, buildMesh, solve, standPose}};
 })();
 </script>
@@ -2436,7 +2715,7 @@ const DEFAULT_LAYOUT = [
   {id:'weight',   type:'weight',   x:10, y:11, w:14, h:8,  cfg:{range:90}},
   {id:'calendar', type:'calendar', x:10, y:19, w:14, h:6,  cfg:{range:182}},
   {id:'body',     type:'body',     x:24, y:0,  w:10, h:8,  cfg:{}},
-  {id:'physique', type:'physique', x:24, y:8,  w:10, h:17, cfg:{view:'goal'}},
+  {id:'muscles', type:'muscles', x:24, y:8,  w:10, h:17, cfg:{view:'goal'}},   // 13 Nov 2026: replaces the 3D physique, which stays in the add-widget menu
   {id:'plan',     type:'plan',     x:34, y:0,  w:12, h:11, cfg:{}},
   {id:'workouts', type:'workouts', x:34, y:11, w:12, h:5,  cfg:{range:84}},
   {id:'lift',     type:'lift',     x:34, y:16, w:12, h:9,  cfg:{range:180, ex:'Incline DB bench'}}
@@ -2814,7 +3093,7 @@ const ffmiBand = a => a < 20 ? 'untrained to lightly trained' : a < 22 ? 'traine
 function goalTimeline(C, G, wk) {
   const gl = G.lean - C.lean; if (Math.abs(gl) < 0.3 && Math.abs(G.fat - C.fat) < 0.3) return 'At goal.';
   const span = m => m < 18 ? Math.round(m) + ' months' : fmt(m / 12, 1).replace(/\.0$/, '') + ' years';
-  const plan = isFinite(wk) && wk > 0 ? `<b style="color:var(--ink)">${span(wk / 4.35)}</b> at this block’s pace` : '';
+  const plan = isFinite(wk) && wk > 0 ? `<b style="color:var(--ink)">${span(wk / 4.35)}</b> at this mesocycle’s pace` : '';
   const real = gl > 0.3 ? `${span(gl / 0.5)}–${span(gl / 0.25)} at a typical natural rate` : '';
   return `${signed(gl)} kg lean, ${signed(G.fat - C.fat)} kg fat to go. ${[plan, real].filter(Boolean).join('; ')}.`;
 }
@@ -2833,7 +3112,7 @@ function openStrength(SV, rows, weeks, comps) {
   openSheet('Strength levels', b => {
     b.innerHTML = `<div class="cap">How each muscle’s lifts compare with other men your weight, from Strength Level’s standards. The 4-week and goal columns assume a typical rate for your level (about 2% a week as a beginner, 1.2% as a novice, 0.6% intermediate, 0.3% advanced), over ${Math.round(weeks.goal)} weeks to the goal at the plan’s pace, at the goal’s bodyweight.</div>
       <div class="sec"><h5>By muscle</h5><table class="ctab lvt"><thead><tr><th></th><th>Now</th><th>+4 wk</th><th>Goal</th></tr></thead><tbody>${rows.map(m => `<tr><td>${MUSCLE_NAMES[m]}</td>${['now', 'in4', 'goal'].map(v => `<td>${cell(SV[v].mus[m])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-      <div class="sec"><h5>By lift (estimated 1RM)</h5><table class="ctab lvt"><thead><tr><th></th><th>Now</th><th>+4 wk</th><th>Goal</th></tr></thead><tbody>${SV.now.lifts.filter(L => L.sc != null).map(L => `<tr><td>${esc(L.n)}${L.est ? ' <span class="dim">est.</span>' : ''}<br><span class="dim" style="font-size:10.5px">${esc(L.from)}</span></td>${['now', 'in4', 'goal'].map(v => { const x = lift(L.k, v); return `<td>${fmt(x.x, 0)} kg<br>${dot(x.sc)}<span style="font-size:10.5px">${lvlName(x.sc)}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table>
+      <div class="sec"><h5>By lift (${term('e1rm')})</h5><table class="ctab lvt"><thead><tr><th></th><th>Now</th><th>+4 wk</th><th>Goal</th></tr></thead><tbody>${SV.now.lifts.filter(L => L.sc != null).map(L => `<tr><td>${esc(L.n)}${L.est ? ' <span class="dim">est.</span>' : ''}<br><span class="dim" style="font-size:10.5px">${esc(L.from)}</span></td>${['now', 'in4', 'goal'].map(v => { const x = lift(L.k, v); return `<td>${fmt(x.x, 0)} kg<br>${dot(x.sc)}<span style="font-size:10.5px">${lvlName(x.sc)}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table>
         ${Object.values(SV.goal.mus).some(x => x.assumed) ? '<div class="cap">“Assumed” means no lift logged for that muscle yet: at 4 weeks and the goal it starts at your overall level and moves with it, on the basis that you train the split as planned. Abs have no strength standard, so they always work this way, and move up with your own progress on leg raises and decline crunches (every 25% better is a level).</div>' : ''}
         <div class="cap">“est.” means no logged sets yet: the plan’s opening weight at the middle of its rep range. It updates as soon as you log the lift. Dumbbell lifts are per dumbbell. Shoulder press, pushdown, seated leg curl and straight-arm pulldown standards aren’t adjusted for bodyweight (Strength Level only lists all weights together for those).</div></div>
       <div class="cap">Standards: <a href="https://strengthlevel.com/strength-standards" target="_blank" rel="noopener" style="color:inherit">strengthlevel.com</a>, male, read 6 Nov 2026. 1RM estimated with the Epley formula from your best set of 15 reps or fewer in the last 180 days.</div>`;
@@ -2914,6 +3193,17 @@ function strengthAt(weeks, bw0, bw1, bests) {
   for (const m of Object.keys(MUSCLE_NAMES)) { let a = 0, w = 0; const src = []; for (const L of lifts) { const sh = Fig3D.muscles(L.k)[m] || 0; if (sh < 0.5 || L.sc == null) continue; a += sh * L.sc; w += sh; src.push(L); } if (w) mus[m] = {sc: a / w, src}; }
   return {lifts, mus};
 }
+/* Body and strength at now, 4 weeks and the goal: shared by the Physique and Muscle development widgets. */
+function strengthViews(C, G) {
+  const F4 = compIn4(C), wk = weeksToGoal(C, G), comps = {now: C, in4: F4, goal: G}, weeks = {now: 0, in4: 4, goal: isFinite(wk) && wk > 0 ? wk : 0}, bests = liftBests();
+  // the goal's strength is never measured at less than 4 weeks of training, so it can't sit below the 4-week view
+  const SV = {}; for (const k of ['now', 'in4', 'goal']) SV[k] = strengthAt(k === 'goal' ? Math.max(4, weeks.goal) : weeks[k], C.w, comps[k].w, bests);
+  fillAssumed(SV);
+  return {F4, wk, comps, weeks, bests, SV};
+}
+const MD_ORDER = ['chest', 'fdelt', 'sdelt', 'rdelt', 'lats', 'upperback', 'traps', 'biceps', 'triceps', 'forearms', 'abs', 'obliques', 'erectors', 'glutes', 'quads', 'hams', 'adductors', 'calves'];
+const compKeyOf = c => c ? [c.lean, c.fat].map(v => (+v).toFixed(2)).join('/') : '';
+const MAPS = new Map();   // drawn charts, by widget: {key, front, back}
 const dirCls = (d, goodUp) => Math.abs(d) < 0.05 ? 'flat' : (d > 0) === goodUp ? 'good' : 'bad';
 const signed = (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs(v), d);
 const SUPP_HOURS = {morning: 9, lunch: 13, dinner: 19, bed: 22, any: 12};
@@ -3099,11 +3389,8 @@ const WT = {
     render(b, inst) {
       const C = compNow(), G = compGoal();
       if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
-      const F4 = compIn4(C), wk = weeksToGoal(C, G), view = ['now', 'in4', 'goal'].includes(inst.cfg.view) ? inst.cfg.view : 'now', colours = inst.cfg.colours !== false;
-      const comps = {now: C, in4: F4, goal: G}, weeks = {now: 0, in4: 4, goal: isFinite(wk) && wk > 0 ? wk : 0}, bests = liftBests();
-      // the goal's strength is never measured at less than 4 weeks of training, so it can't sit below the 4-week view
-      const SV = {}; for (const k of ['now', 'in4', 'goal']) SV[k] = strengthAt(k === 'goal' ? Math.max(4, weeks.goal) : weeks[k], C.w, comps[k].w, bests);
-      fillAssumed(SV);
+      const view = ['now', 'in4', 'goal'].includes(inst.cfg.view) ? inst.cfg.view : 'now', colours = inst.cfg.colours !== false;
+      const {F4, wk, comps, weeks, bests, SV} = strengthViews(C, G);
       const levelsOf = k => colours ? Object.fromEntries(Object.entries(SV[k].mus).map(([m, x]) => [m, x.sc])) : null;
       const avg = k => { const v = Object.values(SV[k].mus).map(x => x.sc); return v.length ? v.reduce((a, c) => a + c) / v.length : null; };
       const on = k => k === view ? 'on' : '', hx = Fig3D.levelHex, anyEst = Object.values(bests).some(x => x.est);
@@ -3132,6 +3419,43 @@ const WT = {
       const ds = b.querySelector('[data-s]'); if (ds) ds.onclick = () => openStrength(SV, rows, weeks, comps);
     }
   },
+  muscles: {
+    title: 'Muscle development', cat: 'body', desc: 'A front and back chart of every muscle, filled by how strong its lifts are against other men your weight: Beginner (palest) to Elite (darkest). Now, in 4 weeks and at the goal; tap a muscle for its level and the lifts behind it. The 4-week and goal views assume you train the split as planned.', def: [10, 13], min: [7, 9],
+    render(b, inst) {
+      const C = compNow(), G = compGoal();
+      if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
+      const view = ['now', 'in4', 'goal'].includes(inst.cfg.view) ? inst.cfg.view : 'now', {comps, weeks, SV, wk} = strengthViews(C, G);
+      const L = Object.fromEntries(Object.entries(SV[view].mus).map(([m, x]) => [m, x.sc])), hx = Fig3D.levelHex, on = k => k === view ? 'on' : '';
+      const rows = MD_ORDER.filter(m => SV.goal.mus[m] || SV.now.mus[m]);
+      const when = {now: 'Now', in4: 'In 4 weeks', goal: weeks.goal ? 'Goal, in about ' + Math.round(weeks.goal / 4.35) + ' months' : 'Goal'}[view];
+      b.innerHTML = `<div class="row between" style="gap:8px;align-items:center"><div class="seg seg-sm" data-mdv>${[['now', 'Now'], ['in4', '4 weeks'], ['goal', 'Goal']].map(([k, l]) => `<button type="button" data-v="${k}" class="${on(k)}">${l}</button>`).join('')}</div><span class="cap">${when}</span></div>
+        <div class="mdmap" data-map><div class="mdside"><div class="mdc" data-side="front"></div><span class="cap">Front</span></div><div class="mdside"><div class="mdc" data-side="back"></div><span class="cap">Back</span></div><div class="mdtip" hidden></div></div>
+        <div class="lvl"><div class="lvbar" style="background:linear-gradient(90deg,${hx.join(',')})"></div><div class="lvlab"><span>Beginner</span><span>Novice</span><span>Intermediate</span><span>Advanced</span><span>Elite</span></div></div>
+        <div class="cap" data-mdinfo>${rows.length ? (view === 'now' ? 'Pale grey: no lift logged for that muscle yet. Tap a muscle.' : 'Assumes you train the split as planned. Tap a muscle.') : 'Log a gym session with weights and reps and the muscles you train fill in.'}</div>
+        ${rows.length ? `<button class="disc" data-s>Strength by muscle and lift</button>` : ''}`;
+      b.querySelectorAll('[data-mdv] [data-v]').forEach(x => x.onclick = () => { inst.cfg.view = x.dataset.v; renderWidget(inst.id); saveLayout(true); });
+      const ds = b.querySelector('[data-s]'); if (ds) ds.onclick = () => openStrength(SV, rows, weeks, comps);
+      const host = b.querySelector('[data-map]'), info = b.querySelector('[data-mdinfo]'), tip = host.querySelector('.mdtip');
+      const say = m => { if (m == null) { tip.hidden = true; return; } const x = SV[view].mus[m], nm = MUSCLE_NAMES[m] || m;
+        tip.innerHTML = `<b>${esc(nm)}</b> · ${x ? lvlName(x.sc) + (x.assumed ? ' <span class="dim">(assumed)</span>' : '') : '<span class="dim">no lift logged yet</span>'}${x && x.src && x.src.length ? `<br><span class="dim">From ${x.src.slice(0, 2).map(L => esc(L.n)).join(' · ')}</span>` : ''}${view !== 'goal' && SV.goal.mus[m] ? `<br><span class="dim">Goal: ${lvlName(SV.goal.mus[m].sc)}</span>` : ''}`; tip.hidden = false; };
+      const draw = () => {
+        if (!host.isConnected) return;
+        const cells = [...host.querySelectorAll('.mdc')], w = Math.max(60, Math.floor(cells[0].clientWidth)), h = Math.max(100, Math.floor(cells[0].clientHeight));
+        const key = [view, w, h, compKeyOf(comps[view]), JSON.stringify(L)].join('|');
+        let M = MAPS.get(inst.id);
+        if (!M || M.key !== key) { M = {key, ...Fig3D.map({comp: comps[view], levels: L, w, h})}; MAPS.set(inst.id, M); }
+        for (const cell of cells) {
+          const side = M[cell.dataset.side], cv = side.canvas; cv.style.cssText = 'width:100%;height:100%;display:block'; cell.replaceChildren(cv);
+          const pick = e => { const r = cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / r.width * side.w), y = Math.floor((e.clientY - r.top) / r.height * side.h); const id = x >= 0 && y >= 0 && x < side.w && y < side.h ? side.ids[y * side.w + x] : -2; return id >= 0 ? Fig3D.musclesList[id] : null; };
+          cv.onclick = e => { e.stopPropagation(); say(pick(e)); };
+          cv.onpointermove = e => { if (e.pointerType === 'mouse') { const m = pick(e); cv.style.cursor = m ? 'pointer' : 'default'; } };
+        }
+      };
+      host.querySelectorAll('.mdc').forEach(c => c.innerHTML = '<div class="empty">Drawing…</div>');
+      Fig3D.load().then(() => requestAnimationFrame(() => { try { draw(); } catch (e) { console.error(e); host.querySelectorAll('.mdc').forEach(c => c.innerHTML = '<div class="empty">The chart needs WebGL.</div>'); } }))
+        .catch(() => { host.querySelectorAll('.mdc').forEach(c => c.innerHTML = '<div class="empty">Couldn’t load. Check your connection.</div>'); });
+    }
+  },
   targets: {
     title: 'Targets', cat: 'food', desc: 'Today’s calorie and protein targets. How they’re worked out sits behind a click.', def: [10, 5], min: [6, 3],
     render(b, inst) {
@@ -3142,26 +3466,26 @@ const WT = {
         ${c.adj ? `<div class="row" style="gap:8px"><span class="cap">4-week trend ${signed(c.delta)} kg</span><button class="btn sm" data-apply>Apply ${c.adj > 0 ? '+' : '−'}${Math.abs(c.adj)} kcal</button></div>` : ''}
         ${T.stale > 7 ? `<div class="cap est">Based on a weigh-in ${T.stale} days old</div>` : ''}
         <button class="disc${open ? ' open' : ''}" data-d>How they’re worked out</button>
-        ${open ? `<div class="deriv">BMR <b>${fmt(T.bmr)}</b> <span class="dim">(${fmt(T.w, 1)} kg · ${st.height} cm · ${T.age} y)</span><br>× <b>${st.mult}</b> activity = <b>${fmt(T.tdee)}</b>${T.ph.off ? '<br>' + (T.ph.off > 0 ? '+ ' : '− ') + '<b>' + Math.abs(T.ph.off) + '</b> ' + T.ph.label.toLowerCase() : ''}${st.adjust ? '<br>' + (st.adjust > 0 ? '+ ' : '− ') + '<b>' + Math.abs(st.adjust) + '</b> correction' : ''}<br>protein <b>${st.protPerKg}</b> g/kg, floor ${st.protFloor} g<br><span class="dim">4-week check: ${esc(c.msg)}</span></div>` : ''}`;
+        ${open ? `<div class="deriv">${term('bmr', 'BMR')} <b>${fmt(T.bmr)}</b> <span class="dim">(${fmt(T.w, 1)} kg · ${st.height} cm · ${T.age} y)</span><br>× <b>${st.mult}</b> activity = ${term('tdee', 'TDEE')} <b>${fmt(T.tdee)}</b> <span class="dim">(${term('maintenance')})</span>${T.ph.off ? '<br>' + (T.ph.off > 0 ? '+ ' : '− ') + '<b>' + Math.abs(T.ph.off) + '</b> ' + T.ph.label.toLowerCase() : ''}${st.adjust ? '<br>' + (st.adjust > 0 ? '+ ' : '− ') + '<b>' + Math.abs(st.adjust) + '</b> correction' : ''}<br>protein <b>${st.protPerKg}</b> g/kg, floor ${st.protFloor} g<br><span class="dim">4-week check: ${esc(c.msg)}</span></div>` : ''}`;
       b.querySelector('[data-d]').onclick = () => { OPEN.has(inst.id + ':d') ? OPEN.delete(inst.id + ':d') : OPEN.add(inst.id + ':d'); renderWidget(inst.id); };
       const ap = b.querySelector('[data-apply]');
       if (ap) ap.onclick = () => writeConfig('settings', {...S.settings, adjust: (+S.settings.adjust || 0) + c.adj, adjustedOn: today()}).then(() => toast('Target moved ' + (c.adj > 0 ? 'up' : 'down') + ' 150 kcal')).catch(() => {});
     }
   },
   plan: {
-    title: 'Training plan', cat: 'train', desc: 'Every session in the rotation, one tab each, with last loads and progression flags. Edit opens the split builder.', def: [12, 11], min: [8, 6],
+    title: 'Training plan', cat: 'train', desc: 'Every session in the microcycle, one tab each, with last loads and progression flags, and where you are in the mesocycle. @9 is RPE 9 (one rep in reserve). Tap a dotted word for its meaning. Edit opens the split builder.', def: [12, 11], min: [8, 6],
     render(b, inst) {
       const ps = planState();
       if (!ps) { b.innerHTML = '<div class="empty">No plan loaded yet.<br><button class="btn sm" data-edit style="margin-top:8px">Build one</button></div>'; b.querySelector('[data-edit]').onclick = () => openPlanEditor(); return; }
       const P = S.plan, code = P.sessions.some(s => s.code === PLAN_TAB.get(inst.id)) ? PLAN_TAB.get(inst.id) : ps.next.code, s = P.sessions.find(x => x.code === code), isNext = code === ps.next.code;
       b.innerHTML = `<div class="row between"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
         <div class="row between"><div class="tabs" role="tablist">${P.sessions.map(x => `<button role="tab" data-tab="${esc(x.code)}" class="${x.code === code ? 'on' : ''}${x.code === ps.next.code ? ' next' : ''}" title="${esc(x.name)}${x.code === ps.next.code ? ' · next' : ''}">${esc(x.code)}</button>`).join('')}</div>
-          <span class="cap num">Session <b style="color:var(--ink)">${ps.nextNo}</b>${P.length ? ' of ' + P.length : ''}${ps.deload ? ' · <span class="est">deload</span>' : ''}</span></div>
+          <span class="cap num">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
         <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>
         <div class="scroll"><table class="extab"><tbody>${s.ex.map(e => {
           const lp = lastPerf(e.n), hint = progressHint(e);
           return `<tr><td>${esc(e.n)}${hint ? ' <span class="up" title="First set hit the top of the range at the planned effort">↑ load</span>' : ''}</td>
-            <td class="r">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}</td>
+            <td class="r" title="${e.rpe ? 'RPE ' + e.rpe + ' = ' + (10 - e.rpe) + ' rep' + (10 - e.rpe === 1 ? '' : 's') + ' in reserve' + (e.rpe >= 10 ? ' (failure)' : '') : ''}">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}</td>
             <td class="r" title="${lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan'}">${lp ? esc(setsText(lp.sets)) : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
         }).join('')}</tbody></table></div>`;
       b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { PLAN_TAB.set(inst.id, x.dataset.tab); renderWidget(inst.id); });
@@ -3284,7 +3608,7 @@ const WT = {
       const host = b.querySelector('[data-c=l]');
       if (!h.length) { host.innerHTML = '<div class="empty">No logged sets for this exercise yet.</div>'; return; }
       chart(host, {n: R, series: [{type: 'line', vals: kv, color: 'var(--cat-train)', connect: true}, {type: 'dot', vals: kv, color: 'var(--cat-train)'}], xl: i => dShort(dates[i]), label: ex + ' top set',
-        empty: 'No sets in this range. Scroll out.', tip: i => { const x = by.get(dates[i]); return x ? '<b>' + dLong(x.date) + '</b><br>' + esc(setsText(x.sets)) + '<br><span class="t">est. 1RM ' + fmt(x.e1rm, 1) + ' kg' + (best === x ? ' · best' : '') + '</span>' : ''; }});
+        empty: 'No sets in this range. Scroll out.', tip: i => { const x = by.get(dates[i]); return x ? '<b>' + dLong(x.date) + '</b><br>' + esc(setsText(x.sets)) + '<br><span class="t">e1RM ' + fmt(x.e1rm, 1) + ' kg' + (best === x ? ' · best' : '') + '</span>' : ''; }});
     }
   },
   tips: {
@@ -3884,7 +4208,7 @@ $('#sheet-x').onclick = closeSheet; $('#scrim').onclick = closeSheet;
 document.querySelector('.actions').addEventListener('click', e => {
   const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
   if (a === 'food') openFood(); else if (a === 'weigh') openWeigh(); else if (a === 'session') openSession({}); else if (a === 'cardio') openCardio({});
-  else if (a === 'widgets') openPalette(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp();
+  else if (a === 'widgets') openPalette(); else if (a === 'photos') openPhotos(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp();
   else if (a === 'mode') setLayoutMode(S.layoutMode === 'canvas' ? 'stack' : 'canvas');
 });
 const field = (label, html) => `<label class="field"><span>${label}</span>${html}</label>`;
@@ -4267,10 +4591,10 @@ const TIP_STATIC = [
   {k: 'Food', t: 'Weigh oils and sauces. A tablespoon of oil is about 120 kcal and the easiest thing to forget.'},
   {k: 'Training', t: 'Lower for 2–3 seconds. Momentum moves weight; tension builds muscle.'},
   {k: 'Recovery', t: 'Alcohol after training cut muscle protein synthesis by about a quarter, even with protein alongside.', src: 'Parr 2014'},
-  {k: 'Training', t: 'Legs are on maintenance: one hard lower session a week keeps them. A third of the training volume held size in young adults.', src: 'Bickel 2011'},
+  {k: 'Training', t: 'Legs are on maintenance volume (MV): about one hard lower session a week keeps them. A third of the training volume held size in young adults.', src: 'Bickel 2011'},
   {k: 'Supplements', t: 'In the UK, sunlight can’t make enough vitamin D from October to March. The NHS advises 10 µg a day through autumn and winter.'},
   {k: 'Food', t: 'Half the plate veg or fruit. Fibre keeps a recomp from feeling like a diet.'},
-  {k: 'Training', t: 'A deload is training: fatigue drops and fitness shows. Keep the weights at about 60% and the reps easy.'},
+  {k: 'Training', t: 'A deload is training: fatigue drops and fitness shows. The 7th microcycle of each mesocycle: same exercises, about half the sets, 3+ reps in reserve.'},
   {k: 'Recovery', t: 'Read the 7-day average, never one weigh-in. Water and salt can move the scale a kilo overnight.'},
   {k: 'Food', t: '30–40 g of slow milk protein before bed (cottage cheese, Skyr, Greek yoghurt, milk) keeps muscle building overnight. Much of the gain is simply eating more protein.', src: 'Snijders 2015'},
   {k: 'Food', t: 'Carbs after training refill glycogen, but they don’t add muscle on top of enough protein. Protein on its own raises insulin plenty.', src: 'Staples 2011'},
@@ -4278,7 +4602,14 @@ const TIP_STATIC = [
   {k: 'Food', t: 'Whey after training, casein before bed: whey digests fast and is rich in leucine, casein drips amino acids in over hours.'},
   {k: 'Supplements', t: 'Creatine adds about 1 kg of water in the first month. The 4-week check allows for it, and the scale’s body fat % may read a little low while it settles.'},
   {k: 'Water', t: 'Drink 500 ml on waking, before the coffee.'},
-  {k: 'Training', t: 'Missed days are blank, not zero. They don’t drag your averages down; they just don’t count.'}
+  {k: 'Training', t: 'Missed days are blank, not zero. They don’t drag your averages down; they just don’t count.'},
+  // terms (13 Nov 2026): one line each, so the vocabulary comes round in the Coach too
+  {k: 'Terms', t: 'Mesocycle: a 4–6 week training block with one focus that ends in a deload. Yours is 7 microcycles of 4 sessions and a rest day.'},
+  {k: 'Terms', t: 'RIR, reps in reserve: RPE 9 means one more good rep was there. RPE + RIR = 10.', src: 'Zourdos 2016'},
+  {k: 'Terms', t: 'MEV, MAV, MRV: the least volume that grows a muscle, the range where growth is best, and the most you can recover from. Start a mesocycle near MEV, build towards MRV, deload.'},
+  {k: 'Terms', t: 'e1RM: your one-rep max estimated from a set of several reps. 60 kg for 10 ≈ 80 kg (Epley).'},
+  {k: 'Terms', t: 'TDEE is everything you burn in a day: BMR at rest, plus training, plus NEAT (walking, standing), plus digesting food. Eating at TDEE is maintenance.'},
+  {k: 'Terms', t: 'Hypertrophy is growth, strength is force, power is force × speed. Each mesocycle picks one as its focus; this one is hypertrophy.'}
 ];
 function tipDeck() {
   const td = today(), hr = new Date().getHours(), T = targets(), t = dayTotals(td), out = [];
@@ -4456,10 +4787,10 @@ function openDay(date) {
    ============================================================ */
 const DEFAULT_SUPPS = {remind: true, items: [
   {id: 'creatine', n: 'Creatine', dose: '5 g', slot: 'lunch', why: 'Timing barely matters; taking it every day does. Lunch is the easiest anchor.'},
-  {id: 'zinc', n: 'Zinc', dose: '1 tablet', slot: 'lunch', why: 'With food so it doesn’t upset your stomach, and hours apart from magnesium.'},
-  {id: 'omega3', n: 'Omega-3', dose: 'per label', slot: 'dinner', why: 'Absorbs much better with a meal that contains fat.'},
+  {id: 'zinc', n: 'Zinc', dose: '1 tablet', slot: 'dinner', why: 'The label says with your largest meal, usually dinner: food stops it upsetting your stomach. Hours apart from magnesium at bedtime.'},
+  {id: 'omega3', n: 'Omega-3', dose: '2 softgels', slot: 'dinner', why: 'Absorbs much better with a meal that contains fat.'},
   {id: 'd3k2', n: 'D3 + K2', dose: '1 capsule', slot: 'dinner', why: 'Fat-soluble: take with your largest meal.'},
-  {id: 'magnesium', n: 'Magnesium', dose: 'per label', slot: 'bed', why: '30–60 min before bed; may help sleep quality.'}]};
+  {id: 'magnesium', n: 'Magnesium', dose: '2 tablets', slot: 'bed', why: '30–60 min before bed; may help sleep quality.'}]};
 function openSuppsEditor() {
   openSheet('Supplements', b => {
     const L = clone(suppList());
@@ -4488,6 +4819,77 @@ function openSuppsEditor() {
   });
 }
 
+
+/* ============================================================
+   TERMS: the training and nutrition vocabulary, so the dashboard speaks it and explains it.
+   WHY (13 Nov 2026): Sam wants to learn and use the scientific terms (mesocycle and the rest). Any word
+   wrapped by term() gets a dotted underline; tapping it shows the definition. Help → Terms lists them all.
+   Definitions are the standard ones in periodisation and sports nutrition; the volume landmarks (MV, MEV,
+   MAV, MRV) are Renaissance Periodization's coaching terms, not lab-measured constants.
+   ============================================================ */
+const GLOSSARY = {
+  macrocycle: ['Macrocycle', 'Programming', 'The whole road to a long-term goal, months to a year, made of several mesocycles. Yours: from today to the goal weight and body fat.'],
+  mesocycle: ['Mesocycle', 'Programming', 'A training block, usually 4–6 weeks, with one focus (hypertrophy, strength or power) that builds week to week and ends in a deload. Yours: 7 microcycles, 28 sessions, about 5 weeks.'],
+  microcycle: ['Microcycle', 'Programming', 'The shortest repeating unit of training. Yours: the 4 sessions plus the rest day, so 5 days.'],
+  deload: ['Deload', 'Programming', 'A planned easy microcycle at the end of a mesocycle: same exercises, about half the sets, 3 or more reps in reserve. Fatigue drops, the fitness stays, and the next block starts fresh.'],
+  focus: ['Mesocycle focus', 'Programming', 'What a mesocycle is built to improve. Hypertrophy: muscle size. Strength: maximal force (1–6 reps, heavy). Power: force × speed (low reps, moved fast).'],
+  hypertrophy: ['Hypertrophy', 'Programming', 'Muscle growth: the fibres get bigger. Driven mainly by hard sets taken close to failure, enough of them each week, with enough protein and sleep.'],
+  hardset: ['Hard set', 'Volume', 'A working set taken close to failure, within about 0–4 reps in reserve. Warm-ups don’t count. The unit that weekly volume is counted in.'],
+  volume: ['Volume', 'Volume', 'How much work a muscle gets: here, hard sets per muscle per week. A set counts 1 for the muscle it targets and ½ for a muscle that helps.'],
+  mv: ['MV · maintenance volume', 'Volume', 'Roughly the least volume that keeps the muscle you have, about a third of growth volume (Bickel 2011). The split builder’s Keep band, 4–8 hard sets a week.'],
+  mev: ['MEV · minimum effective volume', 'Volume', 'The least weekly volume that produces measurable growth. Below it you maintain at best.'],
+  mav: ['MAV · maximum adaptive volume', 'Volume', 'The range where extra sets give the best return. Most growth happens here. The split builder’s Grow band (10–20 hard sets a week) sits in it.'],
+  mrv: ['MRV · maximum recoverable volume', 'Volume', 'The most weekly volume you can still recover from. Past it, performance drops and fatigue builds. It moves with sleep, food, stress and training age.'],
+  frequency: ['Frequency', 'Volume', 'How often a muscle is trained a week. When volume is matched it matters little (Schoenfeld 2018); it mostly decides how the sets are spread. Yours: each session about 1.4× a week.'],
+  rpe: ['RPE · rating of perceived exertion', 'Effort', 'Effort on a 1–10 scale. In lifting, RPE 10 = failure, RPE 9 = one more rep was possible, RPE 8 = two.'],
+  rir: ['RIR · reps in reserve', 'Effort', 'How many more good reps you could have done. RIR 0 = failure. RPE + RIR = 10 (Zourdos 2016).'],
+  failure: ['Failure', 'Effort', 'The rep you can’t complete with good form. Sets to failure (RPE 10) give a strong stimulus but more fatigue, so they suit machines and isolation work; free weights stop at RPE 9.'],
+  orm: ['1RM · one-rep max', 'Load', 'The most weight you can lift once with good form.'],
+  e1rm: ['e1RM · estimated one-rep max', 'Load', 'Your 1RM worked out from a set of several reps, so you never have to test it. Here, Epley: weight × (1 + reps ÷ 30). 60 kg × 10 ≈ 80 kg.'],
+  overload: ['Progressive overload', 'Load', 'Asking a little more of a muscle over time: more weight, more reps or more sets. Without it, the stimulus stops being a stimulus.'],
+  double: ['Double progression', 'Load', 'Progress reps first, then load. Work in a rep range (say 8–12); when the first set reaches the top at the planned effort, add weight and start again at the bottom.'],
+  compound: ['Compound lift', 'Load', 'A movement through two or more joints that trains several muscles at once (presses, rows, squats). The big, heavy ones, done first.'],
+  isolation: ['Isolation exercise', 'Load', 'One joint, one main muscle (curls, lateral raises, leg curls). Low fatigue, so it can go to failure and fill a muscle’s volume.'],
+  trainingage: ['Training age', 'Load', 'How long you’ve trained seriously. It sets how fast you can progress: quick for a beginner, slow after a few years. Strength levels are a rough read of it.'],
+  bmr: ['BMR · basal metabolic rate', 'Nutrition', 'Calories your body burns at complete rest to stay alive. Here, the Mifflin-St Jeor equation from weight, height and age.'],
+  tdee: ['TDEE · total daily energy expenditure', 'Nutrition', 'Everything you burn in a day: BMR plus activity (training and NEAT) plus digesting food. Eating at TDEE is maintenance.'],
+  neat: ['NEAT · non-exercise activity thermogenesis', 'Nutrition', 'Calories burned moving outside training: walking, standing, fidgeting. It varies more between people than training does.'],
+  tef: ['TEF · thermic effect of food', 'Nutrition', 'Calories spent digesting food, about 10% of intake, more for protein.'],
+  maintenance: ['Maintenance calories', 'Nutrition', 'The intake at which weight holds steady: your TDEE.'],
+  recomp: ['Recomposition', 'Nutrition', 'Gaining muscle and losing fat at the same time, eating around maintenance with high protein and hard training. Slow, but the scale barely moves while the mirror does.'],
+  surplus: ['Surplus · deficit', 'Nutrition', 'Eating above maintenance (surplus: bulking, lean gain) or below it (deficit: cutting).'],
+  mps: ['MPS · muscle protein synthesis', 'Nutrition', 'The building of new muscle protein. Each protein-rich meal (about 0.4 g per kg) and each training session raises it for a few hours.'],
+  ffm: ['FFM · fat-free mass', 'Body', 'Everything that isn’t fat: muscle, bone, organs and water. “Lean mass” here.'],
+  ffmi: ['FFMI · fat-free mass index', 'Body', 'Fat-free mass ÷ height², like BMI but for lean mass. About 25 is the rough natural ceiling (Kouri 1995).'],
+  bia: ['BIA · bioimpedance', 'Body', 'How the scale estimates body fat: a weak current through the body. Off by several points against a DEXA scan, but consistent with itself, so the trend is useful.']
+};
+// the default label is the term as it reads mid-sentence: the short form, lower-case unless it's an abbreviation
+const termLabel = g => { const t = g[0].split(' · ')[0]; return /^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t; };
+const term = (k, label) => { const g = GLOSSARY[k]; return g ? `<span class="term" tabindex="0" role="button" data-term="${k}">${label || termLabel(g)}</span>` : (label || k); };
+function termPop(el) {
+  const g = GLOSSARY[el.dataset.term]; if (!g) return;
+  let pop = document.getElementById('termpop');
+  if (!pop) { pop = document.createElement('div'); pop.id = 'termpop'; pop.setAttribute('role', 'tooltip'); document.body.append(pop); }
+  if (pop.dataset.k === el.dataset.term && !pop.hidden) { pop.hidden = true; return; }
+  pop.dataset.k = el.dataset.term;
+  pop.innerHTML = `<b>${esc(g[0])}</b><p>${esc(g[2])}</p><button class="btn sm ghost" data-allterms>All terms</button>`;
+  pop.hidden = false;
+  const r = el.getBoundingClientRect(), w = Math.min(300, innerWidth - 24); pop.style.width = w + 'px';
+  pop.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + 'px';
+  const h = pop.offsetHeight; pop.style.top = (r.bottom + 8 + h > innerHeight ? Math.max(12, r.top - h - 8) : r.bottom + 8) + 'px';
+  pop.querySelector('[data-allterms]').onclick = () => { pop.hidden = true; openHelp('terms'); };
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest?.('.term'); if (t) { e.stopPropagation(); termPop(t); return; }
+  const pop = document.getElementById('termpop'); if (pop && !pop.hidden && !e.target.closest?.('#termpop')) pop.hidden = true;
+}, true);
+document.addEventListener('keydown', e => { const t = e.target.closest?.('.term'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); termPop(t); } if (e.key === 'Escape') { const pop = document.getElementById('termpop'); if (pop) pop.hidden = true; } });
+function termsHtml() {
+  const by = {}; for (const [k, [n, cat, d]] of Object.entries(GLOSSARY)) (by[cat] = by[cat] || []).push([k, n, d]);
+  return Object.entries(by).map(([cat, list]) => `<div class="sec"><h5>${cat}</h5><dl class="gloss">${list.map(([k, n, d]) => `<dt id="t-${k}">${esc(n)}</dt><dd>${esc(d)}</dd>`).join('')}</dl></div>`).join('')
+    + '<p class="note">Tap any word with a dotted underline anywhere in the dashboard to see its definition. Volume landmarks (MV, MEV, MAV, MRV) are coaching terms popularised by Renaissance Periodization; the numbers move from person to person.</p>';
+}
+
 /* ============================================================
    SPLIT BUILDER
    Weekly hard sets per muscle = Σ (sets × share of that muscle) over the rotation,
@@ -4498,42 +4900,49 @@ function openSuppsEditor() {
    - Strength 6–12 at 1–6 reps; power 4–10 at 1–5 reps, moved fast; muscular endurance 8–16 at 15–30 reps;
      The three goals Sam trains for: hypertrophy, strength and power.
    ============================================================ */
-const MUSCLES = [['chest', 'Chest'], ['lats', 'Lats'], ['upper', 'Upper back'], ['fdelt', 'Front delts'], ['sdelt', 'Side delts'], ['rdelt', 'Rear delts'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['quads', 'Quads'], ['hams', 'Hamstrings'], ['glutes', 'Glutes'], ['adductors', 'Adductors'], ['calves', 'Calves'], ['abs', 'Abs']];
+const MUSCLES = [['chest', 'Chest'], ['lats', 'Lats'], ['upper', 'Upper back'], ['traps', 'Traps'], ['fdelt', 'Front delts'], ['sdelt', 'Side delts'], ['rdelt', 'Rear delts'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['quads', 'Quads'], ['hams', 'Hamstrings'], ['glutes', 'Glutes'], ['adductors', 'Adductors'], ['calves', 'Calves'], ['abs', 'Abs']];
 const EXMAP = [
   [/close.?grip/, {triceps: 1, chest: .5, fdelt: .5}], [/incline.*(press|bench)/, {chest: 1, fdelt: .5, triceps: .5}], [/dip/, {triceps: 1, chest: .75, fdelt: .5}],
-  [/reverse pec|rear delt|reverse fl|face.?pull/, {rdelt: 1, upper: .5}], [/pec deck|fly|flye|crossover/, {chest: 1}], [/lateral|side raise|upright row/, {sdelt: 1}],
+  [/reverse pec|rear delt|reverse fl|face.?pull/, {rdelt: 1, upper: .5}], [/pec deck|fly|flye|crossover/, {chest: 1}], [/upright row/, {sdelt: 1, traps: .5}], [/lateral|side raise/, {sdelt: 1}],
   [/adductor|inner thigh|copenhagen/, {adductors: 1}], [/wrist curl|wrist ext|reverse curl|forearm|farmer/, {forearms: 1}],
   [/shoulder press|overhead press|military|ohp|arnold/, {fdelt: 1, sdelt: .5, triceps: .5}], [/straight.?arm|pullover/, {lats: 1}],
-  [/pull.?up|chin.?up|pull.?down/, {lats: 1, upper: .5, biceps: .5}], [/chest.?supported|t.?bar|seal row|meadows/, {upper: 1, lats: .5, rdelt: .5, biceps: .5}],
-  [/single.?arm|one.?arm|(db|dumbbell) row|kroc/, {lats: 1, upper: .75, biceps: .5}], [/row/, {upper: 1, lats: .75, rdelt: .5, biceps: .5}],
+  [/pull.?up|chin.?up|pull.?down/, {lats: 1, upper: .5, biceps: .5}], [/chest.?supported|t.?bar|seal row|meadows/, {upper: 1, lats: .5, rdelt: .5, biceps: .5, traps: .5}],
+  [/single.?arm|one.?arm|(db|dumbbell) row|kroc/, {lats: 1, upper: .75, biceps: .5}], [/row/, {upper: 1, lats: .75, rdelt: .5, biceps: .5, traps: .5}],
   [/leg curl|hamstring curl|nordic/, {hams: 1}], [/curl/, {biceps: 1}], [/push.?down|skull|tricep|triceps|french press|kickback/, {triceps: 1}],
   [/squat|leg press|hack|lunge|split/, {quads: 1, glutes: .5, adductors: .5}], [/press|bench/, {chest: 1, fdelt: .5, triceps: .5}], [/leg ext/, {quads: 1}], // leg press before the generic press (v7.1 scored it as chest)
   [/rdl|romanian|stiff|good morning|deadlift/, {hams: 1, glutes: 1}], [/hip thrust|glute bridge|kickback/, {glutes: 1, hams: .25}], [/calf/, {calves: 1}],
-  [/knee raise|leg raise|crunch|sit.?up|ab |abs|plank|rollout|wheel/, {abs: 1}], [/shrug/, {upper: 1}]
+  [/knee raise|leg raise|crunch|sit.?up|ab |abs|plank|rollout|wheel/, {abs: 1}], [/shrug/, {traps: 1}]
 ];
+/* Traps as their own muscle (13 Nov 2026, Sam: "traps on shoulder day as something to grow"). Shrugs train the
+   upper traps directly (1). Rows with the shoulder blades squeezed back work the middle traps hard, and upright
+   rows the upper traps alongside the side delts, so those count half, like every other indirect muscle here. */
 const musclesFor = e => { if (e.m) return e.m; const n = String(e.n || '').toLowerCase(); for (const [re, m] of EXMAP) if (re.test(n)) return m; return null; };
 const GOALS = {
   hypertrophy: {label: 'Hypertrophy', grow: [10, 20], keep: [4, 8], reps: [6, 20], why: 'Muscle size. 10–20 hard sets per muscle a week, most of them 6–20 reps, 1–3 short of failure.'},
   strength: {label: 'Strength', grow: [6, 12], keep: [3, 6], reps: [1, 6], why: 'Maximal force. Fewer, heavier sets: 1–6 reps at 80%+ of your max, long rests.'},
   power: {label: 'Power', grow: [4, 10], keep: [2, 5], reps: [1, 5], why: 'Force × speed. Low reps moved as fast as possible, well short of failure.'}
 };
-const DEFAULT_PRIORITY = {chest: 'grow', lats: 'grow', upper: 'grow', fdelt: 'keep', sdelt: 'grow', rdelt: 'grow', biceps: 'grow', triceps: 'grow', quads: 'keep', hams: 'keep', glutes: 'keep', adductors: 'keep', calves: 'keep', abs: 'keep'};
-/* Presets for the split builder. Weekly sets assume the rotation runs as written: 3 sessions then a rest day
-   = 3 sessions every 4 days = 5.25 a week, so each session counts 1.75× a week. Set counts were chosen so every
-   muscle lands inside its band at Sam's priorities (100%). Block 04 as Sam finalised it on 5 Nov 2026: 2 sets to
-   failure on compounds, 2–3 on isolations. Side and rear delts need ~6 sets a rotation: lateral raises on L and SA,
-   the reverse pec deck on C and SA (12.25 a week each). Front delts get the two chest presses plus the DB shoulder
-   press = 7.0 (Keep 4–8). Leg curl + RDL at 2 each: hams 7.0, and the RDL lifts glutes 3.5 → 7.0. Abs on Grow
-   (5 Nov): leg raise 3 + decline crunch 3 = 10.5. */
+const DEFAULT_PRIORITY = {chest: 'grow', lats: 'grow', upper: 'grow', traps: 'keep', fdelt: 'keep', sdelt: 'grow', rdelt: 'grow', biceps: 'grow', triceps: 'grow', quads: 'keep', hams: 'keep', glutes: 'keep', adductors: 'keep', calves: 'keep', abs: 'keep'};
+/* Presets for the split builder. Weekly sets assume the microcycle runs as written.
+   Mesocycle 05 (13 Nov 2026), Sam's 4-day split, replacing the 3-day Block 04 preset at his request. WHY: on the
+   chest-and-back day the second big muscle group got a tired session, and two big groups in one day took longer
+   to recover from. 4 sessions then a rest day = 4 sessions every 5 days = 5.6 a week, so each session counts
+   1.4× a week. Set counts were chosen so every muscle sits inside its band at Sam's priorities (100%):
+   grow muscles 10.5–14 hard sets a week, keep muscles 4.2–7. Chest needs 7.2+ sets per microcycle: incline 2 +
+   machine press 2 + pec deck 3 + dips 2 at ¾ = 8.5 (11.9 a week). Lats: pulldown 2 + pullover 3 + the two rows
+   at ½ and ¾ = 7.5 (10.5). Traps: shrugs 2 (B&B) + 3 (S&A), upright rows 3 at ½, rows 4 at ½ = 8.5 (11.9).
+   Abs every other session: leg raise 4 (C&T) + decline crunch 4 (L) = 8 (11.2). Side delts: lateral raises on
+   L and S&A, upright rows, the shoulder press at ½ = 10 (14). Front delts stay on Keep from the presses: 5 (7.0). */
 const PRESETS = [{
-  id: 'cb-l-sa', label: '3-day: Chest & back · Legs · Shoulders & arms, then rest',
-  priority: {abs: 'grow'},
-  plan: {name: 'Block 04 — Chest & back · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.25, length: 42, deloadEvery: 21,
-    note: '3 sessions then a rest day (5.25 a week). 2 sets to failure on the big compound lifts; isolation work 2–3 sets, also to failure. RPE 10 = failure; RPE 9 = one rep left on free-weight lifts. Rotation 1 = calibration: find and log loads, stopping 1–2 reps short. Side delts get lateral raises on legs and shoulders days, rear delts and upper back the reverse pec deck on chest & back and shoulders days. Abs on Grow: hanging leg raise (C) and decline weighted crunch (L); ab crunch machine or cable crunch are straight swaps. Seated leg curl + RDL cover the whole hamstring and keep glutes in range. Every 7th rotation is a deload. Forearms optional: wrist curls 2×15 after SA (not scored).',
+  id: 'ct-bb-l-sa', label: '4-day: Chest & triceps · Back & biceps · Legs · Shoulders & arms, then rest',
+  priority: {abs: 'grow', traps: 'grow'},
+  plan: {name: 'Mesocycle 05 — Chest & triceps · Back & biceps · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.6, length: 28, deloadEvery: 28,
+    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration: find and log loads, stopping 1–2 reps short. 2 sets to failure (RPE 10) on big compound lifts, RPE 9 on free weights where a failed rep is risky; isolation work 2–3 sets, also to failure. Traps: shrugs on back and shoulders days, upright rows on shoulders day, rows count half. Abs every other session: hanging leg raise (C&T) and decline crunch (L).',
     sessions: [
-      {code: 'C', name: 'Chest & back', ex: [['Incline DB bench', 2, '6-10', 9], ['Machine chest press', 2, '8-12', 10], ['Pec deck', 3, '10-15', 10], ['Lat pulldown', 2, '8-12', 10], ['Chest-supported row', 2, '8-12', 10], ['Cable pullover', 3, '10-15', 10], ['Reverse pec deck', 3, '12-20', 10], ['Hanging leg raise', 3, '10-15', 10]]},
-      {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Romanian deadlift', 2, '6-10', 9], ['Seated leg curl', 2, '10-15', 10], ['Seated calf raise', 3, '10-15', 10], ['Adductor machine', 2, '12-15', 10], ['Machine lateral raise', 3, '12-20', 10], ['Decline weighted crunch', 3, '10-15', 10]]},
-      {code: 'SA', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '12-20', 10], ['Reverse pec deck', 3, '12-20', 10], ['Tricep pushdown', 2, '10-15', 10], ['Overhead cable triceps extension', 3, '10-15', 10], ['EZ-bar skull crusher', 2, '8-12', 9], ['Incline DB curl', 3, '10-15', 10], ['Cable hammer curl', 2, '10-15', 10]]}
+      {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Machine chest press', 2, '8-12', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '10-15', 10], ['Tricep pushdown', 2, '10-15', 10], ['Hanging leg raise', 4, '10-15', 10]]},
+      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '8-12', 10], ['Chest-supported row', 2, '8-12', 10], ['Seated cable row', 2, '8-12', 10], ['Cable pullover', 3, '10-15', 10], ['Reverse pec deck', 3, '12-20', 10], ['DB shrug', 2, '10-15', 10], ['Incline DB curl', 3, '10-15', 10]]},
+      {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '10-15', 10], ['Seated calf raise', 3, '10-15', 10], ['Adductor machine', 2, '12-15', 10], ['Cable lateral raise', 3, '12-20', 10], ['Decline weighted crunch', 4, '10-15', 10]]},
+      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '12-20', 10], ['Cable upright row', 3, '10-15', 10], ['DB shrug', 3, '10-15', 10], ['Reverse pec deck', 3, '12-20', 10], ['Overhead cable triceps extension', 3, '10-15', 10], ['Cable hammer curl', 3, '10-15', 10]]}
     ]}
 }];
 function applyPreset(P, id) {
@@ -4542,7 +4951,7 @@ function applyPreset(P, id) {
   Object.assign(P, {...clone(pr.plan), priority: {...P.priority, ...(pr.priority || {})}, rule: P.rule || S.plan?.rule, site: P.site || S.plan?.site, start: today(), status: 'draft'});
   P.sessions = pr.plan.sessions.map(s => ({code: s.code, name: s.name, ex: s.ex.map(([n, sets, reps, rpe]) => ({n, sets, reps, rpe, opener: old.get(n.toLowerCase()) || 'calibrate'}))}));
 }
-const fmtPW = v => fmt(v, v % 0.5 ? 2 : v % 1 ? 1 : 0);
+const fmtPW = v => fmt(v, Math.round(v * 100) % 10 ? 2 : v % 1 ? 1 : 0);
 function repRange(r) { const m = String(r || '').match(/(\d+)\s*(?:[-–]\s*(\d+))?/); return m ? [+m[1], +(m[2] || m[1])] : null; }
 function scorePlan(P) {
   const G = GOALS[P.goal] || GOALS.hypertrophy, n = P.sessions.length || 1, k = (+P.perWeek || 4.5) / n;
@@ -4569,7 +4978,7 @@ function openPlanEditor() {
   if (!GOALS[P.goal]) P.goal = 'hypertrophy';
   let openS = P.sessions[0]?.code;
   openSheet('Split builder', b => {
-    b.innerHTML = `<div class="sec"><h5>Goal</h5><div class="seg wrap" id="pe-goal">${Object.entries(GOALS).map(([k, g]) => `<button type="button" data-g="${k}" class="${P.goal === k ? 'on' : ''}">${g.label}</button>`).join('')}</div><div class="cap" id="pe-gwhy"></div></div>
+    b.innerHTML = `<div class="sec"><h5>${term('focus', 'Mesocycle focus')}</h5><div class="seg wrap" id="pe-goal">${Object.entries(GOALS).map(([k, g]) => `<button type="button" data-g="${k}" class="${P.goal === k ? 'on' : ''}">${g.label}</button>`).join('')}</div><div class="cap" id="pe-gwhy"></div></div>
       <div class="sec"><h5>Presets</h5><div class="row wrap" style="gap:6px">${PRESETS.map(p => `<button type="button" class="btn sm" data-preset="${p.id}">${esc(p.label)}</button>`).join('')}</div><div class="cap">Replaces the sessions below and keeps your Grow/Keep choices. Nothing is saved until you press Save plan.</div></div>
       <div class="grid2">${field('Sessions per week', `<div class="row" style="gap:6px"><button class="icon-btn" data-pw="-0.5" aria-label="Fewer">−</button><b class="num" id="pe-pw" style="min-width:32px;text-align:center"></b><button class="icon-btn" data-pw="0.5" aria-label="More">+</button></div>`)}<div id="pe-cardio"></div></div>
       <div class="sec" id="pe-score"></div>
@@ -4582,8 +4991,8 @@ function openPlanEditor() {
       cd.innerHTML = G.cardio ? field('Aerobic minutes per week', `<input class="inp" type="number" step="10" id="pe-cm" value="${P.cardioMin || 0}">`) : '';
       const cm = cd.querySelector('#pe-cm'); if (cm) cm.oninput = () => { P.cardioMin = +cm.value || 0; score(); cd.querySelector('#pe-cm')?.focus(); };
       const pct = Math.round(R.score * 100), top = Math.max(24, ...R.rows.map(r => Math.max(r.v, r.band[1]))) * 1.08;
-      b.querySelector('#pe-score').innerHTML = `<div class="row between"><h5 style="margin:0">Weekly sets per muscle</h5><span class="num"><b class="mid" style="color:var(--${pct >= 98 ? 'good' : pct >= 80 ? 'warn' : 'bad'})">${pct}%</b> <span class="cap">${R.ok} of ${R.rows.length} in range</span></span></div>
-        <div class="cap">Each session runs about ${fmt(R.perSession, 2)}× a week (${fmtPW(+P.perWeek)} sessions over a ${P.sessions.length}-session rotation). Tap Grow or Keep to change a muscle’s priority.</div>
+      b.querySelector('#pe-score').innerHTML = `<div class="row between"><h5 style="margin:0">Weekly ${term('volume')}: ${term('hardset', 'hard sets')} per muscle</h5><span class="num"><b class="mid" style="color:var(--${pct >= 98 ? 'good' : pct >= 80 ? 'warn' : 'bad'})">${pct}%</b> <span class="cap">${R.ok} of ${R.rows.length} in range</span></span></div>
+        <div class="cap">Each session runs about ${fmt(R.perSession, 2)}× a week (${fmtPW(+P.perWeek)} sessions a week over a ${P.sessions.length}-session ${term('microcycle')}). Grow aims inside the ${term('mav', 'MAV')}, past the ${term('mev', 'MEV')} and short of the ${term('mrv', 'MRV')}; Keep is ${term('mv', 'maintenance volume')}. Tap Grow or Keep to change a muscle’s priority.</div>
         <div class="vol">${R.rows.map(r => `<div class="vr"><span class="vn">${r.label}</span><button class="vp ${r.pri}" data-m="${r.m}">${r.pri === 'grow' ? 'Grow' : 'Keep'}</button>
           <span class="vb"><i class="band" style="left:${r.band[0] / top * 100}%;width:${(r.band[1] - r.band[0]) / top * 100}%"></i><i class="val ${r.state}" style="width:${Math.min(100, r.v / top * 100)}%"></i></span>
           <span class="vv num ${r.state}">${fmt(r.v, 1)}</span><span class="vs num">${r.band[0]}–${r.band[1]}</span></div>`).join('')}
@@ -4635,6 +5044,103 @@ function openPlanEditor() {
   }, {wide: true});
 }
 
+
+/* ============================================================
+   PROGRESS PHOTOS (13 Nov 2026)
+   WHY a top-bar sheet, not a widget: they're private, so they never sit on the canvas; thumbnails stay
+   blurred until tapped. Stored in this dashboard's own asset store (owner only), never in Health DB, the bot
+   or the GitHub backup. Each photo is shrunk to 1600 px on the device before upload, which also strips the
+   phone's metadata (GPS location included). A set is three relaxed poses, front, side and back, plus two
+   optional flexed ones, on one date; the db row keeps the asset ids and that morning's weight and body fat.
+   Cadence: every 4 weeks, on a weigh-in morning: the scale trend is checked over 4 weeks, and weekly
+   photos show lighting and water, not muscle.
+   ============================================================ */
+const POSES = [['front', 'Front'], ['side', 'Side'], ['back', 'Back'], ['frontflex', 'Front, flexed'], ['backflex', 'Back, flexed']];
+let ASSETS;   // undefined = not asked yet, null = not available here
+const PHOTO = {rows: [], unblur: new Set(), cmp: null};
+async function photosStore() {
+  if (ASSETS === undefined) { try { ASSETS = window.claude?.use ? await window.claude.use('assets') : null; } catch { ASSETS = null; } }
+  return ASSETS;
+}
+function shrinkImage(file, max = 1600) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('Couldn’t read that photo')), 'image/jpeg', 0.86); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Couldn’t read that photo. Try a JPEG or PNG.')); };
+    img.src = url;
+  });
+}
+const photoUrl = id => '/_blob/' + id;
+async function loadPhotos() {
+  if (!DB) return [];
+  try { const snap = await DB.collection('photos').get(); PHOTO.rows = snap.docs.map(d => d.data()).filter(Boolean).sort((a, b) => a.date < b.date ? 1 : -1); } catch (e) { console.warn(e); }
+  return PHOTO.rows;
+}
+function photoDue() {
+  const last = PHOTO.rows[0]?.date; if (!last) return {due: true, msg: 'No photos yet. Take the first set on your next weigh-in morning: it’s the baseline everything else is compared with.'};
+  const next = addDays(last, 28), d = diffDays(today(), next);
+  return d <= 0 ? {due: true, msg: `Due: the last set was ${dLong(last)}, ${diffDays(last, today())} days ago.`} : {due: false, msg: `Next set due ${dLong(next)} (${d} day${d === 1 ? '' : 's'}), on that week’s weigh-in morning.`};
+}
+function openPhotos(view = 'sets') {
+  openSheet('Progress photos', async b => {
+    b.innerHTML = '<div class="empty">Loading…</div>';
+    const store = await photosStore(); await loadPhotos();
+    const how = `<div class="sec"><button class="disc${PHOTO.how ? ' open' : ''}" data-how>How and when to take them</button>${PHOTO.how ? `<ol class="rank">
+      <li><b>Every 4 weeks, on a weigh-in morning.</b> After the toilet, before food or water, same as the scale. Weekly photos mostly show lighting, water and pump; 4 weeks matches the trend check and roughly one mesocycle.</li>
+      <li><b>Same everything.</b> Same room, same light (overhead or a window in front of you, never behind), same shorts, same distance. Phone at chest height on a shelf or tripod, about 2 m away, timer on, rear camera, whole body in frame. Mark the spot on the floor.</li>
+      <li><b>Relaxed poses.</b> Front, side (arms out in front so the waist shows) and back, standing naturally, not sucking in. These are the ones to compare.</li>
+      <li><b>Flexed, if you like.</b> Front and back double biceps. Good for seeing arms, lats and abs, but harder to repeat exactly.</li>
+      <li><b>Compare months, not weeks.</b> First set against the latest, side by side, same pose. The scale and tape measure what the eye can’t.</li></ol>
+      <p class="cap">Private: stored only in this dashboard, which only you can open. Not in Health DB, the Telegram bot or the GitHub backup. Photos are shrunk on your device before upload, which also removes the phone’s location data.</p>` : ''}</div>`;
+    if (!store || !DB) { b.innerHTML = how + '<div class="empty">Photos need the dashboard open in Claude, signed in as you.</div>'; wire(); return; }
+    const due = photoDue(), rows = PHOTO.rows, td = today(), cur = rows.find(r => r.date === td) || {date: td, shots: {}};
+    const thumb = (r, k) => { const id = r.shots?.[k]; if (!id) return `<div class="ph-empty">${esc((POSES.find(p => p[0] === k) || [k, k])[1])}</div>`; const key = r.date + k, open = PHOTO.unblur.has(key);
+      return `<button class="ph-th${open ? '' : ' blur'}" data-th="${key}" data-id="${id}" title="${open ? 'Tap to view large' : 'Tap to show'}"><img alt="${esc(k)} ${esc(r.date)}" src="${photoUrl(id)}" loading="lazy"></button>`; };
+    const meta = r => [r.w ? fmt(r.w, 1) + ' kg' : '', r.bf ? fmt(r.bf, 1) + '% fat' : ''].filter(Boolean).join(' · ');
+    const tabs = `<div class="seg" data-pv2>${[['sets', 'Sets'], ['add', 'Add today’s'], ['cmp', 'Compare']].map(([k, l]) => `<button data-pt="${k}" class="${view === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    let body = '';
+    if (view === 'add') {
+      body = `<div class="sec"><h5>${dLong(td)}</h5><div class="cap">Pick or take each pose; each one saves as soon as it’s chosen.</div><div class="ph-add">${POSES.map(([k, l]) => `<label class="ph-slot"><span>${l}${k.includes('flex') ? ' <span class="dim">(optional)</span>' : ''}</span>${cur.shots[k] ? thumb(cur, k) : '<div class="ph-empty">+</div>'}<input type="file" accept="image/*" capture="environment" data-up="${k}" hidden></label>`).join('')}</div></div>`;
+    } else if (view === 'cmp') {
+      if (rows.length < 2) body = '<div class="empty">Compare needs two sets on different dates.</div>';
+      else {
+        const c = PHOTO.cmp || (PHOTO.cmp = {a: rows[rows.length - 1].date, b: rows[0].date, pose: 'front'}), A = rows.find(r => r.date === c.a) || rows[rows.length - 1], B2 = rows.find(r => r.date === c.b) || rows[0];
+        const sel = (k, v) => `<select class="pick" data-cmp="${k}">${rows.map(r => `<option value="${r.date}" ${r.date === v ? 'selected' : ''}>${dLong(r.date)}</option>`).join('')}</select>`;
+        body = `<div class="row" style="gap:8px;flex-wrap:wrap">${sel('a', A.date)}<span class="dim">vs</span>${sel('b', B2.date)}<div class="seg seg-sm">${POSES.map(([k, l]) => `<button data-cp="${k}" class="${c.pose === k ? 'on' : ''}">${l.replace(', flexed', ' flex')}</button>`).join('')}</div></div>
+          <div class="ph-cmp">${[A, B2].map(r => `<figure>${r.shots?.[c.pose] ? `<img alt="" src="${photoUrl(r.shots[c.pose])}">` : '<div class="ph-empty">No photo</div>'}<figcaption>${dLong(r.date)}${meta(r) ? ' · ' + meta(r) : ''}</figcaption></figure>`).join('')}</div>
+          <div class="cap">${A.w && B2.w ? `${signed(B2.w - A.w)} kg${A.bf && B2.bf ? `, ${signed(B2.bf - A.bf)} points of body fat` : ''} between them.` : ''}</div>`;
+      }
+    } else {
+      body = rows.length ? rows.map(r => `<div class="sec ph-set"><div class="row between"><b>${dLong(r.date)}</b><span class="cap">${meta(r)}</span></div><div class="ph-row">${POSES.filter(([k]) => r.shots?.[k]).map(([k]) => thumb(r, k)).join('')}</div><button class="btn sm ghost" data-del="${r.date}">Delete this set</button></div>`).join('')
+        : '<div class="empty">No photos yet.</div>';
+    }
+    b.innerHTML = `<div class="sec"><div class="chip${due.due ? ' warn' : ''}" style="white-space:normal">${esc(due.msg)}</div></div>${how}${tabs}${body}`;
+    wire();
+    function wire() {
+      b.querySelector('[data-how]')?.addEventListener('click', () => { PHOTO.how = !PHOTO.how; openPhotos(view); });
+      b.querySelectorAll('[data-pt]').forEach(x => x.onclick = () => openPhotos(x.dataset.pt));
+      b.querySelectorAll('[data-th]').forEach(x => x.onclick = e => { e.preventDefault(); const k = x.dataset.th; if (!PHOTO.unblur.has(k)) { PHOTO.unblur.add(k); x.classList.remove('blur'); return; } window.open(photoUrl(x.dataset.id), '_blank', 'noopener'); });
+      b.querySelectorAll('[data-up]').forEach(inp => inp.onchange = async () => {
+        const f = inp.files?.[0]; if (!f) return; const k = inp.dataset.up;
+        try {
+          toast('Uploading…'); const blob = await shrinkImage(f), up = await ASSETS.upload(blob, {type: 'image/jpeg'});
+          const td2 = today(), d = dayDoc(td2), w = d?.body?.w ?? compNow()?.w, bf = d?.body?.bf ?? compNow()?.bf;
+          const row = PHOTO.rows.find(r => r.date === td2) || {date: td2, shots: {}}; row.shots = {...row.shots, [k]: up.id}; if (w) row.w = r1(w); if (bf) row.bf = r1(bf);
+          await DB.collection('photos').doc(td2).set(row); PHOTO.unblur.add(td2 + k); toast('Saved'); openPhotos('add');
+        } catch (e) { toast(e?.code === 'quota_exceeded' ? 'Photo storage is full. Delete an old set first.' : e?.code === 'not_granted' ? 'Photo uploads aren’t allowed in this view.' : (e?.message || 'Upload failed'), {err: true}); }
+      });
+      b.querySelectorAll('[data-cmp]').forEach(x => x.onchange = () => { PHOTO.cmp[x.dataset.cmp] = x.value; openPhotos('cmp'); });
+      b.querySelectorAll('[data-cp]').forEach(x => x.onclick = () => { PHOTO.cmp.pose = x.dataset.cp; openPhotos('cmp'); });
+      b.querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
+        if (x.dataset.sure !== '1') { x.dataset.sure = '1'; x.textContent = 'Tap again to delete for good'; return; }
+        const r = PHOTO.rows.find(q => q.date === x.dataset.del); if (!r) return;
+        try { for (const id of Object.values(r.shots || {})) await ASSETS.delete(id).catch(() => {}); await DB.collection('photos').doc(r.date).delete(); toast('Set deleted'); openPhotos('sets'); } catch (e) { toast(e?.message || 'Couldn’t delete', {err: true}); }
+      });
+    }
+  }, {wide: true});
+}
+
 /* ============================================================
    HELP: why it's built this way, and how it works
    ============================================================ */
@@ -4645,17 +5151,19 @@ function openHelp(tab = 'why') {
     const why = `
       <div class="sec"><h5>The goal</h5><p>${G ? `${B(fmt(G.w, 0) + ' kg at ' + fmt(G.bf, 0) + '% body fat')}, which is ${B(fmt(G.lean, 1) + ' kg')} lean and ${B(fmt(G.fat, 1) + ' kg')} fat.` : 'Set a goal in Settings.'}
         ${C && G ? ` Today you’re ${fmt(C.w, 1)} kg at ${fmt(C.bf, 1)}%: ${fmt(C.lean, 1)} kg lean and ${fmt(C.fat, 1)} kg fat. So the job is ${B(signed(G.lean - C.lean) + ' kg lean')} and ${B(signed(G.fat - C.fat) + ' kg fat')}. Extra weight only counts if it arrives as lean mass, which is why the dashboard tracks composition, not just the scale.` : ''}
-        ${G && st.height ? ` At ${st.height} cm, ${fmt(G.lean, 1)} kg lean is a fat-free mass index of ${B(fmt(G.lean / (st.height / 100) ** 2, 1))} (${fmt(G.lean / (st.height / 100) ** 2 + 6.1 * (1.8 - st.height / 100), 1)} height-adjusted): ${ffmiBand(ffmi(G.lean, st.height).adj)}, and ${ffmi(G.lean, st.height).adj > 22.6 ? 'more' : 'about as much'} muscle for your height as the 80 kg, 178–180 cm physiques in your reference photos (about 22.5 adjusted). The full working is under How it works.` : ''}</p></div>
-      <div class="sec"><h5>Why recomp, not bulk or cut</h5><p>At around ${C ? fmt(C.bf, 0) : '17'}% body fat, training hard on a new block with high protein, you can add muscle and lose fat at the same time. Recomp eats at maintenance. The plan assumes ${B('+' + fmt(PHASES.recomp.rate.lean, 1) + ' kg lean and ' + fmt(PHASES.recomp.rate.fat, 1) + ' kg fat every 4 weeks')} (health-targets §4b). Lean mass is the slow part, so the goal is months away, not weeks.${C && G && G.w - C.w > 3 ? ` Recomp holds the scale roughly flat, but the goal needs ${B(signed(G.w - C.w) + ' kg')} on it. So the long route is recomp now, then a lean-gain phase (+200 kcal) once this block ends or body fat reads around 15%, then a short cut at the end.` : ''}</p></div>
+        ${G && st.height ? ` At ${st.height} cm, ${fmt(G.lean, 1)} kg lean is a ${term('ffmi', 'fat-free mass index')} of ${B(fmt(G.lean / (st.height / 100) ** 2, 1))} (${fmt(G.lean / (st.height / 100) ** 2 + 6.1 * (1.8 - st.height / 100), 1)} height-adjusted): ${ffmiBand(ffmi(G.lean, st.height).adj)}, and ${ffmi(G.lean, st.height).adj > 22.6 ? 'more' : 'about as much'} muscle for your height as the 80 kg, 178–180 cm physiques in your reference photos (about 22.5 adjusted). The full working is under How it works.` : ''}</p></div>
+      <div class="sec"><h5>Why recomp, not bulk or cut</h5><p>At around ${C ? fmt(C.bf, 0) : '17'}% body fat, training hard on a new mesocycle with high protein, you can add muscle and lose fat at the same time. ${term('recomp', 'Recomp')} eats at ${term('maintenance')}. The plan assumes ${B('+' + fmt(PHASES.recomp.rate.lean, 1) + ' kg lean and ' + fmt(PHASES.recomp.rate.fat, 1) + ' kg fat every 4 weeks')} (health-targets §4b). Lean mass is the slow part, so the goal is months away, not weeks.${C && G && G.w - C.w > 3 ? ` Recomp holds the scale roughly flat, but the goal needs ${B(signed(G.w - C.w) + ' kg')} on it. So the long route, your ${term('macrocycle')}, is recomp now, then a lean-gain phase (a +200 kcal ${term('surplus', 'surplus')}) once this mesocycle ends or body fat reads around 15%, then a short cut at the end.` : ''}</p></div>
       <div class="sec"><h5>Calories: ${T.ok ? fmt(T.kcal) + ' kcal' : 'needs a weigh-in'}</h5><div class="deriv">${T.ok ? `BMR (Mifflin-St Jeor) = 10 × ${fmt(T.w, 1)} kg + 6.25 × ${st.height} cm − 5 × ${T.age} + 5 = ${B(fmt(T.bmr))}<br>× ${st.mult} activity = ${B(fmt(T.tdee))}${ph.off ? '<br>' + (ph.off > 0 ? '+ ' : '− ') + Math.abs(ph.off) + ' for ' + ph.label.toLowerCase() : ''}${st.adjust ? '<br>' + (st.adjust > 0 ? '+ ' : '− ') + Math.abs(st.adjust) + ' correction' : ''}<br>→ ${B(fmt(T.kcal) + ' kcal')}, rounded to 10` : esc(T.why)}</div>
         <p>Weight is the 7-day average, so one salty dinner doesn’t move the target. The activity multiplier is ${st.mult}: four to five sessions a week and a desk job. It was 1.66 while there was a cycle commute; without one, 1.55 fits. Every 4 weeks the trend gets checked: in recomp, anywhere from −0.5 to +1.0 kg is on track. Outside that, the Targets widget offers ±150 kcal. ${c.msg ? 'Right now: ' + esc(c.msg.charAt(0).toLowerCase() + c.msg.slice(1)) : ''}</p></div>
       <div class="sec"><h5>Protein: ${T.ok ? fmt(T.protein) + ' g' : '–'}</h5><p>${st.protPerKg} g per kg of 7-day average weight, never below ${st.protFloor} g. Research finds gains level off around 1.6 g/kg, with an upper estimate near 2.2 (Morton 2018). A recomp sits at the top end because you’re building on no surplus. The floor stops a low weigh-in from cutting it. Spread it over 3–5 meals.</p></div>
       <div class="sec"><h5>Protein timing</h5><p>Total daily protein matters far more than timing. When total intake is matched, the timing effect largely disappears (Schoenfeld, Aragon & Krieger 2013). The parts that do help:</p>
-        <ol class="rank"><li>${B('Spread it:')} 3–5 feeds of about 0.4 g/kg (${T.ok ? fmt(0.4 * T.w, 0) : '30'} g for you), 3–4 hours apart.</li><li>${B('After training:')} 30–40 g within a couple of hours. Whey is ideal: fast and leucine-rich. The window is hours wide, especially if you ate protein in the few hours before.</li><li>${B('Carbs and insulin:')} adding carbs to enough protein doesn’t raise muscle building any further (Staples 2011), and protein alone lifts insulin enough. Carbs after training refill glycogen, which matters if you train again within a day. Fruit afterwards is fine, but as food, not as an insulin trick.</li><li>${B('Before bed:')} 30–40 g of slow milk protein (casein: cottage cheese, Skyr, Greek yoghurt, milk) keeps amino acids up overnight. Pre-sleep protein gave bigger gains over 12 weeks (Snijders 2015), partly because that group ate more protein overall.</li><li>${B('Before training:')} a normal meal 2–3 hours before, or a small carb-and-protein snack an hour before.</li></ol></div>
+        <ol class="rank"><li>${B('Spread it:')} each feed lifts ${term('mps', 'muscle protein synthesis')} for a few hours, so 3–5 feeds of about 0.4 g/kg (${T.ok ? fmt(0.4 * T.w, 0) : '30'} g for you), 3–4 hours apart.</li><li>${B('After training:')} 30–40 g within a couple of hours. Whey is ideal: fast and leucine-rich. The window is hours wide, especially if you ate protein in the few hours before.</li><li>${B('Carbs and insulin:')} adding carbs to enough protein doesn’t raise muscle building any further (Staples 2011), and protein alone lifts insulin enough. Carbs after training refill glycogen, which matters if you train again within a day. Fruit afterwards is fine, but as food, not as an insulin trick.</li><li>${B('Before bed:')} 30–40 g of slow milk protein (casein: cottage cheese, Skyr, Greek yoghurt, milk) keeps amino acids up overnight. Pre-sleep protein gave bigger gains over 12 weeks (Snijders 2015), partly because that group ate more protein overall.</li><li>${B('Before training:')} a normal meal 2–3 hours before, or a small carb-and-protein snack an hour before.</li></ol></div>
       <div class="sec"><h5>Carbs and fat</h5><p>No fixed targets: once protein and calories are right, the split matters much less. Fat stays at about 20–35% of calories (the dashboard flags it above 35%), and carbs fill the rest and fuel training.</p></div>
-      <div class="sec"><h5>Training</h5><p>Muscle growth follows weekly hard sets per muscle: about 10–20 for growth (Schoenfeld 2017). When volume is matched, how often you train a muscle barely matters (Schoenfeld 2018). The rotation is Upper, Lower, Push, Pull, Arms over 4–5 days, so upper muscles get 2–3 hits a week and legs one. Legs are a strength already: one hard session a week holds them, since a third of the volume maintains size (Bickel 2011). Squat and leg press alternate. Progression is double progression: when your first set hits the top of the rep range at RPE 9 or under, add load. A deload comes round at the end of each block of ${S.plan?.deloadEvery || 30} sessions. The split builder (Edit on the plan) scores every muscle against these numbers.</p></div>
+      <div class="sec"><h5>Training</h5><p>Muscle ${term('hypertrophy', 'growth')} follows weekly ${term('volume')}: ${term('hardset', 'hard sets')} per muscle, about 10–20 for growth (Schoenfeld 2017). That band sits inside the ${term('mav', 'MAV')}; the Keep band, 4–8, is ${term('mv', 'maintenance volume')} (a third of the growth volume holds size, Bickel 2011). When volume is matched, ${term('frequency')} barely matters (Schoenfeld 2018).</p>
+        <p>${S.plan ? `The ${term('mesocycle')} now is ${B(esc(S.plan.name))}.` : ''} Its ${term('microcycle')} is 4 sessions and a rest day: chest & triceps, back & biceps, legs, shoulders & arms. Each session comes round every 5 days, about 1.4× a week. Splitting chest from back means each big muscle group gets a fresh session, and two big groups in one day had taken longer to recover from. Six microcycles train; the seventh is a ${term('deload')}. The first is calibration: find your loads stopping 1–2 short of failure (${term('rir', 'RIR')} 1–2).</p>
+        <p>Effort: ${term('compound', 'compound lifts')} 2 sets, ${term('isolation')} 2–3, mostly to ${term('failure')} (${term('rpe', 'RPE')} 10), RPE 9 on free weights where a failed rep is risky. Progression is ${term('double', 'double progression')}: when the first set reaches the top of its rep range at the planned effort, add load. That is ${term('overload', 'progressive overload')} in practice. Strength is read as an ${term('e1rm')} from your logged sets. The split builder (Edit on the plan) scores every muscle against these bands.</p></div>
       <div class="sec"><h5>Cardio</h5><p>Running interferes with leg growth more than cycling or swimming (Wilson 2012), so keep runs away from leg day and swim when you can. Football counts as a session but isn’t planned around.</p></div>
-      <div class="sec"><h5>Weigh-ins</h5><p>Monday, Wednesday and Friday, on waking, after the toilet, before food or water. Only the trend counts. The scale’s body fat comes from bioimpedance, which can be several percentage points off a DEXA scan but stays consistent with itself, so its trend is still useful.</p></div>
+      <div class="sec"><h5>Weigh-ins</h5><p>Monday, Wednesday and Friday, on waking, after the toilet, before food or water. Only the trend counts. The scale’s body fat comes from ${term('bia', 'bioimpedance')}, which can be several percentage points off a DEXA scan but stays consistent with itself, so its trend is still useful.</p></div>
       <div class="sec"><h5>Supplements</h5><p>Creatine has the strongest evidence for strength and lean mass; take 3–5 g every day. Expect about 1 kg of water in the first month. That isn’t fat, and the 4-week check subtracts it from the trend once you start ticking creatine. The scale’s body fat % may also read a little low for a while, because bioimpedance counts the extra water as lean tissue. Vitamin D: UK sunlight can’t make enough from October to March, so the NHS advises 10 µg daily. Omega-3, zinc and magnesium are cheap insurance rather than drivers. Timing follows absorption: the fat-soluble ones with dinner, zinc with food and away from magnesium, magnesium before bed.</p></div>
       <div class="sec"><h5>What matters most, in order</h5><ol class="rank"><li>${B('Protein')} hit every day: the one number that protects muscle in a recomp.</li><li>${B('Hard sets per muscle per week')} in range, and ${B('progressive overload')} in the log.</li><li>${B('Weekly average calories')} at target. Single days don’t matter much.</li><li>${B('7-day average weight')} plus the body-fat and waist trend over 4 weeks.</li><li>${B('Sleep')}, the biggest thing not tracked yet. Apple Health already has it; the Shortcut could send it.</li><li>${B('Consistency')}: logged days and sessions. Gaps are fine; patterns aren’t.</li></ol></div>
       <div class="sec"><h5>Gaps and holidays</h5><p>Do nothing. Missed days stay blank and are left out of every average. Targets carry on from your last weigh-in. After 2 days with nothing logged, the bot stops sending reminders. The first thing you send after 3 or more empty days gets a short welcome-back note with the gap. ${B('/away')} on Telegram pauses reminders in advance if you’d like.</p></div>`;
@@ -4696,11 +5204,12 @@ function openHelp(tab = 'why') {
         <p>For a recomp the limit is practical, not medical. A 2021 meta-analysis of 43 studies found cardio alongside lifting did ${B('not')} reduce muscle growth or maximal strength. It did blunt explosive power, mainly when both were done in the same session, and not when they were 3+ hours apart (Schumann et al. 2021). An older one found the interference grows with how often and how long the cardio is, and with running more than cycling (Wilson et al. 2012). Past about ${CARDIO_CEIL} minutes, recovery and the extra calories start to compete with muscle gain.</p>
         <p>So: mostly easy cardio you could talk through (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
-      <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and there are no shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The slider moves in a straight line from today’s lean and fat to the goal’s; the 4-week mark is where the plan’s weekly rates put you. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
-        <p><b>The lift demos.</b> A jointed mannequin, like an artist’s model: solid parts that turn about ball joints, so nothing stretches under the arms when they move (the problem with stretching one skin over a skeleton). Each exercise is set joint by joint from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, and hands on a machine travel the machine’s arc. The machines are the ones in your plan: seated chest press, seated chest-supported row, pec deck. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
+      <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
+        <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
+        <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
         <p class="note">Body mesh: “Z-Anatomy — The libre 3D atlas of anatomy”, CC BY-SA 4.0, based on “BodyParts3D, © The Database Center for Life Science” (via the Svitylo 3D Anatomy Atlas data, v1.2.0). Changed here: skin remeshed and shrink-wrapped to the muscles, face and skin smoothed into a mannequin finish, arms rigged, scaled to 172 cm. This adapted mesh is shared under the same licence (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>). Mesh decoder: meshoptimizer reference decoder, MIT.</p></div>
       <div class="sec"><h5>In one sentence</h5><p class="quote">“I text my meals and workouts to a Telegram bot. Claude turns them into numbers and saves them in a tiny database I own on Cloudflare, and my dashboard and the scale both plug into the same database.”</p></div>`;
-    b.innerHTML = `<div class="seg" id="hp-tab"><button data-t="why" class="${tab === 'why' ? 'on' : ''}">Why it’s set up like this</button><button data-t="tech" class="${tab === 'tech' ? 'on' : ''}">How it works</button></div><div class="help">${tab === 'why' ? why : tech}</div>`;
+    b.innerHTML = `<div class="seg" id="hp-tab"><button data-t="why" class="${tab === 'why' ? 'on' : ''}">Why it’s set up like this</button><button data-t="terms" class="${tab === 'terms' ? 'on' : ''}">Terms</button><button data-t="tech" class="${tab === 'tech' ? 'on' : ''}">How it works</button></div><div class="help">${tab === 'why' ? why : tab === 'terms' ? termsHtml() : tech}</div>`;
     b.querySelectorAll('[data-t]').forEach(x => x.onclick = () => openHelp(x.dataset.t));
   }, {wide: true});
 }

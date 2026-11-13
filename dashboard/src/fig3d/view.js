@@ -207,3 +207,5 @@ function lerpPose(A, B, k) {
   for (const key of ['pron', 'curl']) if (A[key]) o[key] = A[key].map((v, i) => B[key] ? v + (B[key][i] - v) * k : v);
   return o;
 }
+/* The physique body's rig under one name, for the form demos: their own scope reuses SK, V and solve (13 Nov 2026). */
+const ATLAS_RIG = {get SK() { return SK; }, get LEN() { return LEN; }, get REST_J() { return REST_J; }, ik, frames, poseSkeleton, makeSkeleton, bodyData, bodyGeometry, bodyMaterial, SKIN};
