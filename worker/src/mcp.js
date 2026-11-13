@@ -4,6 +4,7 @@ import { getDay, putDay, mutateDay, putConfig, getRev, getKV } from './store.js'
 import { dayTotals, targets, loadCtx } from './model.js';
 import { sendWorkout } from './bot.js';
 import { claude } from './ai.js';
+import { photoSets, getPhoto, putPhoto, deletePhotos, photoDue } from './photos.js';
 
 /* ============================================================ MCP (the dashboard + Claude chats) */
 export const TOOLS = [
@@ -61,6 +62,16 @@ export const TOOLS = [
       const full = out.filter(x => x.kcal != null && !x.partial && x.date !== td);
       return { targets: targets(ctx), days: out, averages: { kcal: mean(full.map(x => x.kcal)), protein: mean(full.map(x => x.protein)), completeDays: full.length } };
     } },
+  { name: 'list_photos', description: 'Progress photo sets, newest first: date, weight and body fat that morning, and the id of each pose (front, side, back, frontflex, backflex). Images come from get_photo. Also says when the next set is due.', readOnly: true,
+    inputSchema: { type: 'object', properties: {} }, run: async env => ({ sets: await photoSets(env), due: await photoDue(env) }) },
+  { name: 'get_photo', description: 'One progress photo as base64 JPEG. size: thumb (about 320 px, default) or full.', readOnly: true,
+    inputSchema: { type: 'object', properties: { id: { type: 'string' }, size: { type: 'string', enum: ['thumb', 'full'] } }, required: ['id'] },
+    run: async (env, a) => (await getPhoto(env, a.id, a.size)) || { error: 'not found' } },
+  { name: 'put_photo', description: 'Save a progress photo (base64 JPEG) for a date and pose; replaces that pose. thumb is an optional small copy.',
+    inputSchema: { type: 'object', properties: { date: { type: 'string' }, pose: { type: 'string', enum: ['front', 'side', 'back', 'frontflex', 'backflex'] }, full: { type: 'string' }, thumb: { type: 'string' }, w: { type: 'number' }, bf: { type: 'number' } }, required: ['date', 'pose', 'full'] },
+    run: async (env, a) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date || '')) throw new Error('date must be YYYY-MM-DD'); return putPhoto(env, { ...a, src: 'dashboard' }); } },
+  { name: 'delete_photos', description: 'Delete one progress photo (id) or a whole set (date). Permanent.',
+    inputSchema: { type: 'object', properties: { id: { type: 'string' }, date: { type: 'string' } } }, run: async (env, a) => deletePhotos(env, a) },
   { name: 'get_bot_errors', description: 'The Telegram bot’s last 20 failures (newest first): when, the error, and the message that failed. Use it to work out why the bot said “That didn’t work”.', readOnly: true,
     inputSchema: { type: 'object', properties: {} },
     run: async env => ({ errors: (await getKV(env, 'errlog')) || [] }) },

@@ -4,6 +4,8 @@ import { allDays, allConfig, getKV, setKV } from './store.js';
 import { dayTotals, targets, loadCtx } from './model.js';
 import { send, qtyTxt, proteinTip } from './bot.js';
 import { quietState, quietNote, suppReminder } from './extras.js';
+import { photoDue } from './photos.js';
+import { buttons } from './bot.js';
 
 /* ============================================================ cron */
 export async function hourly(env, now) {
@@ -15,6 +17,9 @@ export async function hourly(env, now) {
     if (q.quiet) await quietNote(env, q);      // away, or 2+ empty days: no reminders (one heads-up per gap)
     else {
       if (hour === 7 && ['Mon', 'Wed', 'Fri'].includes(wd)) {
+        // progress photos every 4 weeks, on a weigh-in morning; asked again on the next one until a set arrives
+        const pd = await photoDue(env, td);
+        if (pd.due) await once('photos', () => send(env, `📸 <b>Progress photos are due</b>${pd.last ? ' (last set ' + pd.last.slice(8) + '/' + pd.last.slice(5, 7) + ')' : ' (your first set: the baseline)'}. After the weigh-in: front, side and back, relaxed, same spot and light as last time.`, buttons([[['📸 Start', 'phs:x']]])));
         const d = ctx.days.find(x => x.date === td);
         if (!d?.body?.w) await once('weigh', () => send(env, '⚖️ <b>Weigh-in morning.</b> On waking, after the toilet, before food or water. Step on the scale; Apple Health syncs it, or send me the Fit Profile screenshot.'));
       }
@@ -26,7 +31,7 @@ export async function hourly(env, now) {
         const t = dayTotals(ctx.days.find(x => x.date === td)), T = targets(ctx);
         if (T.ok && (!t || t.kcal == null)) await once('nudge', () => send(env, '🍽 Nothing logged today. Send me what you ate, even roughly. A partial day is still data.'));
         else if (T.ok && t.p < T.protein - 15) await once('nudge', () => send(env, `🍗 You’re at <b>${fmt(t.p)} g</b> of ${T.protein} g protein and ${fmt(t.kcal)} of ${fmt(T.kcal)} kcal.${proteinTip(ctx, T.protein - t.p, T.kcal - t.kcal)}`));
-        await once('supps-eve', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any', 'dinner', 'bed']));
+        await once('supps-eve', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any', 'post', 'dinner', 'bed']));
       }
     }
   }

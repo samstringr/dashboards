@@ -3,6 +3,7 @@ import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, vali
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
+import { isPhotoCaption, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, getPhoto, deletePhotos } from './photos.js';
 import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
 
@@ -57,11 +58,18 @@ export async function onMessage(env, msg) {
     if (!raw) return send(env, 'I couldn’t hear anything in that voice note. Try again, or type it.');
     await send(env, `🎙 <i>“${esc(raw.slice(0, 600))}”</i>`);
   }
+  // a progress photo (captioned with a pose or "progress", or sent while a photo session is open) is saved, never parsed
+  const isImg = msg.photo?.length || (msg.document && /^image\//.test(msg.document.mime_type || ''));
+  if (isImg && (isPhotoCaption(msg.caption) || await photoSessionOpen(env))) return savePhotoFromTelegram(env, msg, (e, id) => tgImage(e, id, 'image/jpeg'), send, buttons);
   if (raw.startsWith('/')) return command(env, raw);
-  await welcomeBack(env, await loadCtx(env), today());
   let image = null;
   if (msg.photo?.length) image = await tgImage(env, msg.photo[msg.photo.length - 1].file_id, 'image/jpeg');
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) image = await tgImage(env, msg.document.file_id, msg.document.mime_type);
+  return readMessage(env, raw, image);
+}
+/* Food, weigh-ins and workouts: what Claude reads. */
+async function readMessage(env, raw, image) {
+  await welcomeBack(env, await loadCtx(env), today());
   const pending = await getKV(env, 'pending');
   if (pending && !image && YES.test(raw)) return commitPending(env, pending);
   if (pending && !image && NO.test(raw)) { await clearPending(env, pending); return send(env, 'Cancelled. Nothing logged.'); }
@@ -95,6 +103,16 @@ export async function onCallback(env, cq) {
     return commitPending(env, pending, true);
   }
   if (act === 'undo') { await strip(); return undoLast(env, token); }
+  if (act === 'phs') { await strip(); return openPhotoSession(env, send, buttons); }
+  if (act === 'phd') { await strip(); return closePhotoSession(env, send); }
+  if (act === 'phx') {   // "not a progress photo" (a weigh-in screenshot sent during a photo session): take it back out and read it
+    await strip();
+    const ph = await getPhoto(env, token, 'full');
+    if (!ph) return send(env, 'That photo has already gone.');
+    await deletePhotos(env, { id: token }); await delKV(env, 'photoset');
+    await send(env, 'Taken out of your progress photos; reading it instead. Photo session closed: tap /photos to carry on.');
+    return readMessage(env, '', { media_type: ph.mime, data: ph.data });
+  }
   if (act === 'rt') {
     await strip();
     const r = await getKV(env, 'retry');
@@ -292,12 +310,15 @@ Just tell me things:
 /supps · today’s supplements checklist
 /week · the last 7 days
 /foods · your presets and saved foods
+/photos · progress photos (front, side, back)
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/week') return send(env, await weekHtml(env));
   if (c === '/foods' || c === '/presets') return send(env, foodsHtml(await loadCtx(env)));
+  if (c === '/photos') return openPhotoSession(env, send, buttons);
+  if (c === '/done') return (await photoSessionOpen(env)) ? closePhotoSession(env, send) : send(env, 'Nothing to finish.');
   if (c === '/undo') return undoLast(env, null);
   if (c === '/supps') return sendSupps(env, await loadCtx(env), today());
   if (c === '/back') { const ctx = await loadCtx(env); return (await endAway(env, ctx, today())) || send(env, 'You weren’t marked as away. Carry on.'); }

@@ -273,6 +273,53 @@ await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyb
 cs = await calls();
 check('Try again re-runs the same message', cs.some(c => c.method === 'sendMessage' && /Trying again/.test(c.body.text)) && cs.filter(c => c.api === 'claude').length === 2);
 
+// --- progress photos (13 Nov 2026): asked on a weigh-in morning when due, saved without Claude, read through MCP
+await reset();
+await fetch(W + '/__test/hourly?t=2026-11-16T07:05:00Z');
+m = (await calls()).filter(c => c.method === 'sendMessage').find(c => /Progress photos are due/.test(c.body.text))?.body;
+check('photos: due prompt on a weigh-in morning, with Start', !!m && /phs:x/.test(JSON.stringify(m.reply_markup)), m?.text?.slice(0, 120));
+await reset(); await tgCb('phs:x');
+check('photos: Start opens a session', /Progress photos\./.test((await lastMsg()).text));
+await reset();
+await tgSend({ photo: [{ file_id: 'p1s', width: 90 }, { file_id: 'p1m', width: 320 }, { file_id: 'p1b', width: 1280 }] });
+await tgSend({ photo: [{ file_id: 'p2s', width: 90 }, { file_id: 'p2m', width: 320 }, { file_id: 'p2b', width: 1280 }], caption: 'back' });
+await tgSend({ photo: [{ file_id: 'p3s', width: 90 }, { file_id: 'p3m', width: 320 }, { file_id: 'p3b', width: 1280 }] });
+cs = await calls();
+check('photos: never sent to Claude', cs.filter(c => c.api === 'claude').length === 0);
+check('photos: full size and a ~320 px thumbnail downloaded', ['p1b', 'p1m'].every(f => cs.some(c => c.method === 'getFile' && c.body.file_id === f)) && !cs.some(c => c.method === 'getFile' && c.body.file_id === 'p1s'));
+m = await lastMsg();
+check('photos: order front → back (captioned) → side, then says all three are in', /Side saved/.test(m.text) && /Front, side and back are in/.test(m.text) && /phx:/.test(JSON.stringify(m.reply_markup)), m.text);
+let ps = await tool('list_photos', {});
+const set0 = ps.sets[0];
+check('photos: list_photos shows the set with ids, weight attached', set0?.date === TD && set0.shots.front && set0.shots.back && set0.shots.side && ps.due.due === false, JSON.stringify(ps).slice(0, 220));
+const ph = await tool('get_photo', { id: set0.shots.front });
+const phf = await tool('get_photo', { id: set0.shots.front, size: 'full' });
+check('photos: get_photo returns base64 thumb and full', ph.data && phf.data && ph.mime === 'image/jpeg' && Buffer.from(phf.data, 'base64')[0] === 255);
+// a weigh-in screenshot sent during the session can be taken back out and read
+await reset();
+await tgSend({ photo: [{ file_id: 'scale1', width: 320 }, { file_id: 'scale2', width: 1280 }] });
+m = await lastMsg();
+check('photos: a 4th photo takes front-flexed', /Front, flexed saved/.test(m.text), m.text);
+await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard[0][1].callback_data);
+cs = await calls();
+ps = await tool('list_photos', {});
+check('photos: "Not a progress photo" removes it and reads it', !ps.sets[0].shots.frontflex && cs.some(c => c.api === 'claude'), JSON.stringify(ps.sets[0].shots));
+await reset(); await tgSend({ text: 'had 2 tins of tuna' });
+check('photos: session closed afterwards, text goes to Claude', (await calls()).some(c => c.api === 'claude'));
+// from the dashboard: put, then delete
+const put = await tool('put_photo', { date: '2026-10-16', pose: 'front', full: phf.data, thumb: ph.data });
+ps = await tool('list_photos', {});
+check('photos: put_photo from the dashboard', ps.sets.length === 2 && ps.sets[1].shots.front === put.id);
+check('photos: not in get_snapshot', !JSON.stringify(await tool('get_snapshot', {})).includes(phf.data.slice(0, 40)));
+await tool('delete_photos', { date: '2026-10-16' });
+ps = await tool('list_photos', {});
+check('photos: delete_photos removes a set', ps.sets.length === 1);
+await reset();
+await fetch(W + '/__test/hourly?t=2026-11-18T07:05:00Z');
+check('photos: not asked again until 4 weeks on', !(await calls()).some(c => c.method === 'sendMessage' && /Progress photos are due/.test(c.body.text)));
+await reset(); await tgSend({ text: '/photos' }); await reset(); await tgSend({ text: '/done' });
+check('/done closes and summarises', /Saved for/.test((await lastMsg()).text) && /front, side, back/.test((await lastMsg()).text), (await lastMsg()).text);
+
 // --- cron: reminders + backup
 await reset();
 await fetch(W + '/__test/hourly?t=2026-11-04T21:35:00Z');
