@@ -8,10 +8,15 @@ const INFO = {
   cablelat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Cable crosses in front of your body", "Raise out to the side in an arc, elbow leading", "Keep tension at the bottom: don’t rest the stack"]},
   cablerow: {"muscles": {"upperback": 1, "lats": 0.8, "rdelt": 0.5, "biceps": 0.5, "erectors": 0.3, "forearms": 0.3}, "cues": ["Chest tall; a small forward reach at the start", "Pull to your belly button, elbows close", "Squeeze the shoulder blades, return over 2 s"]},
   calf: {"muscles": {"calves": 1}, "cues": ["Full stretch at the bottom, pause for 1 s", "Rise as high as you can", "Knees straight, not locked"]},
-  chestrow: {"muscles": {"upperback": 1, "lats": 0.7, "rdelt": 0.6, "biceps": 0.5, "forearms": 0.3}, "cues": ["Chest on the pad, feet planted", "Lead with the elbows, squeeze the shoulder blades", "Pause at the back, then 2 s out", "Don’t lift the chest off the pad"]},
+  chestrow: {"muscles": {"upperback": 1, "rdelt": 0.6, "lats": 0.5, "traps": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Chest on the pad, wide overhand grip", "Elbows back and out, about 60° from your sides", "Squeeze the shoulder blades, pause, then 2 s out", "Don’t lift the chest off the pad"]},
   closegrip: {"muscles": {"triceps": 1, "chest": 0.7, "fdelt": 0.5}, "cues": ["Grip just inside shoulder width", "Elbows tucked; touch the lower chest", "Press with the triceps, wrists stacked"]},
   crunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Plate on the chest, feet hooked", "Curl the ribs towards the hips, don’t yank the neck", "Lower under control; no rest at the bottom"]},
-  curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Elbows pinned to your sides", "Curl without swinging", "Lower all the way over 2–3 s"]},
+  curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Face the low pulley, straight bar, palms up", "Elbows pinned to your sides", "Curl without swinging; lower all the way over 2–3 s"]},
+  facecurl: {"muscles": {"biceps": 1, "forearms": 0.45}, "cues": ["Face away from a low pulley; the cable runs up between your feet", "Elbows a little behind your body and kept there: that’s the stretch", "Curl without the elbows coming forward; lower over 2–3 s"]},
+  revcurl: {"muscles": {"forearms": 1, "biceps": 0.75}, "cues": ["Overhand grip on the bar, palms down", "Elbows pinned, wrists straight", "Curl without swinging; lower over 2 s"]},
+  cablecrunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Kneel facing a high pulley, rope beside your head", "Curl the ribs down towards the hips; the hips stay put", "Pause, then let the spine lengthen over 2 s"]},
+  shrugseat: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Sit at the end of a bench, tall, dumbbells hanging beside it", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
+  pullover: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Sit facing away from a high pulley, straight bar overhead", "Arms nearly straight; sweep the bar over and down to your lap with your lats", "Let it pull your arms back overhead for the stretch, slowly"]},
   dbrow: {"muscles": {"lats": 1, "upperback": 0.75, "rdelt": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Flat back, torso close to horizontal", "Row the dumbbell towards your hip", "Full stretch at the bottom"]},
   dip: {"muscles": {"triceps": 1, "chest": 0.85, "fdelt": 0.6}, "cues": ["Lean forward a little to load the chest", "Lower until the upper arms are level", "Elbows travel back, not out"]},
   facepull: {"muscles": {"rdelt": 1, "upperback": 0.8, "sdelt": 0.3, "traps": 0.3}, "cues": ["Rope to your forehead, elbows high", "Pull the rope apart, thumbs back", "Pause for 1 s"]},
@@ -20,7 +25,7 @@ const INFO = {
   hipthrust: {"muscles": {"glutes": 1, "hams": 0.45, "quads": 0.3, "erectors": 0.2}, "cues": ["Upper back on the bench edge", "Drive through your heels, ribs down", "Lock the hips out and pause for 1 s"]},
   inclinecurl: {"muscles": {"biceps": 1, "forearms": 0.4, "fdelt": 0.15}, "cues": ["Bench at 45–60°; arms hang behind your torso", "Elbows stay pointing at the floor", "Full stretch at the bottom of every rep"]},
   inclinepress: {"muscles": {"chest": 1, "fdelt": 0.65, "triceps": 0.5}, "cues": ["Bench at about 30°", "Shoulder blades pinned, chest up", "Lower 2–3 s to the upper chest", "Wrists stacked over the elbows"]},
-  kneeraise: {"muscles": {"abs": 1, "obliques": 0.55, "forearms": 0.4, "lats": 0.2}, "cues": ["Start from a still hang: no swinging", "Curl the pelvis up, not just the knees", "Lower for 2 s"]},
+  kneeraise: {"muscles": {"abs": 1, "obliques": 0.55, "forearms": 0.4, "lats": 0.2}, "cues": ["Dead hang: arms straight, no swinging", "Legs together; curl the pelvis up, not just the legs", "Lower for 2 s"]},
   lateral: {"muscles": {"sdelt": 1, "traps": 0.35, "fdelt": 0.3}, "cues": ["Arms out a little in front of your sides (about 30°)", "Lead with the elbows, slight bend", "Stop at shoulder height, lower for 2–3 s", "Don’t shrug"]},
   legcurl: {"muscles": {"hams": 1, "calves": 0.3}, "cues": ["Thigh pad snug just above the knees", "Curl all the way under", "Control it back up; don’t let the stack slam"]},
   legext: {"muscles": {"quads": 1}, "cues": ["Knee lined up with the machine’s pivot", "Extend fully and squeeze for 1 s", "Lower over 2–3 s"]},
@@ -45,7 +50,11 @@ const INFO = {
   uprow: {"muscles": {"sdelt": 1, "traps": 0.75, "fdelt": 0.4, "biceps": 0.3, "forearms": 0.3}, "cues": ["Rope or bar from a low pulley, hands about shoulder-width", "Lead with the elbows, not the hands", "Elbows up to shoulder height, no higher"]},
   straightarm: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Hinge a little, arms straight", "Sweep the bar to your thighs with your lats", "Let it rise until your arms are overhead"]}
 };
+/* Order matters: the first match wins. 13 Nov 2026: "Seated cable row (close grip)" went to the close-grip
+   bench, so cable rows now come first. */
 const MATCH = [
+  [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
+  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
   [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
@@ -54,6 +63,11 @@ const MATCH = [
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
   [/knee raise|leg raise/, 'kneeraise'], [/hip thrust|glute bridge/, 'hipthrust'], [/adductor|inner thigh|copenhagen/, 'adductor'], [/crunch|sit.?up/, 'crunch'], [/bench|press/, 'flatpress']
 ];
+/* Variations of one movement (13 Nov 2026, Sam asked for a toggle where an exercise has variants). The name
+   picks the default; the lift widget lets him switch and remembers it per exercise. */
+const VARIANTS = [[['pullover', 'Seated, bar'], ['straightarm', 'Standing, rope']], [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']],
+  [['shrugseat', 'Seated'], ['shrug', 'Standing']], [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']]];
+const variantsOf = k => (VARIANTS.find(g => g.some(([x]) => x === k)) || []).map(([key, label]) => ({key, label}));
 const moveFor = name => { const n = String(name || '').toLowerCase(); for (const [re, k] of MATCH) if (re.test(n)) return k; return 'stand'; };
 const EX = {};
 for (const [k, v] of Object.entries(INFO)) EX[k] = {...v};

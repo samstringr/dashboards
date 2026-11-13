@@ -25,17 +25,19 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
 
 /* ---- Tricep pushdown (straight bar) ----
    Footage cues: stand tall with a slight lean, elbows pinned to your sides. Push the bar down until the arms
-   are straight and squeeze; let it come back up to about 90° at the elbow, slowly. Only the forearms move. */
+   are straight and squeeze; let it come back up to about 90° at the elbow, slowly. Only the forearms move.
+   The pulley is 60 cm in front (13 Nov 2026, Sam: the cable went through the body), so the cable runs down
+   past the face and chest with a hand's width to spare. */
 {
-  const TOP = [0, 2.08, 0.42];
+  const TOP = [0, 2.08, 0.62];
   demo('pushdown', {
-    cam: {yaw: 62, pitch: 8, dist: 4.1, target: [0, 1.15, 0.2]}, tempo: [0.9, 0.5, 2.0, 0.3],
-    props: [tube([0, 0, 0.62], [0, 2.2, 0.62], 0.045), tube([0, 2.12, 0.62], [0, 2.12, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
-      ['world', 'B', [0, 0.45, 0.66], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.22, 0, 0], [0.22, 0, 0], 0.014, {mat: 'steel'}]],
+    cam: {yaw: 62, pitch: 8, dist: 4.1, target: [0, 1.15, 0.25]}, tempo: [0.9, 0.5, 2.0, 0.3],
+    props: [tube([0, 0, 0.84], [0, 2.2, 0.84], 0.045), tube([0, 2.12, 0.84], [0, 2.12, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
+      ['world', 'B', [0, 0.45, 0.88], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.22, 0, 0], [0.22, 0, 0], 0.014, {mat: 'steel'}]],
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.94, -0.02], pitch: 10}, spine: [3, 4], neck: -10, arm: {clav: [-4, -2]}});
+      let p = STAND({root: {p: [0, 0.94, -0.02], pitch: 8}, spine: [2, 3], neck: -6, arm: {clav: [-4, -2]}});
       const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.14]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.2, -1]), k);
       p = {...p, arm: armFix(C, [0.1, -1, 0.07], fo, palm, {clav: [-4, -2]})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
@@ -47,7 +49,8 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
 /* ---- Overhead cable triceps extension (rope) ----
    Footage cues: face away from the pulley in a split stance, lean forward, elbows up beside your head and
    pointing forward. Let the rope pull your hands back behind your head for a deep stretch, then extend fully
-   in line with the upper arms. Elbows stay where they are. */
+   in line with the upper arms. Elbows stay where they are, pointing forward: the elbow's bend is pinned to
+   the back of the head, so it can't flip as the arm straightens (13 Nov 2026, Sam: "the elbows invert"). */
 {
   const LOW = [0, 1.18, -0.78];
   demo('ohtri', {
@@ -59,8 +62,10 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
       let p = {root: {p: [0, 0.9, 0.0], pitch: 24}, spine: [4, 6], neck: -16, head: -4, arm: {clav: [14, 4]}};
       p = legsTo(p, [0.13, 0.067, 0.34], [0.05, 0, 1], [0.12, 0, 1]);
       p = legR(p, solve(p), [-0.12, 0.08, -0.33], [0, 0.2, 1], V.norm([-0.1, -0.25, 1]));
-      const C = solve(p).chest, fo = slerpV(V.norm([0.04, -0.5, -0.86]), V.norm([0.07, 0.7, 0.7]), ease(k));
-      p = {...p, arm: armFix(C, [0.12, 0.84, 0.48], fo, [-1, 0, 0], {clav: [14, 4]})};
+      // the forearm turns in the upper arm's own front-to-back plane: from folded behind the head (150°) to almost straight
+      const C = solve(p).chest, U = V.norm([0.12, 0.84, 0.48]), N = V.norm(V.add([0, 0, -1], V.sc(U, U[2]))), ph = lerp1(150, 8, ease(k)) * D2R;
+      const fo = V.add(V.sc(U, Math.cos(ph)), V.sc(N, Math.sin(ph)));
+      p = {...p, arm: armFix(C, U, fo, [-1, 0, 0], {clav: [14, 4], crease: fDir(C, N)})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.add(V.lerp(a, b, 0.5), V.sc(V.norm(V.sub(LOW, V.lerp(a, b, 0.5))), 0.1));
       return {pose: p, segs: [[LOW, m, 0.006], [m, a, 0.011], [m, b, 0.011]]};
     }
@@ -69,7 +74,9 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
 
 /* ---- Cable hammer curl (rope) ----
    Footage cues: face a low pulley, elbows at your sides, thumbs up the whole way. Curl the rope up towards
-   your shoulders without the elbows drifting forward; lower for 2 s to straight arms. */
+   your shoulders without the elbows drifting forward; lower for 2 s to straight arms. At the bottom the hands
+   are together in front of the thighs, so the rope comes up from the pulley in front of the legs, not through
+   them (13 Nov 2026, Sam: "clipping through the model"). */
 {
   const LOW = [0, 0.13, 0.46];
   demo('hammer', {
@@ -79,8 +86,8 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = STAND({root: {p: [0, 0.95, -0.02], pitch: 3}, spine: [0, -2], neck: -6});
-      const C = solve(p).chest, fo = slerpV(V.norm([0.05, -1, 0.12]), V.norm([0.02, 0.6, 0.8]), ease(k));
-      p = {...p, arm: armFix(C, [0.08, -1, 0.05], fo, [-1, 0, 0], {clav: [0, -3]})};
+      const C = solve(p).chest, fo = slerpV(V.norm([-0.2, -1, 0.42]), V.norm([-0.04, 0.6, 0.8]), ease(k));
+      p = {...p, arm: armFix(C, [0.03, -1, 0.12], fo, [-1, 0, 0], {clav: [0, -3], crease: fDir(C, [0, 0.2, 1])})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.add(V.lerp(a, b, 0.5), V.sc(V.norm(V.sub(LOW, V.lerp(a, b, 0.5))), 0.1));
       return {pose: p, segs: [[LOW, m, 0.006], [m, a, 0.011], [m, b, 0.011]]};
     }

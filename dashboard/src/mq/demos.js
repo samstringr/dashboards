@@ -35,6 +35,12 @@ function legsTo(pose, ankleL, knee, foot) {
 const mirP = p => [-p[0], p[1], p[2]];
 const lerp1 = (a, b, t) => a + (b - a) * t;
 // equipment helpers (world shapes)
+/* Stacking (13 Nov 2026, Sam: on the incline press "the elbows cave in and the forearms, hands and elbows
+   aren't stacked"). On every press the forearm points along the line the load travels: straight up under a
+   dumbbell, straight along the handle's path on a machine. So a press is authored as two directions, where the
+   upper arm puts the elbow and where the force goes, never as a hand target the elbow has to guess around.
+   crease: the side the elbow bends towards, so a nearly straight arm can't flip its elbow the wrong way. */
+const pressArm = (up, fore, palm, crease, extra = {}) => ({up, fore, palm, crease, grip: 0.9, thumb: 0.8, ...extra});
 const pad = (c, h, rot) => ['world', 'B', c, h, 0.025, {mat: 'pad', ...(rot ? {rot} : {})}];
 const tube = (a, b, r = 0.025) => ['world', 'Y', a, b, r, {mat: 'steel'}];
 const db = bone => [   // a dumbbell in the hand: handle across the palm, two iron heads
@@ -44,8 +50,9 @@ const db = bone => [   // a dumbbell in the hand: handle across the palm, two ir
 
 /* ---- Incline dumbbell press, bench at 30° ----
    Footage cues: back flat on the pad, shoulder blades pinned, feet planted wide. Bottom: dumbbells beside the
-   upper chest, elbows about 60° from the torso and just below the bench line, forearms vertical. Top:
-   dumbbells over the shoulders, arms vertical, not locked. */
+   upper chest, elbows about 55° from the torso and just below the bench line, forearms vertical: each dumbbell
+   straight over its elbow. Top: dumbbells over the shoulders, arms vertical, not locked. The forearm stays
+   vertical the whole way, so the elbows can't drift in under the weights. */
 const INC = 30 * D2R, INC_U = [0, Math.sin(INC), -Math.cos(INC)], INC_N = [0, Math.cos(INC), Math.sin(INC)];
 const INC_P0 = [0, 0.47, 0.02];   // where the back pad's top surface meets the seat
 demo('inclinepress', {
@@ -65,11 +72,10 @@ demo('inclinepress', {
     const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]), gap = V.dot(V.sub(back, INC_P0), INC_N);
     p.root.p = V.sub(p.root.p, V.sc(INC_N, gap - 0.004));
     p = legsTo(p, [0.27, 0.075, 0.55], [0.3, 0.6, 1], [0.25, 0, 1]);
-    const B = solve(p), C = B.chest, SL = B.upperL.o;
-    // grip points: bottom beside the upper chest, top over the shoulders
-    const bot = fAt(C, [0.37, 0.1, 0.17]), top = V.add(SL, [-0.06, 0.6, 0.02]);
-    const gL = V.lerp(bot, top, k), pole = V.norm(V.lerp(fDir(C, [1, -0.7, -0.4]), fDir(C, [1, -0.9, -0.2]), k));
-    p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [-0.25, -1, 0.1])}, armR: {palm: V.mx(fDir(C, [-0.25, -1, 0.1]))}});
+    const C = solve(p).chest, e = ease(k);
+    // upper arm: out about 55° from the torso and a touch below the bench at the bottom, vertical at the top
+    const up = slerpV(V.norm(fDir(C, [0.74, -0.52, -0.42])), V.norm([-0.06, 1, 0.03]), e), fore = slerpV([0, 1, 0], V.norm([-0.1, 1, 0.03]), e);
+    p = {...p, arm: pressArm(up, fore, V.norm([-0.12, 0, 1]), V.norm([-1, 0.2, 0.3]), {clav: p.arm.clav})};
     return {pose: p};
   }
 });
@@ -108,7 +114,8 @@ demo('pulldown', {
 /* ---- Seated machine chest press ----
    Footage cues: seat set so the handles are level with mid-chest, back and shoulder blades against the pad,
    feet flat. Press forward along the machine's path to just short of lockout, then let the handles come back
-   until they're level with the chest (elbows a little behind the torso, about 45–60° out). */
+   until they're level with the chest (elbows a little behind the torso, about 45–60° out). Forearms point
+   along the handles' path, so each hand is straight in front of its elbow. */
 demo('machpress', {
   cam: {yaw: 58, pitch: 12, dist: 3.7, target: [0, 0.95, 0.2]}, tempo: [1.0, 0.4, 2.2, 0.4],
   props: [
@@ -122,13 +129,13 @@ demo('machpress', {
     const k = phaseK(t, this.tempo);
     let p = {root: {p: [0, 0.545, 0.03], pitch: -9}, spine: [-3, -4], neck: 4, head: 2, arm: {clav: [0, lerp1(-10, 6, k)]}};
     p = legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1]);
-    const B = solve(p), C = B.chest;
-    const back = fAt(C, [0.24, 0.13, 0.1]), front = V.add(fAt(C, [0.2, 0.13, 0.1]), V.sc(C.z, 0.52));
-    const gL = V.lerp(back, front, k), pole = V.norm(V.lerp(fDir(C, [1, -0.55, -0.35]), fDir(C, [1, -0.7, 0.1]), k));
-    p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, -0.2, 1])}, armR: {palm: V.mx(fDir(C, [0, -0.2, 1]))}});
-    // levers: from a pivot above and behind each shoulder down to its handle
+    const C = solve(p).chest, e = ease(k);
+    const up = slerpV(V.norm(fDir(C, [0.72, -0.4, -0.56])), V.norm(fDir(C, [0.12, -0.14, 1])), e), fore = slerpV(V.norm(fDir(C, [-0.06, 0.02, 1])), V.norm(fDir(C, [-0.04, -0.1, 1])), e);
+    p = {...p, arm: pressArm(up, fore, fDir(C, [-0.1, -1, 0.05]), fDir(C, [-1, 0.1, 0.4]), {clav: p.arm.clav, wrist: [-25, 0]})};
+    const B = solve(p), gL = gripOf(B, 'L');
+    // levers: from a pivot on the frame above and behind each shoulder down to its handle
     const fr = {}, segs = [];
-    for (const [s, g] of [['L', gL], ['R', mirP(gL)]]) {
+    for (const [s, g] of [['L', gL], ['R', gripOf(B, 'R')]]) {
       const piv = [s === 'L' ? 0.3 : -0.3, 1.58, -0.3];
       fr['handle' + s] = F(g, [1, 0, 0], [0, 1, 0], [0, 0, 1]); segs.push([piv, V.add(g, [s === 'L' ? 0.09 : -0.09, 0, 0]), 0.022]);
     }

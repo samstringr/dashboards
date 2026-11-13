@@ -38,12 +38,9 @@ await page.addInitScript(mode => { window.__F3D_STATIC = true;
     return { content: r.content, structuredContent: r.structuredContent, payload: r.structuredContent };
   };
   const mcp = { callTool: call, watchTool: (s, t, i, h) => { const tick = () => call(s, t, i).then(r => h({ type: 'data', result: r }), e => h({ type: 'error', error: e })); setTimeout(tick, 30); const iv = setInterval(tick, 1500); return () => clearInterval(iv); } };
-  // in-memory stand-ins for the photo store: the page's db rows and uploaded assets
-  const rows = new Map(), assets = new Map(); let na = 0;
-  const db = { collection: c => ({ get: async () => ({ docs: [...rows].filter(([k]) => k.startsWith(c + '/')).map(([, v]) => ({ data: () => v })) }), doc: id => ({ set: async v => { rows.set(c + '/' + id, JSON.parse(JSON.stringify(v))); }, delete: async () => { rows.delete(c + '/' + id); } }) }) };
-  const store = { upload: async b => { const id = 'a'.repeat(31) + (++na); assets.set(id, b.size); return { id, url: '/_blob/' + id, sizeBytes: b.size, contentType: 'image/jpeg' }; }, delete: async id => ({ deleted: assets.delete(id) }), list: async () => ({ assets: [], usage: {} }) };
-  window.__photoMock = { rows, assets };
-  window.claude = { use: async n => n === 'mcp' ? mcp : n === 'db' ? db : n === 'assets' ? store : null };
+  // the page's own db (only used to check for a pre-Health-DB copy): empty
+  const db = { collection: () => ({ get: async () => ({ size: 0, docs: [] }), onSnapshot: () => () => {} }), doc: () => ({ set: async () => {}, delete: async () => {} }) };
+  window.claude = { use: async n => n === 'mcp' ? mcp : n === 'db' ? db : null };
 }, process.argv[2] === 'phone' ? 'stack' : 'canvas');
 await page.goto('file://' + OUT + '_test.html');
 await page.waitForTimeout(1200);
@@ -129,13 +126,15 @@ const pp = await page.locator('#pe-score').innerText();
 check('4-day preset scores 100%', /100%/.test(pp) && /15 of 15 in range/.test(pp) && /5\.6 sessions a week over a 4-session microcycle/.test(pp), (pp.match(/\d+%[^\n]*/) || [''])[0]);
 await page.screenshot({ path: `${OUT}v7-preset-${vp.width}.png` });
 const order = () => page.evaluate(() => [...document.querySelectorAll('[data-si="0"] .pe-row [data-ek=n]')].map(i => i.value));
-const before = await order(), g3 = page.locator('[data-si="0"] .pe-row').nth(2).locator('[data-drag]');
-await g3.scrollIntoViewIfNeeded(); const gb = await g3.boundingBox(), r1 = await page.locator('[data-si="0"] .pe-row').nth(0).boundingBox();
+const before = await order(), g3 = page.locator('[data-si="0"] .pe-row:not(.pe-head)').nth(2).locator('[data-drag]');
+await g3.scrollIntoViewIfNeeded(); const gb = await g3.boundingBox(), r1 = await page.locator('[data-si="0"] .pe-row:not(.pe-head)').nth(0).boundingBox();
 await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await page.mouse.down();
 await page.mouse.move(gb.x + gb.width / 2, r1.y + 3, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(250);
 const after = await order();
+const hd = await page.locator('[data-si="0"] .pe-head').first().innerText().catch(() => '');
+check('session editor has column labels', /Exercise/.test(hd) && /Sets/.test(hd) && /Reps/.test(hd) && /RPE/.test(hd), hd.replace(/\s+/g, ' '));
 check('drag reorders exercises', after[0] === before[2] && after[1] === before[0] && after.length === before.length, after.slice(0, 3).join(' > '));
-await page.locator('[data-si="0"] .pe-row').nth(0).locator('[data-drag]').focus(); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
+await page.locator('[data-si="0"] .pe-row:not(.pe-head)').nth(0).locator('[data-drag]').focus(); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
 const kb = await order();
 check('arrow keys reorder exercises', kb[1] === after[0] && kb[0] === after[1], kb.slice(0, 2).join(' > '));
 await page.screenshot({ path: `${OUT}v7-drag-${vp.width}.png` });
@@ -212,17 +211,30 @@ const hterms = await page.locator('#sheet-b').innerText().catch(() => '');
 check('help: Terms tab lists the vocabulary', /Mesocycle/.test(hterms) && /MRV/.test(hterms) && /TDEE/.test(hterms) && /RIR/.test(hterms), (hterms.match(/Programming[\s\S]{0,40}/) || [''])[0].replace(/\n/g, ' '));
 await page.click('#sheet-x');
 await page.screenshot({ path: `${OUT}v18-muscles-${vp.width}.png` });
-// every exercise in Block 04 has a built demo, and the names map to the right machine
+// every exercise in Mesocycle 05 (revised 13 Nov) has a built demo, and the names map to the right one
 const MESO5 = ['Incline DB bench', 'Machine chest press', 'Weighted dip (+kg)', 'Pec deck', 'Tricep pushdown', 'Hanging leg raise',
-  'Lat pulldown', 'Chest-supported row', 'Seated cable row', 'Cable pullover', 'Reverse pec deck', 'DB shrug', 'Incline DB curl',
-  'Back squat or leg press', 'Romanian deadlift', 'Bulgarian split squat', 'Seated leg curl', 'Seated calf raise', 'Adductor machine', 'Cable lateral raise', 'Decline weighted crunch',
-  'DB shoulder press', 'Cable upright row', 'Overhead cable triceps extension', 'Cable hammer curl'];
+  'Lat pulldown', 'Chest-supported row (wide grip)', 'Seated cable row (close grip)', 'Cable pullover (bench)', 'Reverse pec deck', 'DB shrug (seated)', 'Cable curl (facing away)', 'Preacher curl',
+  'Back squat or leg press', 'RDL', 'Bulgarian split squat', 'Seated leg curl', 'Seated calf raise', 'Adductor machine', 'Cable lateral raise', 'Decline weighted crunch',
+  'DB shoulder press', 'Cable upright row', 'Overhead cable triceps extension', 'Cable hammer curl', 'Cable crunch', 'Lateral raise', 'Reverse cable curl'];
 const nd = await page.evaluate(L => L.map(n => [n, Fig3D.moveFor(n), Fig3D.ready(Fig3D.moveFor(n))]), MESO5);
 const notBuilt = nd.filter(x => !x[2]).map(x => x[0]), m = Object.fromEntries(nd.map(x => [x[0], x[1]]));
-check('lift demos: all 25 Mesocycle 05 exercises built, names map right', !notBuilt.length && m['Weighted dip (+kg)'] === 'dip' && m['Seated cable row'] === 'cablerow' && m['DB shrug'] === 'shrug' && m['Cable upright row'] === 'uprow' && m['Machine chest press'] === 'machpress' && m['Chest-supported row'] === 'chestrow' && m['Reverse pec deck'] === 'revpec' && m['Cable pullover'] === 'straightarm' && m['Bulgarian split squat'] === 'splitsquat', notBuilt.join(', ') || nd.map(x => x[1]).join(','));
+const want = {'Weighted dip (+kg)': 'dip', 'Seated cable row (close grip)': 'cablerow', 'DB shrug (seated)': 'shrugseat', 'Cable upright row': 'uprow', 'Machine chest press': 'machpress', 'Chest-supported row (wide grip)': 'chestrow', 'Reverse pec deck': 'revpec',
+  'Cable pullover (bench)': 'pullover', 'Bulgarian split squat': 'splitsquat', 'Cable curl (facing away)': 'facecurl', 'Preacher curl': 'preacher', 'Cable crunch': 'cablecrunch', 'Lateral raise': 'lateral', 'Reverse cable curl': 'revcurl', 'Decline weighted crunch': 'crunch', 'RDL': 'rdl'};
+const wrong = Object.entries(want).filter(([n, k]) => m[n] !== k).map(([n, k]) => `${n} → ${m[n]} (want ${k})`);
+check('lift demos: all 29 exercises built (27 in the plan + lateral raise, reverse curl), names map right', !notBuilt.length && !wrong.length, (notBuilt.join(', ') + ' ' + wrong.join('; ')).trim());
+// variants: the pullover offers seated (bar) and standing (rope); the pick is remembered for that exercise
+await page.evaluate(() => { const s = document.querySelector('.widget[data-id=lift] [data-ex]'); if (![...s.options].some(o => o.value === 'Cable pullover (bench)')) s.add(new Option('Cable pullover (bench)')); s.value = 'Cable pullover (bench)'; s.dispatchEvent(new Event('change')); }); await page.waitForTimeout(600);
+const vb = await page.locator('.widget[data-id=lift] [data-vars] button').allInnerTexts();
+await page.evaluate(() => document.querySelector('.widget[data-id=lift] [data-v=straightarm]').click()); await page.waitForTimeout(1200);
+const vOn = await page.locator('.widget[data-id=lift] [data-vars] .on').innerText().catch(() => ''), vSaved = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'lift')?.cfg?.vars;
+await page.evaluate(() => { const s = document.querySelector('.widget[data-id=lift] [data-ex]'); if (![...s.options].some(o => o.value === 'Cable curl (facing away)')) s.add(new Option('Cable curl (facing away)')); s.value = 'Cable curl (facing away)'; s.dispatchEvent(new Event('change')); }); await page.waitForTimeout(1500);
+await page.locator('.widget[data-id=lift]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=lift]').screenshot({ path: `${OUT}lift-variants-${vp.width}.png` });
+const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 } : null; });
+check('lift variants: three curls offered and the toggle fits the widget', vw?.n === 3 && vw.fits, JSON.stringify(vw));
+check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Seated, bar|Standing, rope' && vOn === 'Standing, rope' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
 const lctl = await page.locator('.widget[data-id=lift] .f3d-ctl button').count();
 check('lift demo has pause/front/side/back', lctl === 4, String(lctl));
-check('lift legend lists working muscles', /Chest|Lats|delts/.test(await page.locator('.widget[data-id=lift] .mlg').innerText().catch(() => '')));
+check('lift legend lists working muscles', /Chest|Lats|delts|Biceps/.test(await page.locator('.widget[data-id=lift] .mlg').innerText().catch(() => '')));
 await page.screenshot({ path: `${OUT}v6-${vp.width}.png` });
 // palette shows real widgets
 await page.click('[data-act=widgets]'); await page.waitForTimeout(4500);
@@ -230,17 +242,26 @@ const pv = await page.evaluate(() => ({cards: document.querySelectorAll('.pal [d
 check('palette previews are real widgets (3D as stills)', pv.cards === pv.real && pv.imgs >= 2 && !pv.errs, JSON.stringify(pv));
 await page.screenshot({ path: `${OUT}v6-palette-${vp.width}.png` });
 await page.click('#sheet-x');
-// progress photos: private sheet from the top bar, upload a pose, the set appears with that day's weight, delete
-await page.click('[data-act=photos]'); await page.waitForTimeout(400);
+// progress photos (Health DB since 13 Nov): private sheet from the top bar; upload a pose, it lands in Health DB with
+// that day's weight and a thumbnail, shows blurred, loads only when opened, and delete removes the set
+await page.click('[data-act=photos]'); await page.waitForTimeout(800);
 const p0 = await page.locator('#sheet-b').innerText();
-await page.evaluate(() => document.querySelector('#sheet-b [data-pt=add]').click()); await page.waitForTimeout(300);
-await page.setInputFiles('#sheet-b [data-up=front]', `${OUT}v18-muscles-${vp.width}.png`); await page.waitForTimeout(1500);
-const pm = await page.evaluate(() => ({ rows: [...window.__photoMock.rows.values()], n: window.__photoMock.assets.size }));
-await page.evaluate(() => document.querySelector('#sheet-b [data-pt=sets]').click()); await page.waitForTimeout(300);
-const p1 = await page.locator('#sheet-b').innerText(), blurred = await page.locator('#sheet-b .ph-th.blur').count();
-await page.evaluate(() => { const d = document.querySelector('#sheet-b [data-del]'); d.click(); d.click(); }); await page.waitForTimeout(500);
-const pm2 = await page.evaluate(() => ({ rows: window.__photoMock.rows.size, n: window.__photoMock.assets.size }));
-check('photos: due notice, upload saves a set with the weigh-in, blurred until tapped, delete removes it', /No photos yet/.test(p0) && pm.n === 1 && pm.rows[0]?.shots?.front && pm.rows[0].date === TD && /Delete this set/.test(p1) && pm2.rows === 0 && pm2.n === 0, JSON.stringify({ row: pm.rows[0], blurred, after: pm2 }));
+await page.evaluate(() => document.querySelector('#sheet-b [data-pt=add]').click()); await page.waitForTimeout(600);
+await page.setInputFiles('#sheet-b [data-up=front]', `${OUT}v18-muscles-${vp.width}.png`); await page.waitForTimeout(2500);
+const ps1 = (await mcpNode('list_photos', {})).structuredContent, fid = ps1.sets[0]?.shots?.front;
+const th = fid ? (await mcpNode('get_photo', { id: fid })).structuredContent : null, fu = fid ? (await mcpNode('get_photo', { id: fid, size: 'full' })).structuredContent : null;
+// a photo just taken shows straight away; reopened, it's blurred until tapped
+await page.click('#sheet-x'); await page.reload(); await page.waitForTimeout(2500); await page.click('[data-act=photos]'); await page.waitForTimeout(2000);
+const p1 = await page.locator('#sheet-b').innerText(), blurred = await page.locator('#sheet-b .ph-th.blur').count(), loaded = await page.evaluate(() => [...document.querySelectorAll('#sheet-b .ph-th img')].filter(i => /^blob:/.test(i.src)).length);
+await page.evaluate(() => { const t = document.querySelector('#sheet-b .ph-th'); t.click(); t.click(); }); await page.waitForTimeout(1200);
+const lb = await page.evaluate(() => ({img: /^blob:/.test(document.querySelector('.ph-lb img')?.src || ''), n: document.querySelectorAll('.ph-lb').length})); await page.evaluate(() => document.querySelectorAll('.ph-lb').forEach(x => x.click()));
+const lbLeft = await page.evaluate(() => document.querySelectorAll('.ph-lb').length);
+await page.evaluate(() => { const d = document.querySelector('#sheet-b [data-del]'); d.click(); d.click(); }); await page.waitForTimeout(1200);
+const ps2 = (await mcpNode('list_photos', {})).structuredContent;
+check('photos: due notice; upload goes to Health DB with a thumbnail and the weigh-in; blurred; thumbnails and full size load; delete removes it',
+  /No photos yet/.test(p0) && ps1.sets.length === 1 && ps1.sets[0].date === TD && fid && th?.data && fu?.data && fu.data.length > th.data.length && /Delete this set/.test(p1) && blurred === 1 && loaded === 1 && lb.img && lb.n === 1 && !lbLeft && ps2.sets.length === 0,
+  JSON.stringify({ sets: ps1.sets, th: th?.data?.length, full: fu?.data?.length, blurred, loaded, lb, lbLeft, after: ps2.sets.length }));
+await page.evaluate(() => document.querySelectorAll('.ph-lb').forEach(x => x.remove()));
 await page.click('#sheet-x');
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();

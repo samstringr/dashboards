@@ -93,7 +93,7 @@ export function unitOf(ctx, food) {
   if (p && +p.qty > 0 && +p.kcal > 0) return { name: food.name || 'it', u: p.unit || 'g', q: +p.qty, m: [p.kcal, p.p, p.c, p.f].map(v => +v || 0), item: { name: food.name }, known: false };
   return null;
 }
-const roundQ = (q, u) => u === 'serving' ? Math.round(q * 2) / 2 : q < 100 ? Math.round(q / 5) * 5 : Math.round(q / 10) * 10;
+export const roundQ = (q, u) => u === 'serving' ? Math.round(q * 2) / 2 : q < 100 ? Math.round(q / 5) * 5 : Math.round(q / 10) * 10;
 /* Returns everything needed for the reply, or { why } when there's no sensible answer. */
 export function howMuch(ctx, hm, date = today()) {
   const U = unitOf(ctx, hm?.food); if (!U) return { why: 'I couldn’t tell which food you meant. Name it, or say which day you logged it.' };

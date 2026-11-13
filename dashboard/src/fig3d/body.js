@@ -133,6 +133,20 @@ function surface() {
   const bones = Object.keys(REST_B).concat(['clL', 'clR']), bi = Object.fromEntries(bones.map((b, i) => [b, i]));
   const SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4), SHORTS = new Float32Array(nv), SM = new Float32Array(nv), RY = new Float32Array(nv), MW = new Float32Array(nv * MUSCLES.length);
   const knots = [R.P[1] - 1, R.A[1], R.C[1], R.N[1] + 0.01, 1.505], spineB = ['pelvis', 'abdomen', 'chest', 'neck', 'head'], blend = [0, 0.05, 0.06, 0.035, 0.035];
+  /* The seam where each arm's skin meets the torso's: a ring that runs over the shoulder and down through the
+     armpit, about 20 cm below the joint. WHY (13 Nov 2026): Sam saw "a weird lat thing" on the pulldown, machine
+     press and incline press: the arm side of the armpit went fully with the upper arm while the torso side next
+     to it stayed put, so raising the arm pulled the seam into fins down the lats. Now the weights match across
+     the seam: skin on both sides near it follows the shoulder bone (half the arm's turn), handing over to the
+     upper arm within 10 cm down the arm and to the ribcage within 14 cm down the torso, so the armpit stretches
+     over a hand's width of skin instead of one row of triangles. */
+  const seam = {L: [], R: []};
+  for (let t = 0; t < B.I.length; t += 3) {
+    const gs = [B.grp[B.I[t]], B.grp[B.I[t + 1]], B.grp[B.I[t + 2]]], arm = gs.filter(g => g === 3 || g === 4);
+    if (!arm.length || arm.length === 3 || gs.some(g => g >= 5)) continue;
+    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) seam[gs[q] === 3 ? 'L' : 'R'].push(B.I[t + q]);
+  }
+  const seamD = (p, k) => { const S = R.side[k]; if (V.len(V.sub(p, S.sh)) > 0.4) return 1; let d = 1; for (const q of seam[k]) { const dx = B.P[q * 3] - p[0], dy = B.P[q * 3 + 1] - p[1], dz = B.P[q * 3 + 2] - p[2], e = dx * dx + dy * dy + dz * dz; if (e < d) d = e; } return Math.sqrt(d); };
   for (let v = 0; v < nv; v++) {
     const p = [B.P[v * 3], B.P[v * 3 + 1], B.P[v * 3 + 2]], g = B.grp[v], w = new Map(), add = (b, x) => { if (x > 1e-4) w.set(b, (w.get(b) || 0) + x); };
     const spine = share => { // partition of unity along the spine by height
@@ -141,7 +155,7 @@ function surface() {
     const sideOf = g >= 3 && g <= 8 ? (g % 2 ? 'L' : 'R') : p[0] >= 0 ? 'L' : 'R';
     if (g === 3 || g === 4) { // arm
       const k = g === 3 ? 'L' : 'R', S = R.side[k], u = chainU(p, [S.sh, S.el, S.wr, J['kn3' + k], J['tip' + k]]);
-      const a = smooth01(-0.04, 0.12, u), e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
+      const a = Math.min(smooth01(-0.04, 0.12, u), smooth01(0, 0.10, seamD(p, k))), e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
       add('cl' + k, 1 - a); add('ua' + k, a * (1 - e));
       const fore = a * e * (1 - f); if (q < 0.5) { add('fa' + k, fore * (1 - 2 * q)); add('tw' + k, fore * 2 * q); } else { add('tw' + k, fore * (2 - 2 * q)); add('hd' + k, fore * (2 * q - 1)); }
       add('fg' + k, a * e * f);
@@ -157,7 +171,7 @@ function surface() {
       /* torso skin round the armpit follows the shoulder bone only partly, fading over 20 cm: a steep
          fade (v7 draft: full weight to 4.5 cm, gone by 15) folded the side of the chest into stripes when
          the arm moved */
-      const S = R.side[sideOf], c = g === 2 ? 0 : 0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0]));
+      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), 1 - smooth01(0, 0.14, seamD(p, sideOf)));
       add('cl' + sideOf, c); spine(1 - c);
     }
     const list = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4), tot = list.reduce((s, x) => s + x[1], 0) || 1;

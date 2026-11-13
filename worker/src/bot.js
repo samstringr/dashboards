@@ -3,7 +3,9 @@ import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, vali
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
+import { isPhotoCaption, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, getPhoto, deletePhotos } from './photos.js';
 import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
+import { closeDay, closeHtml, singleExtras } from './close.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
 
 /* ============================================================ Telegram */
@@ -57,11 +59,18 @@ export async function onMessage(env, msg) {
     if (!raw) return send(env, 'I couldn’t hear anything in that voice note. Try again, or type it.');
     await send(env, `🎙 <i>“${esc(raw.slice(0, 600))}”</i>`);
   }
+  // a progress photo (captioned with a pose or "progress", or sent while a photo session is open) is saved, never parsed
+  const isImg = msg.photo?.length || (msg.document && /^image\//.test(msg.document.mime_type || ''));
+  if (isImg && (isPhotoCaption(msg.caption) || await photoSessionOpen(env))) return savePhotoFromTelegram(env, msg, (e, id) => tgImage(e, id, 'image/jpeg'), send, buttons);
   if (raw.startsWith('/')) return command(env, raw);
-  await welcomeBack(env, await loadCtx(env), today());
   let image = null;
   if (msg.photo?.length) image = await tgImage(env, msg.photo[msg.photo.length - 1].file_id, 'image/jpeg');
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) image = await tgImage(env, msg.document.file_id, msg.document.mime_type);
+  return readMessage(env, raw, image);
+}
+/* Food, weigh-ins and workouts: what Claude reads. */
+async function readMessage(env, raw, image) {
+  await welcomeBack(env, await loadCtx(env), today());
   const pending = await getKV(env, 'pending');
   if (pending && !image && YES.test(raw)) return commitPending(env, pending);
   if (pending && !image && NO.test(raw)) { await clearPending(env, pending); return send(env, 'Cancelled. Nothing logged.'); }
@@ -85,16 +94,27 @@ export async function tgImage(env, fileId, mime) {
 }
 export async function onCallback(env, cq) {
   await tg(env, 'answerCallbackQuery', { callback_query_id: cq.id });
-  const [act, token] = String(cq.data || '').split(':');
+  const [act, token, opt] = String(cq.data || '').split(':');
   const strip = () => tg(env, 'editMessageReplyMarkup', { chat_id: chatId(env), message_id: cq.message?.message_id, reply_markup: { inline_keyboard: [] } });
   if (act === 'ok' || act === 'no') {
     const pending = await getKV(env, 'pending');
     await strip();
     if (!pending || pending.id !== token) return send(env, 'That proposal has expired. Send it again.');
     if (act === 'no') { await delKV(env, 'pending'); return send(env, 'Cancelled. Nothing logged.'); }
+    if (pending.options && opt != null && pending.options[+opt]) pending.items = pending.options[+opt].items;   // a numbered option or a closer
     return commitPending(env, pending, true);
   }
   if (act === 'undo') { await strip(); return undoLast(env, token); }
+  if (act === 'phs') { await strip(); return openPhotoSession(env, send, buttons); }
+  if (act === 'phd') { await strip(); return closePhotoSession(env, send); }
+  if (act === 'phx') {   // "not a progress photo" (a weigh-in screenshot sent during a photo session): take it back out and read it
+    await strip();
+    const ph = await getPhoto(env, token, 'full');
+    if (!ph) return send(env, 'That photo has already gone.');
+    await deletePhotos(env, { id: token }); await delKV(env, 'photoset');
+    await send(env, 'Taken out of your progress photos; reading it instead. Photo session closed: tap /photos to carry on.');
+    return readMessage(env, '', { media_type: ph.mime, data: ph.data });
+  }
   if (act === 'rt') {
     await strip();
     const r = await getKV(env, 'retry');
@@ -185,12 +205,28 @@ export async function handleParsed(env, ctx, r, pending) {
   }
   if (r.intent === 'howmuch' && r.howmuch) {
     if (pending) await clearPending(env, pending);
-    const date = validDate(r.howmuch.date, td), h = howMuch(ctx, r.howmuch, date);
-    if (h.why || h.q <= 0) return send(env, howMuchHtml(h, date));
-    const items = normaliseItems(ctx, [{ ...h.U.item, name: h.U.name, qty: h.q, unit: h.U.u, kcal: h.add[0], p: h.add[1], c: h.add[2], f: h.add[3] }]);
-    const p = { id: uid(), kind: 'food', date, payload: { date, items: [{ ...h.U.item, name: h.U.name, qty: h.q, unit: h.U.u }] }, items, created: Date.now() };
-    const qs = h.U.u === 'serving' ? fmt(h.q, h.q % 1 ? 1 : 0) + '×' : fmt(h.q) + ' ' + h.U.u;
-    const msg = await send(env, howMuchHtml(h, date), buttons([[['✅ Log ' + qs, 'ok:' + p.id], ['✖️ No thanks', 'no:' + p.id]]]));
+    const date = validDate(r.howmuch.date, td), id = uid();
+    const itemFor = (U, q) => ({ ...U.item, name: U.name, qty: q, unit: U.u, kcal: q * U.m[0] / U.q, p: q * U.m[1] / U.q, c: q * U.m[2] / U.q, f: q * U.m[3] / U.q });
+    const closerOpt = c => ({ items: normaliseItems(ctx, c.items.map(x => ({ ...x, kcal: x.m[0], p: x.m[1], c: x.m[2], f: x.m[3] }))) });
+    const closerRow = cl => cl.length ? [cl.slice(0, 3).map((c, i) => ['+ ' + c.short, `ok:${id}:${i + 9}`])] : [];
+    let html, options, rows;
+    const c = closeDay(ctx, r.howmuch, date);
+    if (!c.single) {   // two foods: numbered combinations, then closers
+      if (c.why) return send(env, closeHtml(c, date));
+      options = Object.fromEntries(c.opts.map((o, i) => [i, { items: normaliseItems(ctx, [o.qa > 0 && itemFor(c.A, o.qa), o.qb > 0 && itemFor(c.B, o.qb)].filter(Boolean)) }]));
+      html = closeHtml(c, date); rows = [c.opts.map((o, i) => [['1️⃣', '2️⃣', '3️⃣', '4️⃣'][i] + ' Log', `ok:${id}:${i}`])];
+    } else {
+      const h = howMuch(ctx, { ...r.howmuch, food: (r.howmuch.foods || [])[0] || r.howmuch.food }, date);
+      if (h.why || h.q <= 0) return send(env, howMuchHtml(h, date));
+      const ex = singleExtras(ctx, h, date); c.closers = ex.closers;
+      options = { 0: { items: normaliseItems(ctx, [itemFor(h.U, h.q)]) } };
+      html = howMuchHtml(h, date) + ex.html; rows = [[['✅ Log ' + (h.U.u === 'serving' ? fmt(h.q, h.q % 1 ? 1 : 0) + '×' : fmt(h.q) + ' ' + h.U.u), `ok:${id}:0`]]];
+    }
+    // closers go in at 9+, so their buttons never collide with the numbered options
+    (c.closers || []).slice(0, 3).forEach((cl, i) => { options[i + 9] = closerOpt(cl); });
+    rows.push(...closerRow(c.closers || []), [['✖️ No thanks', 'no:' + id]]);
+    const p = { id, kind: 'food', date, payload: { date, items: options[0].items.map(i => ({ name: i.n, qty: i.q, unit: i.u, libId: i.lib || null, ref: i.ref || null })) }, items: options[0].items, options, created: Date.now() };
+    const msg = await send(env, html, buttons(rows));
     p.messageId = msg?.result?.message_id; await setKV(env, 'pending', p); return;
   }
   if (pending) await clearPending(env, pending);
@@ -281,23 +317,26 @@ Just tell me things:
 • <i>“2 tins of tuna, 60 g Heinz light mayo, 2 slices of bread”</i>
 • <i>“mum’s shepherd’s pie, full plate, with green beans”</i>. I’ll look up anything new and check with you first
 • <i>“save mum’s chilli: 500 g beef mince, 2 tins tomatoes…”</i> to add a recipe
-• <i>“my standard overnight oats are 100 g oats, 40 g protein powder…”</i> to save a preset; then just send <i>“standard overnight oats”</i>
-• <i>“how much of the leftover pork belly closes the day?”</i> or <i>“how much chicken to hit my protein?”</i>
+• <i>“my standard overnight oats are 100 g oats, 40 g protein powder…”</i> to save a preset; then just send <i>“standard overnight oats”</i>, or <i>“standard protein shake plus 1 extra scoop”</i>
+• <i>“how much chilli and white rice closes the day?”</i>, <i>“how much chicken to hit my protein?”</i>
 • a Fit Profile screenshot, or <i>“72.4 kg 16.8%”</i>
 • <i>“ran 5 km in 28 min”</i>, <i>“football, 60 min”</i>, or a filled-in /workout
-• <i>“took creatine and zinc”</i>
+• <i>“took creatine and zinc”</i> or <i>“all supplements taken”</i>
 • a 🎙 voice note saying any of the above
 /today · where you are vs targets
 /workout · the next session in your plan
 /supps · today’s supplements checklist
 /week · the last 7 days
 /foods · your presets and saved foods
+/photos · progress photos (front, side, back)
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/week') return send(env, await weekHtml(env));
   if (c === '/foods' || c === '/presets') return send(env, foodsHtml(await loadCtx(env)));
+  if (c === '/photos') return openPhotoSession(env, send, buttons);
+  if (c === '/done') return (await photoSessionOpen(env)) ? closePhotoSession(env, send) : send(env, 'Nothing to finish.');
   if (c === '/undo') return undoLast(env, null);
   if (c === '/supps') return sendSupps(env, await loadCtx(env), today());
   if (c === '/back') { const ctx = await loadCtx(env); return (await endAway(env, ctx, today())) || send(env, 'You weren’t marked as away. Carry on.'); }
