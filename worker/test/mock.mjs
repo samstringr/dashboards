@@ -34,6 +34,8 @@ const claudeReply = (body) => {
       { name: 'Bulk chocolate protein powder', qty: 40, unit: 'g', libId: 'powder', ref: null, estimated: false, research: false },
       { name: 'Semi-skimmed milk', qty: 180, unit: 'ml', libId: 'milk', ref: null, estimated: false, research: false }], assumptions: [] } };
     else if (/standard overnight oats/i.test(txt)) out = { intent: 'food', food: { date: td, items: [{ name: 'Overnight oats', qty: 1, unit: 'serving', libId: 'oats', ref: null, estimated: false, research: false }] } };
+    else if (/how much .* and (white )?rice/i.test(txt)) out = { intent: 'howmuch', howmuch: { date: td, foods: [{ name: 'pork belly', said: 'pork belly', libId: null, ref: recent(/pork belly/i), per: null, typical: 200 }, { name: 'white rice', said: 'rice', libId: 'rice', ref: null, per: null, typical: 150 }], aim: 'close', have: null } };
+    else if (/protein shake plus/i.test(txt)) out = { intent: 'food', food: { date: td, items: [{ name: 'Overnight oats', qty: 1, unit: 'serving', libId: 'oats', ref: null, estimated: false, research: false }, { name: 'Protein powder', qty: 30, unit: 'g', libId: 'powder', ref: null, estimated: false, research: false }] } };
     else if (/how much/i.test(txt)) out = { intent: 'howmuch', howmuch: { date: td, food: { name: 'pork belly', libId: null, ref: recent(/pork belly/i), per: null }, aim: 'close', have: { qty: 300, unit: 'g' } } };
   }
   if (out) return { content: [{ type: 'text', text: JSON.stringify(out) }], stop_reason: 'end_turn' };

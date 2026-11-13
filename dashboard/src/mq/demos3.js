@@ -143,20 +143,25 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
 /* ---- Decline weighted crunch ----
    Footage cues: feet hooked under the rollers, plate held flat on the chest. Curl the ribs towards the hips,
    chin tucked, lifting the shoulder blades well off the pad (a crunch, not a sit-up); lower under control
-   and don't rest at the bottom. */
+   and don't rest at the bottom.
+   The two rollers sit where the legs are (13 Nov 2026, Sam: the feet went through the bench): one under the
+   knees, one over the tops of the feet just in front of the ankles. */
 {
   const d = V.norm([0, -0.4, -1.3]), n = V.norm([0, 1.3, -0.4]), sY = z => 0.8 - (0.55 - z) * 0.4 / 1.3;
   const PEL = V.add([0, sY(0.12), 0.12], V.sc(n, 0.1)), mid = [0, sY(-0.1), -0.1];
+  const ANK = [0.11, 0.8, 0.7], legs = p => legsTo(p, ANK, [0.1, 1, 0.1], V.norm([0.1, 0.05, 1]));
+  const KN = solve(legs({root: {p: PEL, pitch: -104}})).shinL.o, RA = [0, KN[1] - 0.11, KN[2] - 0.01], RB = [0, ANK[1] + 0.088, ANK[2] + 0.075];
   demo('crunch', {
     cam: {yaw: 72, pitch: 14, dist: 3.9, target: [0, 0.75, -0.05]}, tempo: [1.0, 0.6, 1.8, 0.3],
     props: [['world', 'B', V.add(mid, V.sc(n, -0.03)), [0.15, 0.035, 0.66], 0.025, {mat: 'pad', rot: [-17.1, 0, 0]}],
       tube([0, 0, 0.4], [0, sY(0.4) - 0.04, 0.4], 0.035), tube([0, 0, -0.6], [0, sY(-0.6) - 0.04, -0.6], 0.035),
-      ['world', 'Y', [-0.16, 0.92, 0.6], [0.16, 0.92, 0.6], 0.045, {mat: 'pad'}], ['world', 'Y', [-0.16, 0.74, 0.74], [0.16, 0.74, 0.74], 0.045, {mat: 'pad'}], tube([0, sY(0.55) - 0.04, 0.55], [0, 0.92, 0.6], 0.03), tube([0, 0.92, 0.6], [0, 0.74, 0.74], 0.03),
+      ['world', 'Y', [-0.17, RA[1], RA[2]], [0.17, RA[1], RA[2]], 0.045, {mat: 'pad'}], ['world', 'Y', [-0.17, RB[1], RB[2]], [0.17, RB[1], RB[2]], 0.045, {mat: 'pad'}],
+      tube([0, sY(0.5) - 0.04, 0.5], RA, 0.03), tube(RA, RB, 0.03),
       ['chest', 'Q', [0, 0.12, 0.13], [0, 0.12, 0.16], 0.15, {mat: 'iron'}], ['chest', 'Q', [0, 0.12, 0.159], [0, 0.12, 0.163], 0.03, {mat: 'steel'}]],
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = {root: {p: PEL, pitch: lerp1(-107, -101, k)}, spine: [lerp1(0, 24, ease(k)), lerp1(0, 34, ease(k))], neck: lerp1(4, 26, k), head: lerp1(0, 8, k)};
-      p = legsTo(p, [0.11, 0.8, 0.7], [0.1, 1, 0.1], V.norm([0.1, 0.35, 1]));
+      p = legs(p);
       const C = solve(p).chest, gl = fAt(C, [0.13, 0.13, 0.17]);
       p = armsTo(p, gl, fAt(C, [-0.13, 0.13, 0.17]), fDir(C, [1, -0.6, 0]), fDir(C, [-1, -0.6, 0]), {arm: {palm: fDir(C, [-0.3, 0, -1])}, armR: {palm: fDir(C, [0.3, 0, -1])}});
       return {pose: p};

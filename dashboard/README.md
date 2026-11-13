@@ -34,6 +34,8 @@ Everything else here is how that file is built and checked.
 - **The test seed is not committed.** It is a real Health DB export, i.e. Sam's own history, and this repo is
   public. Any `get_snapshot` output works as `HF_SEED`.
 - **The demos play on the physique body (13 Nov 2026).** Sam asked for it. Each demo is still choreographed on the simple rig, because joint-by-joint authoring is what got the form right; `skin.js` only retargets: torso turns, shoulder girdle, hands and feet placed where the rig puts them. If the body can't load, the old jointed mannequin is the fallback.
+- **Stacking and skin (13 Nov 2026).** Presses are authored as two directions, where the upper arm puts the elbow and where the load travels, so the forearm can't drift off the line of force (Sam saw the incline press elbows cave). The skin weights now match across the armpit seam; before, the arm side followed the upper arm fully and the torso side stayed put, which pulled fins down the lats on any overhead or wide-arm movement.
+- **Variants.** `lifts.js` groups demos that are one movement done differently (pullover seated with a bar or standing with a rope; cable curl facing away, facing the cable or reverse grip; shrug seated or standing; crunch on the decline bench or kneeling at a cable). The exercise name picks the default; the lift widget's toggle switches it and remembers the pick per exercise.
 - **Strength levels** come from Strength Level's published standards (male, by bodyweight); the 4-week and
   goal views assume a typical weekly gain for each level and that the split is trained as planned. Muscles
   with no logged lift yet are marked "assumed" in the strength sheet.

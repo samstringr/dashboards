@@ -64,7 +64,7 @@ export const TOOLS = [
     } },
   { name: 'list_photos', description: 'Progress photo sets, newest first: date, weight and body fat that morning, and the id of each pose (front, side, back, frontflex, backflex). Images come from get_photo. Also says when the next set is due.', readOnly: true,
     inputSchema: { type: 'object', properties: {} }, run: async env => ({ sets: await photoSets(env), due: await photoDue(env) }) },
-  { name: 'get_photo', description: 'One progress photo as base64 JPEG. size: thumb (about 320 px, default) or full.', readOnly: true,
+  { name: 'get_photo', description: 'One progress photo as base64 JPEG. size: thumb (about 320 px, default) or full. Private: for the dashboard; in a chat, only when Sam asks to see one.', readOnly: true,
     inputSchema: { type: 'object', properties: { id: { type: 'string' }, size: { type: 'string', enum: ['thumb', 'full'] } }, required: ['id'] },
     run: async (env, a) => (await getPhoto(env, a.id, a.size)) || { error: 'not found' } },
   { name: 'put_photo', description: 'Save a progress photo (base64 JPEG) for a date and pose; replaces that pose. thumb is an optional small copy.',

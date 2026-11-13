@@ -42,6 +42,24 @@ check('how much: chicken, protein-bound', h.q === Math.round(Math.min(pl / 0.31,
 const h2 = howMuch(fctx, { food: { ref: 'k1' }, aim: 'close', have: { qty: 100, unit: 'g' } });
 check('how much: capped by what is left over', h2.q === 100 && h2.capped);
 check('how much: unknown food → a reason', !!howMuch(fctx, { food: { name: 'mystery' } }).why);
+// 13 Nov 2026: "how much chilli and white rice closes the day?" → combinations at his usual ratio, chilli alone, closers
+import { closeDay, closeHtml, usualRatio } from '../src/close.js';
+const cctx = { ...fctx, library: [...fctx.library, { id: 'rice', n: 'White rice, cooked', q: 100, u: 'g', m: [130, 2.7, 28.2, 0.3], d: 150 },
+    { id: 'p-shake', n: 'Standard protein shake', q: 1, u: 'serving', m: [406, 35.7, 27.5, 17.3], al: ['protein shake'], parts: [] },
+    { id: 'tuna', n: 'Tuna chunks in spring water (drained)', q: 100, u: 'g', m: [109, 24.9, 0, 1], d: 102 }, { id: 'banana', n: 'Banana', q: 1, u: 'serving', m: [105, 1.3, 27, 0.4] },
+    { id: 'ched', n: 'Cheddar cheese', q: 100, u: 'g', m: [416, 25.4, 0.1, 34.9] }, { id: 'digestive', n: 'Digestive biscuit (McVitie’s)', q: 1, u: 'serving', m: [71, 1, 9.3, 3.1] }],
+  days: [{ date: TDu, body: { w: 72.5 }, items: [{ id: 'c1', n: 'Homemade chilli con carne (beef, beans)', q: 300, u: 'g', kcal: 330, p: 27, c: 26, f: 13, est: true },
+    { id: 'r1', n: 'White rice, cooked', q: 140, u: 'g', kcal: 182, p: 3.8, c: 39.5, f: 0.4, lib: 'rice' }, { id: 'l1', n: 'Lunch', q: 1, u: 'serving', kcal: 0, p: 0, c: 60, f: 40 }] }] };
+// the rest of the day: 800 kcal and 45 g protein left after the chilli and rice (made-up numbers)
+{ const T0 = targets(cctx), l = cctx.days[0].items[2]; l.kcal = T0.kcal - 800 - 512; l.p = T0.protein - 45 - 30.8; }
+const cd = closeDay(cctx, { foods: [{ name: 'chilli', said: 'chilli', ref: 'c1' }, { name: 'white rice', said: 'white rice', libId: 'rice' }], aim: 'close' });
+const Tc = targets(cctx), o1 = cd.opts[0], alone = cd.opts.find(o => o.tag === 'alone'), less = cd.opts.find(o => o.tag === 'less'), more = cd.opts.find(o => o.tag === 'more');
+check('close: usual ratio from the day he ate both', Math.abs(cd.r - 140 / 300) < 1e-9 && cd.U2.ex.qa === 300, String(cd.r));
+check('close: #1 closes calories and protein together, at a ratio near his usual', o1.tag === 'both' && Math.abs(o1.nk - Tc.kcal) < 15 && Math.abs(o1.np - Tc.protein) < 2.5 && o1.qb / o1.qa < 2 * cd.r && o1.qb / o1.qa > 0.5 * cd.r, JSON.stringify(o1));
+check('close: chilli alone, less rice and more rice are there too', alone && alone.qb === 0 && less && more && less.qb < o1.qb && more.qb > o1.qb, cd.opts.map(o => `${o.tag} ${o.qa}/${o.qb}`).join(' · '));
+check('close: closers come from his staples, protein-first while protein is short', cd.closers.length >= 2 && cd.closers[0].name === 'A tin of tuna' && cd.all.some(c => /digestives/.test(c.name)), cd.closers.map(c => c.name).join(', '));
+const chtml = closeHtml(cd);
+check('close: reply names both foods, the ratio it used and where each option lands', /chilli \+ \d+ g white rice/.test(chtml) && /your usual is 300 g chilli to 140 g white rice/.test(chtml) && /Chilli only/.test(chtml) && /Or bridge it with a closer/.test(chtml), chtml.split('\n').slice(0, 4).join(' | '));
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
 // welcome-back with a stubbed env (D1 + Telegram)
 import { welcomeBack } from '../src/extras.js';

@@ -251,6 +251,27 @@ m = await lastMsg();
 check('preset: name logs straight away', /✅ Logged/.test(m.text) && /Overnight oats \(current build\)/.test(m.text), m.text.split('\n').slice(0, 2).join(' | '));
 await reset(); await tgSend({ text: '/foods' });
 check('/foods lists presets', /Overnight oats \(current build\)/.test((await lastMsg()).text) && /also: /.test((await lastMsg()).text));
+// two foods (13 Nov 2026, "how much chilli and white rice closes the day?"): numbered combinations, the first food alone, closers
+await reset();
+await tgSend({ text: 'how much pork belly and rice should I have to close the day?' });
+m = await lastMsg();
+const kb2 = JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard, flat = kb2.flat();
+check('two foods: numbered options with both foods, the first alone, closers and log buttons', /1️⃣/.test(m.text) && /pork belly \+ \d+ g rice/.test(m.text) && /Pork belly only/.test(m.text) && /Ratio:/.test(m.text) && flat.some(b => /^2️⃣ Log/.test(b.text)) && flat.some(b => /^\+ /.test(b.text)), m.text.replace(/\n/g, ' | ').slice(0, 400));
+const beforeHM = (await tool('get_day', { date: TD })).day.items.length;
+await reset(); await tgCb(flat.find(b => /^2️⃣ Log/.test(b.text)).callback_data);
+let dayHM = (await tool('get_day', { date: TD })).day;
+const addedHM = dayHM.items.slice(beforeHM);
+check('two foods: option 2 logs exactly what it said', /Logged/.test((await lastMsg()).text) && addedHM.length >= 1 && addedHM.every(i => i.ref || i.lib), addedHM.map(i => i.n + ' ' + i.q + i.u).join(', '));
+await reset(); await tgSend({ text: '/undo' });
+// a preset plus an extra scoop logs the preset untouched and the scoop as its own line
+await reset();
+const libBefore = JSON.stringify((await tool('get_snapshot', {})).config.library);
+const nBefore = (await tool('get_day', { date: TD })).day.items.length;
+await tgSend({ text: 'standard protein shake plus 1 extra scoop of protein' });
+m = await lastMsg();
+const libAfter = JSON.stringify((await tool('get_snapshot', {})).config.library), addPE = (await tool('get_day', { date: TD })).day.items.slice(nBefore);
+check('preset + extra: the preset and the scoop as two lines, preset unchanged', /Logged/.test(m.text) && addPE.length === 2 && addPE[0].lib === 'oats' && addPE[0].q === 1 && addPE[1].lib === 'powder' && addPE[1].q === 30 && libBefore === libAfter, addPE.map(i => i.n + ' ' + i.q + i.u).join(', '));
+await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard[0][0].callback_data);
 // how much of the leftovers closes the day
 await reset();
 await tgSend({ text: 'how much of the leftover pork belly from yesterday should I eat to close the day? I have about 300 g' });
