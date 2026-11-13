@@ -19,11 +19,11 @@ atlas = ('/* ---------- ATLAS: baked body (anat/bake.mjs) ----------\n'
   + mdec + '\n' + shape + '\nconst BODY_B64 = \'' + b64 + '\';\n')
 # the mannequin's files, in dependency order: rig, the lift table, every demos*.js, then the renderer
 demos = sorted(os.path.basename(x) for x in glob.glob(R + 'src/mq/demos*.js'))
-mq = ''.join(src('mq/' + f) + '\n' for f in ['rig.js', 'lifts.js'] + demos + ['mann.js'])
+mq = ''.join(src('mq/' + f) + '\n' for f in ['rig.js', 'lifts.js'] + demos + ['mann.js', 'skin.js'])
 head = ('/* ============================================================\n'
   '   FIG3D v9. Physique: the atlas man (Z-Anatomy, CC BY-SA 4.0) as a matte white mannequin, shaped by\n'
-  '   your lean and fat mass. Form demos: a jointed mannequin on a 172 cm rig, one demo per exercise,\n'
-  '   built from form footage, with the working muscles painted red (most work) to yellow (helping).\n'
+  '   your lean and fat mass, also drawn flat as a front-and-back muscle chart. Form demos: one per exercise,\n'
+  '   choreographed on a 172 cm rig and played on the same body, working muscles red (most) to yellow.\n'
   '   ============================================================ */\n'
   "const Fig3D = (() => {\n'use strict';\n")
 mqwrap = ("/* ---------- FORM DEMOS (own scope: the rig reuses names like V, SK and solve) ---------- */\n"
@@ -31,9 +31,9 @@ mqwrap = ("/* ---------- FORM DEMOS (own scope: the rig reuses names like V, SK 
   "return {liftView, liftSnapshot, moveFor, EX, solve, V, fAt, F};\n})();\n")
 tail = ("return {load, view: (h, o) => o && o.mode === 'lift' ? MQ.liftView(h, o) : view(h, o), snapshot: (o, w, h) => o && o.mode === 'lift' ? MQ.liftSnapshot(o, w, h) : snapshot(o, w, h),\n"
   "  moveFor: MQ.moveFor, cues: k => (MQ.EX[k] || MQ.EX.stand).cues || [], muscles: k => (MQ.EX[k] || MQ.EX.stand).muscles || {},\n"
-  "  levelHex: LEVEL_HEX, has: k => !!MQ.EX[k] && k !== 'stand', ready: k => !!(MQ.EX[k] && MQ.EX[k].pose), list: () => Object.keys(MQ.EX),\n"
+  "  map: mapViews, musclesList: MUSCLES, levelHex: LEVEL_HEX, has: k => !!MQ.EX[k] && k !== 'stand', ready: k => !!(MQ.EX[k] && MQ.EX[k].pose), list: () => Object.keys(MQ.EX),\n"
   "  _dbg: {MQ, buildMesh, solve, standPose}};\n})();\n")
-bundle = head + atlas + src('fig3d/body.js') + '\n' + src('fig3d/view.js') + '\n' + mqwrap + tail
+bundle = head + atlas + src('fig3d/body.js') + '\n' + src('fig3d/view.js') + '\n' + src('fig3d/map.js') + '\n' + mqwrap + tail
 
 os.makedirs(R + 'build', exist_ok=True)
 open(R + 'build/fig3d.js', 'w', encoding='utf-8').write(bundle)
