@@ -205,7 +205,7 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .note-ta{flex:1;width:100%;resize:none;background:none;border:0;outline:none;color:var(--ink);font:400 12.5px/1.6 var(--font);padding:0}
 .deriv{font:400 11px/1.7 var(--mono);color:var(--muted)}
 .deriv b{color:var(--ink);font-weight:500}
-.cal{display:grid;grid-auto-flow:column;gap:3px;justify-content:start}
+.cal{display:grid;grid-auto-flow:column;gap:3px;justify-content:stretch;width:100%;margin-bottom:6px}
 .cal i{display:block;border-radius:3px;background:var(--s3);position:relative}
 .cal i.l1{background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px);outline:1px solid var(--food-dim);outline-offset:-1px}
 .cal i.l2{background:var(--food-dim)}
@@ -342,7 +342,7 @@ select.inp{padding-right:6px}
 .pick option{background:var(--s2)}
 .liftrow{flex:1;min-height:0;display:grid;grid-template-columns:minmax(140px,56%) minmax(0,1fr);gap:12px}
 .liftrow .chart{min-height:70px}
-.figcol{display:flex;flex-direction:column;min-height:0;gap:6px}
+.figcol{display:flex;flex-direction:column;min-height:0;gap:6px}.figcol>*{flex-shrink:0}.figcol>.cues{flex-shrink:1;min-height:0;overflow:hidden}   /* the variant toggle never shrinks away; the cues give way (14 Nov 2026) */
 .fig{position:relative;flex:1;min-height:60px;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 36%,#34373e 0%,#212328 58%,#16171a 100%)}
 .figwrap{position:relative;flex:1;min-height:60px;display:flex}
 .f3d{position:absolute;inset:0}.f3d canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}.f3d canvas:active{cursor:grabbing}
@@ -405,6 +405,9 @@ select.inp{padding-right:6px}
 .widget:hover .tprog i{animation-play-state:paused}
 @keyframes tp{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 #sheet.wide{width:min(780px,100%)}
+/* full: a window over the dashboard rather than a side panel (photos, 14 Nov 2026: "use the screen") */
+#sheet.full{top:3vh;bottom:3vh;left:max(16px,4vw);right:max(16px,4vw);width:auto;border:1px solid var(--line-2);border-radius:var(--r)}
+@media (max-width:640px){#sheet.full{top:auto;left:0;right:0;bottom:0;height:96%;border-radius:var(--r) var(--r) 0 0}}
 .vol{display:flex;flex-direction:column;gap:3px}
 .vr{display:grid;grid-template-columns:92px 46px minmax(0,1fr) 34px 40px;gap:8px;align-items:center;font-size:12px}
 .vn{color:var(--muted)}
@@ -422,12 +425,14 @@ select.inp{padding-right:6px}
 .mdside{display:flex;flex-direction:column;align-items:center;min-height:0}.mdside .cap{margin-top:2px}
 .mdc{flex:1;width:100%;min-height:0}
 .mdtip{position:absolute;left:0;right:0;bottom:4px;margin:auto;width:max-content;max-width:94%;background:var(--s3);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;line-height:1.4;text-align:center}
-.ph-row,.ph-add{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:8px 0}
+.ph-row,.ph-add{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:8px 0}
+@media (max-width:640px){.ph-row,.ph-add{grid-template-columns:repeat(3,1fr);gap:6px}}
+.ph-bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:4px 0 10px}.ph-sw{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer}
 .ph-th{display:block;padding:0;border:1px solid var(--line-2);border-radius:var(--r-sm);overflow:hidden;background:var(--s2);aspect-ratio:3/4;width:100%;cursor:pointer}
 .ph-th img{width:100%;height:100%;object-fit:cover;display:block}.ph-th.blur img{filter:blur(14px) saturate(.4);transform:scale(1.1)}
 .ph-empty{display:flex;align-items:center;justify-content:center;aspect-ratio:3/4;border:1px dashed var(--line-2);border-radius:var(--r-sm);color:var(--dim);font-size:12px;text-align:center;padding:4px}
 .ph-slot{display:flex;flex-direction:column;gap:4px;font-size:12px;cursor:pointer}
-.ph-cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.ph-cmp figure{margin:0}.ph-cmp img{width:100%;border-radius:var(--r-sm);display:block}
+.ph-cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}.ph-cmp figure{margin:0;display:flex;flex-direction:column;align-items:center}.ph-cmp img{max-width:100%;max-height:62vh;object-fit:contain;border-radius:var(--r-sm);display:block;cursor:zoom-in}.ph-cmp .blur img{filter:blur(18px) saturate(.4)}
 .ph-cmp figcaption{font-size:12px;color:var(--muted);margin-top:4px}
 .ph-lb{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}.ph-lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-sm)}
 .vb .band{position:absolute;top:-2px;bottom:-2px;border:1px dashed var(--dim);border-radius:4px}
@@ -959,6 +964,9 @@ async function loadBody() {
   REST_B = frames(REST_J);
   SK.kn3 = {L: toLocal(REST_B.hdL, J.kn3L), R: toLocal(REST_B.hdR, J.kn3R)};
   REST_B = frames(REST_J); // again, now the finger bone knows where the knuckles are
+  const fmidOf = (a, b) => V.add(a, V.sc(V.sub(b, a), 0.45));
+  SK.fmid = {L: toLocal(REST_B.fgL, fmidOf(J.kn3L, J.tipL)), R: toLocal(REST_B.fgR, fmidOf(J.kn3R, J.tipR))};
+  REST_B = frames(REST_J); // and once more for the second finger joint
   return ATL;
 }
 
@@ -1016,7 +1024,10 @@ function frames(J) {
     const fa = B['fa' + k] = limb(S.el, S.wr, neg(S.ep), J.F2.f, neg(uaY), wA), tw = sg * (S.pron || 0) * D2R;
     B['tw' + k] = rotF(fa, fa.y, tw / 2, V.sc(V.add(S.el, S.wr), 0.5));
     const hd = B['hd' + k] = rotF(fa, fa.y, tw, S.wr);
-    B['fg' + k] = rotF(hd, V.norm(V.cross(hd.y, hd.z)), (S.curl || 0) * D2R, SK && SK.kn3 ? toWorld(hd, SK.kn3[k]) : S.wr);
+    /* Two finger joints (14 Nov 2026, Sam: the hands weren't gripping the bars). One bend at the knuckles left the
+       fingers straight, sticking out of the palm; a grip curls at the knuckles and again halfway along. */
+    const fg = B['fg' + k] = rotF(hd, V.norm(V.cross(hd.y, hd.z)), (S.curl || 0) * 0.6 * D2R, SK && SK.kn3 ? toWorld(hd, SK.kn3[k]) : S.wr);
+    B['fx' + k] = rotF(fg, V.norm(V.cross(fg.y, fg.z)), (S.curl || 0) * 0.9 * D2R, SK && SK.fmid ? toWorld(fg, SK.fmid[k]) : fg.o);
     B['th' + k] = limb(S.hp, S.kn, S.kp, J.F0.f, neg(snY), wL);
     B['sn' + k] = limb(S.kn, S.an, S.kp, J.F0.f, thY, wL);
     B['ft' + k] = limb(S.an, S.toe, V.sub(S.kn, S.an), [0, 1, 0]);
@@ -1046,18 +1057,21 @@ function surface() {
   const bones = Object.keys(REST_B).concat(['clL', 'clR']), bi = Object.fromEntries(bones.map((b, i) => [b, i]));
   const SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4), SHORTS = new Float32Array(nv), SM = new Float32Array(nv), RY = new Float32Array(nv), MW = new Float32Array(nv * MUSCLES.length);
   const knots = [R.P[1] - 1, R.A[1], R.C[1], R.N[1] + 0.01, 1.505], spineB = ['pelvis', 'abdomen', 'chest', 'neck', 'head'], blend = [0, 0.05, 0.06, 0.035, 0.035];
-  /* The seam where each arm's skin meets the torso's: a ring that runs over the shoulder and down through the
-     armpit, about 20 cm below the joint. WHY (13 Nov 2026): Sam saw "a weird lat thing" on the pulldown, machine
-     press and incline press: the arm side of the armpit went fully with the upper arm while the torso side next
-     to it stayed put, so raising the arm pulled the seam into fins down the lats. Now the weights match across
-     the seam: skin on both sides near it follows the shoulder bone (half the arm's turn), handing over to the
-     upper arm within 10 cm down the arm and to the ribcage within 14 cm down the torso, so the armpit stretches
-     over a hand's width of skin instead of one row of triangles. */
+  /* The armpit: where each arm's skin meets the torso's, about 20 cm below the shoulder joint.
+     13 Nov 2026: Sam saw fins down the lats on the pulldown and presses: the arm side of the armpit followed the
+     upper arm fully while the torso side next to it stayed put. The first fix gave the torso skin near the
+     armpit the full shoulder-bone weight over 14 cm, which pushed the lats out like wings whenever the arms went
+     up (14 Nov: "freakishly wide lats", "a bat" on the hanging leg raise, the side delt hidden on raises).
+     Now both sides of the armpit seam carry a small, equal share of the shoulder bone (k = 0.2), the torso hands
+     back to the ribcage within 4 cm, and the arm hands over to the upper arm within 12 cm. Compared side by side
+     at k = 0, 0.2 and 0.4 (contact sheets, 14 Nov): 0 shows the fins, 0.4 the wings, 0.2 neither.
+     __SEAM is a test-only override for that comparison. */
+  const SP = globalThis.__SEAM || {k: 0.2, dArm: 0.12, dTorso: 0.04, drop: 0.06};
   const seam = {L: [], R: []};
   for (let t = 0; t < B.I.length; t += 3) {
     const gs = [B.grp[B.I[t]], B.grp[B.I[t + 1]], B.grp[B.I[t + 2]]], arm = gs.filter(g => g === 3 || g === 4);
     if (!arm.length || arm.length === 3 || gs.some(g => g >= 5)) continue;
-    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) seam[gs[q] === 3 ? 'L' : 'R'].push(B.I[t + q]);
+    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) { const k = gs[q] === 3 ? 'L' : 'R', v = B.I[t + q]; if (B.P[v * 3 + 1] < R.side[k].sh[1] - SP.drop) seam[k].push(v); }   // the armpit part only
   }
   const seamD = (p, k) => { const S = R.side[k]; if (V.len(V.sub(p, S.sh)) > 0.4) return 1; let d = 1; for (const q of seam[k]) { const dx = B.P[q * 3] - p[0], dy = B.P[q * 3 + 1] - p[1], dz = B.P[q * 3 + 2] - p[2], e = dx * dx + dy * dy + dz * dz; if (e < d) d = e; } return Math.sqrt(d); };
   for (let v = 0; v < nv; v++) {
@@ -1068,10 +1082,11 @@ function surface() {
     const sideOf = g >= 3 && g <= 8 ? (g % 2 ? 'L' : 'R') : p[0] >= 0 ? 'L' : 'R';
     if (g === 3 || g === 4) { // arm
       const k = g === 3 ? 'L' : 'R', S = R.side[k], u = chainU(p, [S.sh, S.el, S.wr, J['kn3' + k], J['tip' + k]]);
-      const a = Math.min(smooth01(-0.04, 0.12, u), smooth01(0, 0.10, seamD(p, k))), e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
-      add('cl' + k, 1 - a); add('ua' + k, a * (1 - e));
+      const aS = smooth01(0, SP.dArm, seamD(p, k)), a = Math.min(smooth01(-0.04, 0.12, u), aS), cs = SP.k + (1 - SP.k) * aS, e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
+      add('cl' + k, (1 - a) * cs); spine((1 - a) * (1 - cs)); add('ua' + k, a * (1 - e));
       const fore = a * e * (1 - f); if (q < 0.5) { add('fa' + k, fore * (1 - 2 * q)); add('tw' + k, fore * 2 * q); } else { add('tw' + k, fore * (2 - 2 * q)); add('hd' + k, fore * (2 * q - 1)); }
-      add('fg' + k, a * e * f);
+      const uM = LEN.ua + LEN.fa + LEN.palm + 0.45 * (LEN.hand - LEN.palm), f2 = smooth01(uM - 0.008, uM + 0.01, u);
+      add('fg' + k, a * e * f * (1 - f2)); add('fx' + k, a * e * f * f2);
     } else if (g >= 5) { // leg, hip, crotch
       const dd = (p[1] - J.hpL[1]) - 0.5 * (p[2] - J.hpL[2]), t = 1 - smooth01(-0.10, 0.03, dd);
       const legs = g === 9 || Math.abs(p[0]) < 0.03 ? [['L', smooth01(-0.03, 0.03, p[0])], ['R', 1 - smooth01(-0.03, 0.03, p[0])]] : [[sideOf, 1]];
@@ -1084,7 +1099,7 @@ function surface() {
       /* torso skin round the armpit follows the shoulder bone only partly, fading over 20 cm: a steep
          fade (v7 draft: full weight to 4.5 cm, gone by 15) folded the side of the chest into stripes when
          the arm moved */
-      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), 1 - smooth01(0, 0.14, seamD(p, sideOf)));
+      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), SP.k * (1 - smooth01(0, SP.dTorso, seamD(p, sideOf))));
       add('cl' + sideOf, c); spine(1 - c);
     }
     const list = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4), tot = list.reduce((s, x) => s + x[1], 0) || 1;
@@ -1670,6 +1685,12 @@ const INFO = {
   revcurl: {"muscles": {"forearms": 1, "biceps": 0.75}, "cues": ["Overhand grip on the bar, palms down", "Elbows pinned, wrists straight", "Curl without swinging; lower over 2 s"]},
   cablecrunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Kneel facing a high pulley, rope beside your head", "Curl the ribs down towards the hips; the hips stay put", "Pause, then let the spine lengthen over 2 s"]},
   shrugseat: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Sit at the end of a bench, tall, dumbbells hanging beside it", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
+  pushdownkneel: {"muscles": {"triceps": 1, "forearms": 0.2}, "cues": ["Kneel facing a high pulley, cable just in front of your face", "Elbows pinned to your sides", "Push to straight arms, back up to 90°, slowly"]},
+  ohtrikneel: {"muscles": {"triceps": 1, "forearms": 0.2, "abs": 0.15}, "cues": ["Kneel facing away from the pulley, about head height", "Elbows up beside your head, staying put", "Deep stretch behind the head, then extend fully"]},
+  katana: {"muscles": {"triceps": 1, "forearms": 0.2, "rdelt": 0.15}, "cues": ["Between two towers, facing away; cables crossed, pulleys at chest height", "Hands behind the head, elbows up", "Extend up and out, each arm in line with its cable"]},
+  cablerowmid: {"muscles": {"lats": 0.85, "upperback": 0.85, "rdelt": 0.4, "biceps": 0.5, "traps": 0.45, "forearms": 0.3}, "cues": ["Shoulder-width bar, overhand", "Elbows about 45° out, bar to the lower ribs", "Squeeze the shoulder blades, return over 2 s"]},
+  cablerowwide: {"muscles": {"upperback": 1, "rdelt": 0.6, "traps": 0.5, "lats": 0.45, "biceps": 0.4, "forearms": 0.3}, "cues": ["Wide bar, overhand", "Elbows out about 70°, bar to the lower chest", "Squeeze, then return over 2 s"]},
+  shrugincline: {"muscles": {"traps": 1, "upperback": 0.35, "forearms": 0.4}, "cues": ["Chest and stomach on a 45° incline bench, feet planted", "Arms hang straight down, palms in", "Shrug up towards the ears, pause, lower slowly"]},
   pullover: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Sit facing away from a high pulley, straight bar overhead", "Arms nearly straight; sweep the bar over and down to your lap with your lats", "Let it pull your arms back overhead for the stretch, slowly"]},
   dbrow: {"muscles": {"lats": 1, "upperback": 0.75, "rdelt": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Flat back, torso close to horizontal", "Row the dumbbell towards your hip", "Full stretch at the bottom"]},
   dip: {"muscles": {"triceps": 1, "chest": 0.85, "fdelt": 0.6}, "cues": ["Lean forward a little to load the chest", "Lower until the upper arms are level", "Elbows travel back, not out"]},
@@ -1707,8 +1728,9 @@ const INFO = {
 /* Order matters: the first match wins. 13 Nov 2026: "Seated cable row (close grip)" went to the close-grip
    bench, so cable rows now come first. */
 const MATCH = [
-  [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
-  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
+  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
   [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
@@ -1719,8 +1741,11 @@ const MATCH = [
 ];
 /* Variations of one movement (13 Nov 2026, Sam asked for a toggle where an exercise has variants). The name
    picks the default; the lift widget lets him switch and remembers it per exercise. */
-const VARIANTS = [[['pullover', 'Seated, bar'], ['straightarm', 'Standing, rope']], [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']],
-  [['shrugseat', 'Seated'], ['shrug', 'Standing']], [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']]];
+const VARIANTS = [[['pullover', 'Incline bench, bar'], ['straightarm', 'Standing, rope']], [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']],
+  [['shrugseat', 'Seated'], ['shrug', 'Standing'], ['shrugincline', 'Chest on a bench']], [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']],
+  // 14 Nov 2026
+  [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']], [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']],
+  [['cablerow', 'Close'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide']], [['legpress', 'Leg press'], ['squat', 'Back squat']]];
 const variantsOf = k => (VARIANTS.find(g => g.some(([x]) => x === k)) || []).map(([key, label]) => ({key, label}));
 const moveFor = name => { const n = String(name || '').toLowerCase(); for (const [re, k] of MATCH) if (re.test(n)) return k; return 'stand'; };
 const EX = {};
@@ -1746,7 +1771,9 @@ function ik2(R, H, L1, L2, pole) {
   const up = V.norm(V.add(V.sc(dn, Math.cos(a)), V.sc(pp, Math.sin(a)))), E = V.add(R, V.sc(up, L1));
   return {up, fore: V.norm(V.sub(H, E)), E};
 }
-const GRIP = 0.075;   // wrist to the middle of a closed grip, along the hand
+/* Where a closed hand holds a bar, from the wrist (14 Nov 2026): measured on the physique body's fist, which
+   sits closer to the wrist than the old jointed hand's did (bars and dumbbell handles showed below the fingers). */
+const GRIP = 0.052, GX = -0.026;
 // arms to grip points (world, left then right), with world elbow poles; returns the pose's arm fields
 function armsTo(pose, gripL, gripR, poleL, poleR, extra = {}) {
   const B = solve(pose), out = {};
@@ -1774,9 +1801,9 @@ const pressArm = (up, fore, palm, crease, extra = {}) => ({up, fore, palm, creas
 const pad = (c, h, rot) => ['world', 'B', c, h, 0.025, {mat: 'pad', ...(rot ? {rot} : {})}];
 const tube = (a, b, r = 0.025) => ['world', 'Y', a, b, r, {mat: 'steel'}];
 const db = bone => [   // a dumbbell in the hand: handle across the palm, two iron heads
-  [bone, 'Q', [-0.022, -0.078, -0.07], [-0.022, -0.078, 0.07], 0.014, 0.003, {mat: 'steel'}],
-  [bone, 'Q', [-0.022, -0.078, 0.065], [-0.022, -0.078, 0.125], 0.052, 0.008, {mat: 'iron'}],
-  [bone, 'Q', [-0.022, -0.078, -0.065], [-0.022, -0.078, -0.125], 0.052, 0.008, {mat: 'iron'}]];
+  [bone, 'Q', [GX, -GRIP, -0.07], [GX, -GRIP, 0.07], 0.014, 0.003, {mat: 'steel'}],
+  [bone, 'Q', [GX, -GRIP, 0.065], [GX, -GRIP, 0.125], 0.052, 0.008, {mat: 'iron'}],
+  [bone, 'Q', [GX, -GRIP, -0.065], [GX, -GRIP, -0.125], 0.052, 0.008, {mat: 'iron'}]];
 
 /* ---- Incline dumbbell press, bench at 30° ----
    Footage cues: back flat on the pad, shoulder blades pinned, feet planted wide. Bottom: dumbbells beside the
@@ -1861,13 +1888,15 @@ demo('machpress', {
     p = legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1]);
     const C = solve(p).chest, e = ease(k);
     const up = slerpV(V.norm(fDir(C, [0.72, -0.4, -0.56])), V.norm(fDir(C, [0.12, -0.14, 1])), e), fore = slerpV(V.norm(fDir(C, [-0.06, 0.02, 1])), V.norm(fDir(C, [-0.04, -0.1, 1])), e);
-    p = {...p, arm: pressArm(up, fore, fDir(C, [-0.1, -1, 0.05]), fDir(C, [-1, 0.1, 0.4]), {clav: p.arm.clav, wrist: [-25, 0]})};
+    p = {...p, arm: pressArm(up, fore, fDir(C, [-0.1, -1, 0.05]), fDir(C, [-1, 0.1, 0.4]), {clav: p.arm.clav})};
     const B = solve(p), gL = gripOf(B, 'L');
     // levers: from a pivot on the frame above and behind each shoulder down to its handle
     const fr = {}, segs = [];
     for (const [s, g] of [['L', gL], ['R', gripOf(B, 'R')]]) {
       const piv = [s === 'L' ? 0.3 : -0.3, 1.58, -0.3];
-      fr['handle' + s] = F(g, [1, 0, 0], [0, 1, 0], [0, 0, 1]); segs.push([piv, V.add(g, [s === 'L' ? 0.09 : -0.09, 0, 0]), 0.022]);
+      // the handle runs through the closed hand (14 Nov 2026: it sat above the fingers), the lever meets its outer end
+      let hz = B['hand' + s].z; if (V.dot(hz, [s === 'L' ? 1 : -1, 0, 0]) < 0) hz = V.sc(hz, -1);
+      fr['handle' + s] = frameX(g, s === 'L' ? hz : V.sc(hz, -1)); segs.push([piv, V.add(g, V.sc(hz, 0.09)), 0.022]);
     }
     return {pose: p, frames: fr, segs};
   }
@@ -1883,12 +1912,12 @@ function slerpV(a, b, k) {
   return V.sc(rot(na, ax, ang * k), lerp1(la, lb, k));
 }
 const arcAbout = (P, a, b, k) => V.add(P, slerpV(V.sub(a, P), V.sub(b, P), k));
-const gripOf = (B, s) => fAt(B['hand' + s], [-0.022, -0.078, 0]);
+const gripOf = (B, s) => fAt(B['hand' + s], [GX, -GRIP, 0]);
 // a frame at o whose x runs along dir, y as close to up as it can be
 const frameX = (o, dir) => { const x = V.norm(dir), y0 = Math.abs(x[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0], z = V.norm(V.cross(x, y0)); return F(o, x, V.cross(z, x), z); };
 const frameW = o => F(o, [1, 0, 0], [0, 1, 0], [0, 0, 1]);
 const seat = (z = 0, y = 0.43) => [pad([0, y, z], [0.19, 0.035, 0.18]), tube([0, 0.0, z], [0, y - 0.03, z], 0.035), tube([-0.22, 0.02, z], [0.22, 0.02, z], 0.03)];
-const dHandle = bone => [bone, 'Q', [-0.022, -0.078, -0.06], [-0.022, -0.078, 0.06], 0.015, {mat: 'steel'}];
+const dHandle = bone => [bone, 'Q', [GX, -GRIP, -0.06], [GX, -GRIP, 0.06], 0.015, {mat: 'steel'}];
 const vHandle = fr => [fr, 'Y', [0, -0.075, 0], [0, 0.075, 0], 0.018, {mat: 'pad'}];
 const SIT_FEET = p => legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1]);
 // right-side copy of a left-side point or direction given in a frame's terms
@@ -2076,7 +2105,7 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
   demo('legpress', {
     cam: {yaw: 68, pitch: 14, dist: 4.4, target: [0, 0.75, 0.35]}, tempo: [1.0, 0.4, 2.2, 0.4],
     props: [pad([0, 0.39, -0.02], [0.2, 0.035, 0.17], [-8, 0, 0]), ['world', 'B', backC, [0.18, 0.34, 0.035], 0.025, {mat: 'pad', rot: [-52, 0, 0]}],
-      tube([0, 0.0, -0.05], [0, 0.36, -0.05], 0.04), tube(V.add(backC, [0, -0.2, -0.15]), [0, 0, -0.55], 0.04),
+      tube([0, 0.0, -0.05], [0, 0.36, -0.05], 0.04), tube(V.add(backC, [0, -0.788 * 0.06, -0.616 * 0.06]), [0, 0, backC[2] - 0.28], 0.04), tube([0, 0.02, backC[2] - 0.28], [0, 0.02, -0.05], 0.035),   // the pad's back face, rot −52°: normal (0, 0.788, 0.616)
       tube(V.add(V.add(P0, [0.38, 0, 0]), V.sc(n, -0.25)), V.add(V.add(P0, [0.38, 0, 0]), V.sc(n, 0.6)), 0.03), tube(V.add(V.add(P0, [-0.38, 0, 0]), V.sc(n, -0.25)), V.add(V.add(P0, [-0.38, 0, 0]), V.sc(n, 0.6)), 0.03),
       ['sled', 'B', [0, 0, 0.022], [0.33, 0.3, 0.02], 0.01, {mat: 'iron'}], ['sled', 'Q', [0.36, 0.05, 0.02], [0.36, 0.05, 0.12], 0.05, {mat: 'steel'}], ['sled', 'Q', [-0.36, 0.05, 0.02], [-0.36, 0.05, 0.12], 0.05, {mat: 'steel'}]],
     frames: ['sled'],
@@ -2092,19 +2121,21 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
 
 /* ---- Romanian deadlift (barbell) ----
    Footage cues: knees soft and staying put, push the hips straight back, bar sliding down the thighs to
-   mid-shin, spine neutral and chest proud, eyes a little ahead on the floor. Stand by driving the hips forward. */
+   mid-shin, spine neutral and chest proud, eyes a little ahead on the floor. Stand by driving the hips forward.
+   14 Nov 2026, Sam: the bar went through the legs and the top looked like leaning back. Now the top is tall with
+   a slight forward hinge and the bar against the front of the thighs; the bar comes in to mid-foot as it lowers. */
 {
-  const BAR_Z = 0.07;
+  const BAR_TOP = 0.15, BAR_BOT = 0.08;
   demo('rdl', {
     cam: {yaw: 74, pitch: 8, dist: 4.0, target: [0, 0.82, 0]}, tempo: [1.1, 0.5, 2.4, 0.3],
     props: [...barbell('bar')], frames: ['bar'],
     pose(t) {
-      const k = phaseK(t, this.tempo), pitch = lerp1(72, 2, ease(k));
-      let p = {root: {p: [0, lerp1(0.855, 0.95, k), 0], pitch}, spine: [lerp1(-3, 0, k), lerp1(-6, 0, k)], neck: lerp1(-20, 0, k), head: lerp1(-6, 0, k), arm: {clav: [lerp1(-6, 0, k), lerp1(6, 0, k)]}};
-      // hips go back until the shoulders sit over the bar: the bar stays on the legs
-      const S0 = solve(p).upperL.o; p.root.p = [0, p.root.p[1], BAR_Z - (S0[2] - p.root.p[2]) - 0.01];
+      const k = phaseK(t, this.tempo), e = ease(k), pitch = lerp1(66, 9, e), BAR_Z = lerp1(BAR_BOT, BAR_TOP, e);
+      let p = {root: {p: [0, lerp1(0.87, 0.94, e), 0], pitch}, spine: [lerp1(-4, -1, e), lerp1(-8, -2, e)], neck: lerp1(-22, -6, e), head: lerp1(-6, 0, e), arm: {clav: [lerp1(-6, -2, e), lerp1(6, 0, e)]}};
+      // hips go back until the shoulders sit just ahead of the bar: the bar stays on the legs
+      const S0 = solve(p).upperL.o; p.root.p = [0, p.root.p[1], BAR_Z - (S0[2] - p.root.p[2]) - lerp1(0.04, 0.02, e)];
       p = legsTo(p, [0.11, 0.067, 0.0], [0.05, 0, 1], [0.12, 0, 1]);
-      const B1 = solve(p), S = B1.upperL.o, g = [0.24, S[1] - 0.6, BAR_Z], C = B1.chest;
+      const B1 = solve(p), S = B1.upperL.o, g = [0.24, S[1] - 0.58, BAR_Z], C = B1.chest;
       p = armsTo(p, g, mirP(g), fDir(C, [0.3, 0, -1]), V.mx(fDir(C, [0.3, 0, -1])), {arm: {palm: fDir(C, [0, 0, -1])}, armR: {palm: V.mx(fDir(C, [0, 0, -1]))}});
       const B = solve(p), m = V.lerp(gripOf(B, 'L'), gripOf(B, 'R'), 0.5);
       return {pose: p, frames: {bar: frameW(m)}};
@@ -2115,17 +2146,19 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
 /* ---- Bulgarian split squat (dumbbells) ----
    Footage cues: back foot on the bench, laces down; front foot far enough out that the front shin stays
    close to vertical. Drop the back knee straight down towards the floor with a slight forward lean, then
-   drive up through the whole front foot. Dumbbells hang at the sides. */
+   drive up through the whole front foot. Dumbbells hang at the sides. 14 Nov 2026, Sam: the top looked like a
+   jump (the front leg ran out of length and the foot pointed) and the back foot went into the bench; the
+   bench now runs across, the laces rest on its front edge, and the top stops with the front knee soft. */
 {
-  const FRONT = [0.11, 0.067, 0.33], BACK = [-0.11, 0.535, -0.56];
+  const FRONT = [0.11, 0.067, 0.3], BACK = [-0.11, 0.53, -0.47];
   demo('splitsquat', {
     cam: {yaw: 76, pitch: 8, dist: 4.0, target: [0, 0.75, -0.1]}, tempo: [1.1, 0.4, 2.2, 0.4],
-    props: [pad([-0.05, 0.43, -0.62], [0.17, 0.035, 0.3]), tube([-0.05, 0, -0.42], [-0.05, 0.4, -0.42], 0.035), tube([-0.05, 0, -0.82], [-0.05, 0.4, -0.82], 0.035), ...db('handL'), ...db('handR')],
+    props: [pad([-0.1, 0.43, -0.6], [0.45, 0.035, 0.15]), tube([0.25, 0, -0.6], [0.25, 0.4, -0.6], 0.035), tube([-0.45, 0, -0.6], [-0.45, 0.4, -0.6], 0.035), tube([0.25, 0.02, -0.75], [0.25, 0.02, -0.45], 0.03), tube([-0.45, 0.02, -0.75], [-0.45, 0.02, -0.45], 0.03), ...db('handL'), ...db('handR')],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = {root: {p: [0, lerp1(0.585, 0.87, ease(k)), lerp1(-0.07, 0.0, k)], pitch: lerp1(13, 5, k)}, spine: [lerp1(2, 0, k), 2], neck: lerp1(-8, -3, k), arm: {clav: [-4, 0]}};
+      let p = {root: {p: [0, lerp1(0.585, 0.81, ease(k)), lerp1(-0.07, -0.02, k)], pitch: lerp1(13, 6, k)}, spine: [lerp1(2, 0, k), 2], neck: lerp1(-8, -3, k), arm: {clav: [-4, 0]}};
       p = legsTo(p, FRONT, [0.08, 0, 1], [0.1, 0, 1]);
-      p = legR(p, solve(p), BACK, [0, -1, 0.25], V.norm([0, -0.45, -1]));
+      p = legR(p, solve(p), BACK, [0, -1, 0.25], V.norm([0, -0.1, -1]));
       const B1 = solve(p), C = B1.chest, S = B1.upperL.o, g = V.add(S, [0.04, -0.6, 0.02]);
       p = armsTo(p, g, mirP(g), fDir(C, [0.2, 0, -1]), V.mx(fDir(C, [0.2, 0, -1])), {arm: {palm: fDir(C, [-1, 0, 0])}, armR: {palm: V.mx(fDir(C, [-1, 0, 0]))}});
       return {pose: p};
@@ -2164,7 +2197,7 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
   const BALL = [0.11, 0.125, 0.43], base = {root: {p: [0, 0.56, -0.08], pitch: 2}, spine: [4, 6], neck: -6};
   demo('seatedcalf', {
     cam: {yaw: 74, pitch: 10, dist: 3.4, target: [0, 0.55, 0.2]}, tempo: [0.9, 1.0, 1.6, 1.0],
-    props: [pad([0, 0.47, -0.08], [0.2, 0.035, 0.18]), tube([0, 0, -0.08], [0, 0.44, -0.08], 0.035), ['world', 'B', [0, 0.06, 0.47], [0.25, 0.06, 0.08], 0.01, {mat: 'iron'}],
+    props: [pad([0, 0.44, -0.08], [0.2, 0.035, 0.18]), tube([0, 0, -0.08], [0, 0.41, -0.08], 0.035), ['world', 'B', [0, 0.06, 0.47], [0.25, 0.06, 0.08], 0.01, {mat: 'iron'}],   // seat top 8.5 cm under the pelvis, like the others (14 Nov 2026: the hips sank into it)
       ['kpad', 'Y', [-0.24, 0, 0], [0.24, 0, 0], 0.045, {mat: 'pad'}], tube([0, 0, 0.62], [0, 0.85, 0.62], 0.045)],
     frames: ['kpad'],
     pose(t) {
@@ -2215,8 +2248,8 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
     cam: {yaw: 72, pitch: 14, dist: 3.9, target: [0, 0.75, -0.05]}, tempo: [1.0, 0.6, 1.8, 0.3],
     props: [['world', 'B', V.add(mid, V.sc(n, -0.03)), [0.15, 0.035, 0.66], 0.025, {mat: 'pad', rot: [-17.1, 0, 0]}],
       tube([0, 0, 0.4], [0, sY(0.4) - 0.04, 0.4], 0.035), tube([0, 0, -0.6], [0, sY(-0.6) - 0.04, -0.6], 0.035),
-      ['world', 'Y', [-0.17, RA[1], RA[2]], [0.17, RA[1], RA[2]], 0.045, {mat: 'pad'}], ['world', 'Y', [-0.17, RB[1], RB[2]], [0.17, RB[1], RB[2]], 0.045, {mat: 'pad'}],
-      tube([0, sY(0.5) - 0.04, 0.5], RA, 0.03), tube(RA, RB, 0.03),
+      ['world', 'Y', [-0.21, RA[1], RA[2]], [0.21, RA[1], RA[2]], 0.045, {mat: 'pad'}], ['world', 'Y', [-0.21, RB[1], RB[2]], [0.21, RB[1], RB[2]], 0.045, {mat: 'pad'}],
+      tube([0.21, sY(0.5) - 0.04, 0.5], [0.21, RA[1], RA[2]], 0.03), tube([-0.21, sY(0.5) - 0.04, 0.5], [-0.21, RA[1], RA[2]], 0.03), tube([0.21, RA[1], RA[2]], [0.21, RB[1], RB[2]], 0.03), tube([-0.21, RA[1], RA[2]], [-0.21, RB[1], RB[2]], 0.03),   // at the sides: the knees went through the middle post (14 Nov 2026)
       ['chest', 'Q', [0, 0.12, 0.13], [0, 0.12, 0.16], 0.15, {mat: 'iron'}], ['chest', 'Q', [0, 0.12, 0.159], [0, 0.12, 0.163], 0.03, {mat: 'steel'}]],
     pose(t) {
       const k = phaseK(t, this.tempo);
@@ -2237,18 +2270,21 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
 /* ---- Seated dumbbell shoulder press ----
    Footage cues: bench upright, back and head on the pad. Start with the dumbbells at about ear height,
    forearms vertical, elbows a little in front of the body (not flared straight out). Press up and slightly in
-   to just short of lockout over the shoulders; lower for 2 s. */
+   to just short of lockout over the shoulders; lower for 2 s. 14 Nov 2026, Sam: "the worst one": the forearms
+   weren't stacked and the dumbbells turned in. Now authored like the other presses: the upper arm 25° in front
+   of the shoulder line, the forearm vertical under the dumbbell, the handles level across, palms forward. */
 {
-  const base = {root: {p: [0, 0.545, 0.02], pitch: -7}, spine: [-2, -4], neck: 4};
+  const base = {root: {p: [0, 0.55, 0.02], pitch: -7}, spine: [-2, -4], neck: 4};
   const B0 = solve(SIT_FEET(base));
   demo('ohp', {
     cam: {yaw: 34, pitch: 10, dist: 3.9, target: [0, 1.15, 0.05]}, tempo: [1.0, 0.4, 2.2, 0.4],
-    props: [...seat(0.02), ['world', 'B', fAt(B0.chest, [0, 0.14, -0.145]), [0.16, 0.38, 0.035], 0.025, {mat: 'pad', rot: [-11, 0, 0]}], tube([0, 0.42, -0.2], [0, 0.0, -0.4], 0.035), ...db('handL'), ...db('handR')],
+    props: [...seat(0.02, 0.415), ['world', 'B', fAt(B0.chest, [0, 0.14, -0.145]), [0.16, 0.38, 0.035], 0.025, {mat: 'pad', rot: [-11, 0, 0]}], tube([0, 0.42, -0.2], [0, 0.0, -0.4], 0.035), ...db('handL'), ...db('handR')],
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = SIT_FEET({...base, arm: {clav: [lerp1(4, 16, k), lerp1(2, 6, k)]}});
-      const C = solve(p).chest, gL = fAt(C, V.lerp([0.27, 0.33, 0.08], [0.14, 0.83, 0.05], ease(k))), pole = V.norm(V.lerp(fDir(C, [1, -1, -0.35]), fDir(C, [1, -0.25, -0.1]), k));
-      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.05, 1])}, armR: {palm: V.mx(fDir(C, [0, 0.05, 1]))}});
+      const C = solve(p).chest, e = ease(k);
+      const up = slerpV(V.norm(fDir(C, [0.86, -0.22, 0.4])), V.norm([-0.08, 1, 0.03]), e), fore = slerpV([0, 1, 0], V.norm([-0.1, 1, 0.02]), e);
+      p = {...p, arm: pressArm(up, fore, V.norm([0, 0, 1]), V.norm([-1, 0.1, 0.5]), {clav: p.arm.clav})};
       return {pose: p};
     }
   });
@@ -2269,7 +2305,8 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = STAND({root: {p: [0, 0.94, -0.02], pitch: 8}, spine: [2, 3], neck: -6, arm: {clav: [-4, -2]}});
-      const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.14]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.2, -1]), k);
+      // straight arms at the bottom put the hands 10 cm in front of the thighs, so the bar and cable stay clear (14 Nov 2026)
+      const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.34]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.34, -1]), k);
       p = {...p, arm: armFix(C, [0.1, -1, 0.07], fo, palm, {clav: [-4, -2]})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[TOP, m, 0.006]]};
@@ -2281,9 +2318,11 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
    Footage cues: face away from the pulley in a split stance, lean forward, elbows up beside your head and
    pointing forward. Let the rope pull your hands back behind your head for a deep stretch, then extend fully
    in line with the upper arms. Elbows stay where they are, pointing forward: the elbow's bend is pinned to
-   the back of the head, so it can't flip as the arm straightens (13 Nov 2026, Sam: "the elbows invert"). */
+   the back of the head, so it can't flip as the arm straightens (13 Nov 2026, Sam: "the elbows invert").
+   The pulley is high (2 m) and behind, so the cable comes down over the head to the rope rather than through
+   it (14 Nov 2026). */
 {
-  const LOW = [0, 1.18, -0.78];
+  const LOW = [0, 1.98, -0.72];
   demo('ohtri', {
     cam: {yaw: 70, pitch: 8, dist: 4.4, target: [0, 1.2, -0.05]}, tempo: [1.0, 0.5, 2.2, 0.4],
     props: [tube([0, 0, -0.98], [0, 2.2, -0.98], 0.045), tube([0, LOW[1], -0.98], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
@@ -2353,7 +2392,7 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
    Lean the chest forward a little and lower until the upper arms are about level with the bars; elbows go back,
    not out. Knees bent, ankles crossed behind. Press back up to straight arms. */
 {
-  const HAND = [0.255, 1.3, 0.04];
+  const HAND = [0.27, 1.27, 0.04];   // on the bar itself, so the closed hand wraps it (14 Nov 2026)
   demo('dip', {
     cam: {yaw: 58, pitch: 6, dist: 4.4, target: [0, 1.2, 0]}, tempo: [1.8, 0.4, 1.0, 0.5],
     props: [tube([0.27, 1.27, -0.38], [0.27, 1.27, 0.42], 0.022), tube([-0.27, 1.27, -0.38], [-0.27, 1.27, 0.42], 0.022),
@@ -2417,20 +2456,21 @@ demo('shrug', {
 });
 
 /* ---- Cable upright row (straight bar) ----
-   Cues: face a low pulley, hands a little narrower than shoulder-width, palms towards you. Lead with the elbows
-   and draw the bar up close to the body until the elbows reach shoulder height; the hands stay below the
-   elbows. Lower over 2 s. */
+   Cues (Jeff Nippard's upright-row fix, checked 14 Nov 2026): stand just behind the pulley, grip 1 to 1.5 times
+   shoulder width (wider works the side delts more), palms towards you. Lead with the elbows, "row out and up",
+   bar close to the body, and stop when the elbows reach shoulder height; the hands stay below the elbows.
+   Lower over 2 s. Was: hands narrower than the shoulders and the pulley 60 cm away. */
 {
-  const PUL = [0, 0.08, 0.6];
+  const PUL = [0, 0.08, 0.24];
   demo('uprow', {
     cam: {yaw: 34, pitch: 8, dist: 3.9, target: [0, 1.1, 0.12]}, tempo: [1.0, 0.4, 2.0, 0.4],
-    props: [tube([0, 0, 0.7], [0, 1.6, 0.7], 0.045), ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 0.75], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
-      ['bar', 'Y', [-0.25, 0, 0], [0.25, 0, 0], 0.014, {mat: 'steel'}]],
+    props: [tube([0, 0, 0.42], [0, 1.6, 0.42], 0.045), tube([0, PUL[1], 0.42], PUL, 0.03), ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 0.47], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      ['bar', 'Y', [-0.34, 0, 0], [0.34, 0, 0], 0.014, {mat: 'steel'}]],
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.95, -0.02], pitch: 4}, spine: [1, 1], neck: -2, arm: {clav: [lerp1(-4, 14, ease(k)), lerp1(4, -2, k)]}});
-      const C = solve(p).chest, gL = V.lerp([0.12, 0.8, 0.16], [0.11, 1.3, 0.17], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.2, -0.15]), fDir(C, [1, 0.55, -0.25]), k));
+      let p = STAND({root: {p: [0, 0.95, -0.05], pitch: -2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-4, 12, ease(k)), lerp1(4, -2, k)]}});
+      const C = solve(p).chest, gL = V.lerp([0.25, 0.8, 0.13], [0.24, 1.22, 0.15], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.3, -0.1]), fDir(C, [1, 0.35, -0.2]), k));
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.1, -1])}, armR: {palm: V.mx(fDir(C, [0, 0.1, -1]))}});
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[PUL, m, 0.006]]};
@@ -2483,13 +2523,17 @@ function cableCurl(key, o) {
     }
   });
 }
-cableCurl('curl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.06], th0: 6, th1: 128});
-cableCurl('revcurl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.06], th0: 6, th1: 118, over: true});
-cableCurl('facecurl', {low: [0, 0.05, -0.32], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, 0.0]}, lean: 7, foot: 0.2, up: [0.07, -1, -0.24], th0: 4, th1: 122});
+// th0, the bottom: the arms stay a few degrees short of straight, which keeps the bar in front of the thighs
+// instead of through them (14 Nov 2026, Sam: all three clipped at full extension)
+cableCurl('curl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.08], th0: 17, th1: 128});
+cableCurl('revcurl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.1], th0: 26, th1: 118, over: true});   // overhand: the grip sits behind the knuckles, so a little more forearm angle
+cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, 0.0]}, lean: 7, foot: 0.24, up: [0.07, -1, -0.06], th0: 27, th1: 122});   // a bar can't pass the thighs, so the elbows sit only just behind the body
 
 /* ---- Preacher curl (straight bar) ----
    Cues: sit with the armpits snug over the top of the pad, the backs of the upper arms flat on it. Lower until
-   the arms are almost straight (not locked), curl up until the forearms are vertical; the elbows never lift. */
+   the arms are almost straight (not locked), curl up until the forearms are vertical; the elbows never lift.
+   14 Nov 2026: the bottom stops at 30° short of straight (it looked like the elbows bent backwards), and the seat
+   sits lower so the hips rest on it rather than in it. */
 {
   const base = {root: {p: [0, 0.6, -0.04], pitch: 14}, spine: [4, 6], neck: -8, arm: {clav: [6, 8]}};
   const legs = p => legsTo(p, [0.16, 0.075, 0.38], [0.2, 0.3, 1], [0.15, 0, 1]);
@@ -2498,12 +2542,12 @@ cableCurl('facecurl', {low: [0, 0.05, -0.32], cam: {yaw: 64, pitch: 8, dist: 4.0
   const tilt = Math.atan2(UP[2], -UP[1]) / D2R;
   demo('preacher', {
     cam: {yaw: 64, pitch: 10, dist: 3.6, target: [0, 0.95, 0.2]}, tempo: [1.0, 0.4, 2.4, 0.4],
-    props: [pad([0, 0.56, -0.08], [0.18, 0.035, 0.17]), tube([0, 0, -0.08], [0, 0.53, -0.08], 0.035),
+    props: [pad([0, 0.48, -0.08], [0.18, 0.035, 0.17]), tube([0, 0, -0.08], [0, 0.45, -0.08], 0.035),
       ['world', 'B', padC, [0.22, 0.03, 0.17], 0.03, {mat: 'pad', rot: [90 - tilt, 0, 0]}], tube(V.add(padC, V.sc(PADN, -0.03)), [0, 0, padC[2] + 0.08], 0.035),
       ['bar', 'Y', [-0.25, 0, 0], [0.25, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.25, 0, 0], [0.3, 0, 0], 0.08, {mat: 'iron'}], ['bar', 'Q', [-0.25, 0, 0], [-0.3, 0, 0], 0.08, {mat: 'iron'}]],
     frames: ['bar'],
     pose(t) {
-      const k = phaseK(t, this.tempo), ph = lerp1(14, 118, ease(k)) * D2R;
+      const k = phaseK(t, this.tempo), ph = lerp1(30, 118, ease(k)) * D2R;
       let p = legs(base);
       const up = UP, bend = V.norm(V.cross(up, [1, 0, 0]));   // bend: the way the forearm folds, up off the pad
       const fore = V.norm(V.add(V.sc(up, Math.cos(ph)), V.sc(bend, Math.sin(ph)))), palm = V.norm(V.add(V.sc(up, -Math.sin(ph)), V.sc(bend, Math.cos(ph))));
@@ -2515,8 +2559,10 @@ cableCurl('facecurl', {low: [0, 0.05, -0.32], cam: {yaw: 64, pitch: 8, dist: 4.0
 }
 
 /* ---- Kneeling cable crunch (rope) ----
-   Cues: kneel facing a high pulley, rope held beside your head. Keep the hips where they are and curl the ribs
-   down towards the hips, elbows heading for the thighs; pause, then let the spine lengthen over 2 s. */
+   Cues: kneel facing a high pulley, rope over the top of the head, hands holding the ends behind it. Keep the
+   hips where they are and curl the ribs down towards the hips, elbows heading for the thighs; pause, then let
+   the spine lengthen over 2 s. 14 Nov 2026, Sam: hold it behind the head with the cable clear of it, and curl
+   further. The rope's knot sits above the forehead, so the cable comes down in front of the face. */
 {
   const TOP = [0, 2.2, 0.62];
   demo('cablecrunch', {
@@ -2525,13 +2571,13 @@ cableCurl('facecurl', {low: [0, 0.05, -0.32], cam: {yaw: 64, pitch: 8, dist: 4.0
       ['world', 'B', [0, 0.45, 0.86], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['world', 'B', [0, 0.015, -0.05], [0.28, 0.015, 0.3], 0.01, {mat: 'pad'}]],
     pose(t) {
       const k = phaseK(t, this.tempo), e = ease(k);
-      let p = {root: {p: [0, 0.53, 0.0], pitch: lerp1(16, 24, e)}, spine: [lerp1(0, 22, e), lerp1(4, 30, e)], neck: lerp1(-4, 14, e), head: lerp1(0, 6, e)};
+      let p = {root: {p: [0, 0.53, 0.0], pitch: lerp1(14, 24, e)}, spine: [lerp1(0, 27, e), lerp1(4, 37, e)], neck: lerp1(-6, 14, e), head: lerp1(0, 8, e)};
       // kneeling: thighs nearly upright, shins flat on the mat behind
       p = legsTo(p, [0.12, 0.1, -0.4], [0.05, -0.2, 1], V.norm([0.05, -1, -0.25]));
-      const H = solve(p).head, gL = fAt(H, [0.08, -0.02, 0.06]), gR = fAt(H, [-0.08, -0.02, 0.06]), C = solve(p).chest;
-      p = armsTo(p, gL, gR, fDir(C, [0.5, -1, 0.35]), fDir(C, [-0.5, -1, 0.35]), {arm: {palm: fDir(C, [-1, 0, 0])}, armR: {palm: fDir(C, [1, 0, 0])}});
-      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), mid = V.lerp(a, b, 0.5), m = V.add(mid, V.sc(V.norm(V.sub(TOP, mid)), 0.16));
-      return {pose: p, segs: [[TOP, m, 0.006], [m, a, 0.011], [m, b, 0.011]]};
+      const H = solve(p).head, gL = fAt(H, [0.085, 0.02, -0.07]), gR = fAt(H, [-0.085, 0.02, -0.07]), C = solve(p).chest;
+      p = armsTo(p, gL, gR, fDir(C, [0.6, -0.6, 0.5]), fDir(C, [-0.6, -0.6, 0.5]), {arm: {palm: fDir(C, [-1, 0, 0])}, armR: {palm: fDir(C, [1, 0, 0])}});
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = fAt(B.head, [0, 0.17, 0.1]);   // the knot: over the forehead
+      return {pose: p, segs: [[TOP, m, 0.006], [m, fAt(B.head, [0.07, 0.12, 0.0]), 0.011], [fAt(B.head, [0.07, 0.12, 0.0]), a, 0.011], [m, fAt(B.head, [-0.07, 0.12, 0.0]), 0.011], [fAt(B.head, [-0.07, 0.12, 0.0]), b, 0.011]]};
     }
   });
 }
@@ -2554,28 +2600,177 @@ cableCurl('facecurl', {low: [0, 0.05, -0.32], cam: {yaw: 64, pitch: 8, dist: 4.0
   });
 }
 
-/* ---- Seated cable pullover (straight bar) ----
-   Sam's preferred pullover (13 Nov 2026): sit on a flat bench facing away from a high pulley, the bar overhead.
-   Arms nearly straight, sweep the bar over and down in front to the lap with the lats, then let it draw the
-   arms back overhead for the stretch. The pulley is high and just behind the head, so the cable runs down past
-   the forehead rather than through it. */
+/* ---- Cable pullover, back on an incline bench (straight bar) ----
+   Sam's preferred pullover (13 Nov 2026): facing away from a high pulley, bar overhead. 14 Nov: the back is
+   supported, on a bench set to about 55° (leaning back 35° from upright). Arms nearly straight, sweep the bar
+   over and down to the lap with the lats, then let it draw the arms back overhead, in line with the body, for the
+   stretch. The pulley is high behind the bench, so the cable passes above the face. */
 {
-  const TOP = [0, 2.3, -0.17], base = {root: {p: [0, 0.545, 0.02], pitch: -4}, spine: [-1, -2], neck: 6, head: 4};
-  const B0 = solve(SIT_FEET(base)), S0 = B0.upperL.o, dS = V.norm([0.05, 0.96, -0.2]), dE = V.norm([0.06, -0.55, 0.83]);
+  const REC = -35, TOP = [0, 2.25, -0.85], base = {root: {p: [0, 0.545, 0.02], pitch: REC}, spine: [-1, -2], neck: 26, head: 6};
+  const B0 = solve(SIT_FEET(base)), C0 = B0.chest, S0 = B0.upperL.o, dS = V.norm([0.04, Math.cos(-REC * D2R), -Math.sin(-REC * D2R) - 0.1]), dE = V.norm([0.06, -0.45, 0.89]);
+  const backC = fAt(C0, [0, 0.06, -0.16]), BN = V.norm(fDir(C0, [0, 0, -1]));   // the backrest under the back, and its back face
   demo('pullover', {
-    cam: {yaw: 70, pitch: 10, dist: 4.3, target: [0, 1.1, 0.0]}, tempo: [1.0, 0.5, 2.2, 0.4],
-    props: [pad([0, 0.43, -0.05], [0.14, 0.035, 0.55]), tube([0, 0, -0.45], [0, 0.4, -0.45], 0.035), tube([0, 0, 0.35], [0, 0.4, 0.35], 0.035),
-      tube([0, 0, -0.62], [0, 2.38, -0.62], 0.045), tube([0, 2.36, -0.62], [0, 2.36, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
-      ['world', 'B', [0, 0.45, -0.67], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.3, 0, 0], [0.3, 0, 0], 0.014, {mat: 'steel'}]],
+    cam: {yaw: 70, pitch: 10, dist: 4.3, target: [0, 1.0, -0.1]}, tempo: [1.0, 0.5, 2.2, 0.4],
+    props: [pad([0, 0.43, 0.02], [0.17, 0.035, 0.2]), tube([0, 0, 0.05], [0, 0.4, 0.05], 0.035), tube([-0.2, 0.02, 0.05], [0.2, 0.02, 0.05], 0.03),
+      ['world', 'B', backC, [0.17, 0.36, 0.035], 0.025, {mat: 'pad', rot: [REC, 0, 0]}], tube(V.add(backC, V.sc(BN, 0.05)), [0, 0.02, backC[2] - 0.25], 0.035), tube(V.add(backC, V.sc(BN, 0.05)), [0, 0.4, 0.02], 0.03),
+      tube([0, 0, -1.05], [0, 2.33, -1.05], 0.045), tube([0, 2.31, -1.05], [0, 2.31, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
+      ['world', 'B', [0, 0.45, -1.1], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.3, 0, 0], [0.3, 0, 0], 0.014, {mat: 'steel'}]],
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = SIT_FEET({...base, arm: {clav: [lerp1(16, -2, k), lerp1(6, -4, k)]}});
-      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, lerp1(0.6, 0.55, k))), [0.02, 0, 0]);
+      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, lerp1(0.58, 0.55, k))), [0.02, 0, 0]);
       const pole = V.norm(V.lerp(fDir(C, [0.8, 0.2, -0.6]), fDir(C, [0.7, 0, -1]), k));
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: slerpV(V.norm([0, 0.3, 1]), [0, -1, -0.1], k)}, armR: {palm: slerpV(V.norm([0, 0.3, 1]), [0, -1, -0.1], k)}});
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[TOP, m, 0.006]]};
+    }
+  });
+}
+
+/* ---------- DEMOS 7: variants Sam asked for on 14 Nov 2026 ----------
+   Kneeling pushdown and kneeling overhead extension (steadier), the katana extension (two cables), seated cable
+   row at three grip widths, the chest-supported shrug, and the back squat (the plan says "back squat or leg
+   press"; only the leg press had a demo). Each sits in a variant group in lifts.js, so the lift widget offers it
+   as a toggle. */
+
+// kneeling, thighs nearly upright, shins flat on the floor behind (as in the cable crunch)
+const KNEEL = p => legsTo(p, [0.12, 0.1, -0.4], [0.05, -0.2, 1], V.norm([0.05, -1, -0.25]));
+
+/* ---- Kneeling tricep pushdown (straight bar) ----
+   Cues: kneel facing a high pulley, close enough that the cable hangs just in front of your face. Elbows pinned
+   to your sides; push the bar down to straight arms in front of the thighs, then back up to 90°. Kneeling takes
+   the legs and the lean out of it. */
+{
+  const TOP = [0, 1.95, 0.55];
+  demo('pushdownkneel', {
+    cam: {yaw: 62, pitch: 8, dist: 4.0, target: [0, 0.9, 0.2]}, tempo: [0.9, 0.5, 2.0, 0.3],
+    props: [tube([0, 0, 0.78], [0, 2.1, 0.78], 0.045), tube([0, 2.02, 0.78], [0, 2.02, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
+      ['world', 'B', [0, 0.45, 0.82], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}], ['world', 'B', [0, 0.015, -0.1], [0.28, 0.015, 0.3], 0.01, {mat: 'pad'}], ['bar', 'Y', [-0.22, 0, 0], [0.22, 0, 0], 0.014, {mat: 'steel'}]],
+    frames: ['bar'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      let p = KNEEL({root: {p: [0, 0.53, 0.0], pitch: 6}, spine: [2, 2], neck: -4, arm: {clav: [-4, -2]}});
+      const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.34]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.34, -1]), k);
+      p = {...p, arm: armFix(C, [0.1, -1, 0.07], fo, palm, {clav: [-4, -2]})};
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[TOP, m, 0.006]]};
+    }
+  });
+}
+
+/* The overhead extension's forearm, in the upper arm's own front-to-back plane: folded behind the head (150°)
+   to almost straight. U is the upper arm in the chest's frame; N, the way the forearm folds. */
+const ohArm = (C, U, k, clav) => {
+  const N = V.norm(V.add([0, 0, -1], V.sc(U, U[2]))), ph = lerp1(150, 8, ease(k)) * D2R;
+  return armFix(C, U, V.add(V.sc(U, Math.cos(ph)), V.sc(N, Math.sin(ph))), [-1, 0, 0], {clav, crease: fDir(C, N)});
+};
+
+/* ---- Kneeling overhead cable triceps extension (rope) ----
+   Cues: kneel facing away from the pulley set about head height, lean forward a little, elbows up beside the
+   head. Let the rope draw the hands behind the head, then extend fully in line with the upper arms. */
+{
+  const TOP = [0, 1.62, -0.72];
+  demo('ohtrikneel', {
+    cam: {yaw: 70, pitch: 8, dist: 4.2, target: [0, 1.0, -0.1]}, tempo: [1.0, 0.5, 2.2, 0.4],
+    props: [tube([0, 0, -0.92], [0, 2.1, -0.92], 0.045), tube([0, TOP[1], -0.92], TOP, 0.03), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
+      ['world', 'B', [0, 0.45, -0.96], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}], ['world', 'B', [0, 0.015, -0.1], [0.28, 0.015, 0.3], 0.01, {mat: 'pad'}]],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      let p = KNEEL({root: {p: [0, 0.53, 0.02], pitch: 14}, spine: [4, 4], neck: -12, head: -4, arm: {clav: [14, 4]}});
+      const C = solve(p).chest; p = {...p, arm: ohArm(C, V.norm([0.12, 0.84, 0.48]), k, [14, 4])};
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.add(V.lerp(a, b, 0.5), V.sc(V.norm(V.sub(TOP, V.lerp(a, b, 0.5))), 0.1));
+      return {pose: p, segs: [[TOP, m, 0.006], [m, a, 0.011], [m, b, 0.011]]};
+    }
+  });
+}
+
+/* ---- Katana extension (two cables) ----
+   As described by JPG Coaching (gymky.com, 14 Nov 2026): stand between two cable towers facing away, two steps
+   forward, pulleys at chest height. Cross the cables: right hand to the left tower, left hand to the right.
+   Start with both hands behind the head, elbows up; extend up and out, each arm finishing in line with its
+   cable, like drawing two swords from behind the back. Upper arms stay put. */
+{
+  const PL = [0.85, 1.15, -0.5], PR = mirP(PL);   // left tower (his left), right tower
+  const tower = x => [tube([x, 0, -0.62], [x, 2.1, -0.62], 0.045), tube([x, 1.15, -0.62], [x, 1.15, -0.5], 0.03), ['world', 'Q', [x, 1.15, -0.515], [x, 1.15, -0.485], 0.05, {mat: 'steel'}], ['world', 'B', [x, 0.45, -0.66], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}]];
+  demo('katana', {
+    cam: {yaw: 150, pitch: 12, dist: 4.4, target: [0, 1.3, -0.2]}, tempo: [1.0, 0.5, 2.2, 0.4],
+    props: [...tower(PL[0]), ...tower(PR[0]), dHandle('handL'), dHandle('handR')],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      let p = STAND({root: {p: [0, 0.94, 0.04], pitch: 12}, spine: [2, 2], neck: -8, arm: {clav: [16, 2]}});
+      const C = solve(p).chest; p = {...p, arm: ohArm(C, V.norm([0.36, 0.86, 0.36]), k, [16, 2])};
+      const B = solve(p);
+      return {pose: p, segs: [[PR, gripOf(B, 'L'), 0.006], [PL, gripOf(B, 'R'), 0.006]]};   // crossed: left hand on the right tower's cable
+    }
+  });
+}
+
+/* ---- Seated cable row: shoulder-width bar and wide bar ----
+   Same seat, footplate and pulley as the close-grip row (demos5). A wider grip flares the elbows: shoulder
+   width (elbows about 45° out, to the lower ribs) shares the work between lats and upper back; wide (elbows
+   about 70° out, to the lower chest) is mostly upper back and rear delts. Overhand on the bar. */
+function rowBar(key, half, gS, gE, poleS, poleE) {
+  const PUL = [0, 0.42, 1.0];
+  demo(key, {
+    cam: {yaw: 62, pitch: 12, dist: 4.0, target: [0, 0.8, 0.35]}, tempo: [1.0, 0.5, 2.0, 0.4],
+    props: [pad([0, 0.4, -0.05], [0.17, 0.035, 0.32]), tube([0, 0.0, -0.05], [0, 0.37, -0.05], 0.035), tube([0, 0.02, -0.3], [0, 0.02, 1.0], 0.03),
+      ['world', 'B', [0, 0.3, 0.68], [0.18, 0.12, 0.02], 0.01, {mat: 'pad', rot: [-25, 0, 0]}], tube([0, 0, 1.06], [0, 1.6, 1.06], 0.045),
+      ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 1.1], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      ['bar', 'Y', [-half, 0, 0], [half, 0, 0], 0.014, {mat: 'steel'}]],
+    frames: ['bar'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      let p = {root: {p: [0, 0.5, lerp1(0.0, -0.04, k)], pitch: lerp1(14, -3, ease(k))}, spine: [lerp1(4, -2, k), lerp1(4, -4, k)], neck: lerp1(-8, 2, k), arm: {clav: [lerp1(2, -4, k), lerp1(16, -16, k)]}};
+      p = legsTo(p, [0.12, 0.33, 0.7], [0.15, 0.35, 1], [0.08, 0.55, 1]);
+      const C = solve(p).chest, gL = V.lerp(gS, gE, ease(k)), pole = V.norm(V.lerp(fDir(C, poleS), fDir(C, poleE), k));
+      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: [0, -1, 0]}, armR: {palm: [0, -1, 0]}});
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[PUL, m, 0.006]]};
+    }
+  });
+}
+rowBar('cablerowmid', 0.25, [0.2, 0.69, 0.64], [0.21, 0.9, 0.2], [0.45, -1, -0.2], [0.55, -0.55, -1]);
+rowBar('cablerowwide', 0.42, [0.34, 0.71, 0.62], [0.35, 0.97, 0.22], [0.8, -0.6, -0.2], [0.95, -0.15, -0.8]);
+
+/* ---- Chest-supported dumbbell shrug (incline bench) ----
+   Set-up checked 14 Nov 2026 (Motra's exercise guide): incline bench at 45°, lie face down with the chest and
+   stomach on the pad, feet planted, arms hanging straight down with the dumbbells, palms in. Shrug straight up
+   towards the ears (with the lean, that's up and back along the spine), pause, lower slowly. The pad takes the
+   lower back and the swing out of it. Sam floated 60° and leaning on the top edge; 45° is what the guides use,
+   and the arms hang clear either side of the pad. */
+{
+  const base = {root: {p: [0, 0.84, -0.22], pitch: 45}, spine: [2, 2], neck: -30, head: -6};
+  const legs = p => legsTo(p, [0.14, 0.067, -0.62], [0.05, 0.1, 1], [0.12, 0, 1]);
+  const C0 = solve(legs(base)).chest, padC = fAt(C0, [0, 0.02, 0.165]), PN = fDir(C0, [0, 0, 1]);
+  demo('shrugincline', {
+    cam: {yaw: 70, pitch: 10, dist: 3.9, target: [0, 0.85, 0.0]}, tempo: [0.8, 1.0, 1.8, 0.3],
+    props: [['world', 'B', padC, [0.15, 0.36, 0.035], 0.025, {mat: 'pad', rot: [45, 0, 0]}], tube(V.add(padC, V.sc(PN, 0.05)), [0, 0.02, padC[2] + 0.35], 0.035), tube([0, 0.02, padC[2] - 0.35], [0, 0.02, padC[2] + 0.35], 0.03),
+      tube(V.add(fAt(C0, [0, -0.3, 0.165]), V.sc(PN, 0.04)), [0, 0.02, padC[2] - 0.35], 0.035), ...db('handL'), ...db('handR')],
+    pose(t) {
+      const k = phaseK(t, this.tempo);
+      const p = legs({...base, arm: {clav: [lerp1(-6, 26, ease(k)), lerp1(4, -4, k)]}});
+      return {pose: {...p, arm: {up: V.norm([0.05, -1, 0.02]), fore: V.norm([0.03, -1, 0.03]), palm: V.norm([-1, 0, 0.05]), grip: 0.9, thumb: 0.8, clav: p.arm.clav}}};
+    }
+  });
+}
+
+/* ---- Back squat (barbell) ----
+   Cues: bar on the upper traps, hands just outside the shoulders, feet about shoulder width, toes out a little.
+   Brace, then sit down between the hips, knees tracking over the toes, until the hip crease is at or below the
+   knee; drive up keeping the chest up and the bar over mid-foot. */
+{
+  demo('squat', {
+    cam: {yaw: 66, pitch: 8, dist: 4.4, target: [0, 0.95, 0]}, tempo: [1.1, 0.4, 2.2, 0.4],
+    props: [...barbell('bar', 1.0)], frames: ['bar'],
+    pose(t) {
+      const k = phaseK(t, this.tempo), e = ease(k);   // 0 = the bottom, 1 = standing
+      let p = {root: {p: [0, lerp1(0.56, 0.94, e), lerp1(-0.2, -0.02, e)], pitch: lerp1(40, 4, e)}, spine: [lerp1(-2, 0, e), lerp1(-4, 0, e)], neck: lerp1(-30, -4, e), arm: {clav: [4, -8]}};
+      p = legsTo(p, [0.17, 0.067, 0.02], [0.32, 0, 1], V.norm([0.35, 0, 1]));
+      const B1 = solve(p), C = B1.chest, mid = V.lerp(B1.upperL.o, B1.upperR.o, 0.5), bar = V.add(V.add(mid, V.sc(C.y, 0.035)), V.sc(C.z, -0.085));
+      const gL = V.add(bar, [0.4, 0, 0]);
+      p = armsTo(p, gL, mirP(gL), fDir(C, [0.3, -1, -0.6]), V.mx(fDir(C, [0.3, -1, -0.6])), {arm: {palm: fDir(C, [0, 0.4, 1])}, armR: {palm: V.mx(fDir(C, [0, 0.4, 1]))}});
+      return {pose: p, frames: {bar: frameX(bar, [1, 0, 0])}};
     }
   });
 }
@@ -2740,7 +2935,7 @@ function liftView(host0, opt = {}) {
   scene.add(man.root);
   const cam = new T.PerspectiveCamera(27, 1, 0.05, 50), M = new T.Matrix4();
   const st = {playing: !opt.still && !window.__F3D_STATIC};
-  let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null;
+  let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null, zoom = 1;
   const setMove = k => {
     key = EX[k] ? k : 'stand'; ex = EX[key];
     if (eq) { scene.remove(eq.g); eq.dispose(); }
@@ -2750,7 +2945,7 @@ function liftView(host0, opt = {}) {
     for (const q of Object.values(man.groups)) for (const c of q.children) if (!c.userData.body) c.userData.eq = true;
     man.paint(ex.muscles || {});
     const c = ex.cam || {yaw: 30, pitch: 10, dist: 3.9, target: [0, 0.95, 0]};
-    yaw = c.yaw; pitch = c.pitch; dist = c.dist; target = c.target; userAz = 0; userEl = 0; t = opt.t ?? 0.4;
+    yaw = c.yaw; pitch = c.pitch; dist = c.dist; target = c.target; userAz = 0; userEl = 0; zoom = 1; t = opt.t ?? 0.4;
     st.dirty = true;
   };
   for (const q of Object.values(man.groups)) for (const c of q.children) c.userData.body = true;
@@ -2770,10 +2965,21 @@ function liftView(host0, opt = {}) {
   // Front = facing him, Side = his left, Back = behind; play/pause stops the rep where it is
   const ctl = opt.still ? null : controls(wrap, st, a => { yaw = a; userAz = 0; userEl = 0; st.playing = true; st.dirty = true; }, [[0, 'Front'], [90, 'Side'], [180, 'Back']]);
   if (ctl) { const pb = wrap.querySelector('[data-f=play]'); pb.addEventListener('click', () => { st.dirty = true; }); }
-  el.addEventListener('pointerdown', e => { e.stopPropagation(); dragging = {x: e.clientX, y: e.clientY, a: userAz, e: userEl}; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing'; });
-  el.addEventListener('pointermove', e => { if (!dragging) return; userAz = dragging.a - (e.clientX - dragging.x) * 0.5; userEl = Math.max(-20, Math.min(60, dragging.e + (e.clientY - dragging.y) * 0.3)); st.dirty = true; kick(); });
-  const up = () => { dragging = null; el.style.cursor = 'grab'; };
+  /* Drag turns the camera round the figure; the wheel, or a pinch, zooms (14 Nov 2026, Sam: scrolling over the
+     figure should zoom it, scrolling over the chart changes its range). Stopping the wheel here keeps the
+     dashboard from zooming or the widget from changing range underneath. */
+  const pts = new Map(), pinchD = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  const setZoom = z => { zoom = Math.max(0.35, Math.min(1.8, z)); st.dirty = true; kick(); };
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); pts.set(e.pointerId, {x: e.clientX, y: e.clientY}); el.setPointerCapture(e.pointerId);
+    if (pts.size === 2) { dragging = {pinch: pinchD(), z: zoom}; return; }
+    dragging = {x: e.clientX, y: e.clientY, a: userAz, e: userEl}; el.style.cursor = 'grabbing'; });
+  el.addEventListener('pointermove', e => { if (!dragging) return; if (pts.has(e.pointerId)) pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (dragging.pinch) { if (pts.size === 2) setZoom(dragging.z * dragging.pinch / pinchD()); return; }
+    userAz = dragging.a - (e.clientX - dragging.x) * 0.5; userEl = Math.max(-20, Math.min(60, dragging.e + (e.clientY - dragging.y) * 0.3)); st.dirty = true; kick(); });
+  const up = e => { pts.delete(e.pointerId); dragging = null; el.style.cursor = 'grab'; };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); setZoom(zoom * Math.exp((e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY) * 0.0015)); }, {passive: false});
+  el.addEventListener('dblclick', e => { e.stopPropagation(); zoom = 1; userAz = 0; userEl = 0; st.dirty = true; kick(); });
   const v = {
     el: wrap,
     frame(now, force) {
@@ -2784,7 +2990,7 @@ function liftView(host0, opt = {}) {
       st.dirty = false;
       pose();
       // demos are framed for a square view; a tall, narrow widget pulls the camera back so nothing is cut off
-      const a = (yaw + userAz) * D2R, e = (pitch + userEl) * D2R, dd = dist * Math.max(1, 1.08 / cam.aspect);
+      const a = (yaw + userAz) * D2R, e = (pitch + userEl) * D2R, dd = dist * zoom * Math.max(1, 1.08 / cam.aspect);
       cam.position.set(target[0] + Math.sin(a) * Math.cos(e) * dd, target[1] + Math.sin(e) * dd, target[2] + Math.cos(a) * Math.cos(e) * dd); cam.lookAt(...target);
       renderer.render(scene, cam);
     },
@@ -3757,14 +3963,16 @@ const WT = {
     render(b, inst) {
       const R = inst.cfg.range || 182, T = targets(), td = today();
       const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) (kindGroup(w.kind) === 'gym' ? gymD : cardD).add(w.date);
-      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum></span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
+      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
       const cal = b.querySelector('[data-cal]');
-      // Size from the content box (clientWidth includes the padding, which is what pushed the grid past the edge).
-      // Cells shrink to 8 px at most; beyond that, fewer weeks show, always ending at the selected week.
-      const cs = getComputedStyle(b), W = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), H = b.clientHeight - parseFloat(cs.paddingBottom);
-      const rw = Math.round(R / 7), szH = Math.floor((H - 52 - 11 - 7 * 3) / 7), szW = Math.floor((W - (rw - 1) * 3) / rw);
-      const sz = clamp(Math.min(szH, szW), 8, 18), weeks = Math.max(1, Math.min(rw, Math.floor((W + 3) / (sz + 3)))), start = addDays(monday(S.sel), -7 * (weeks - 1));
-      cal.style.gridTemplateRows = `11px repeat(7,${sz}px)`; cal.style.gridAutoColumns = sz + 'px';
+      /* The grid fills the widget (14 Nov 2026, Sam: "it leaves a gap at the bottom when I zoom out"; every widget
+         should use its whole box at any size). Cells stretch to the box, so they're square only when the box is;
+         when a range has more weeks than fit at 5 px a column, fewer weeks show, always ending at the selected week.
+         Sized from the content box: clientWidth includes the padding, which once pushed the grid past the edge. */
+      const cs = getComputedStyle(b), W = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const legH = b.querySelector('.row').offsetHeight + 6, H = Math.max(7 * 9 + 11, b.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - legH);
+      const rw = Math.round(R / 7), gap = W / rw > 14 ? 3 : 2, weeks = Math.max(1, Math.min(rw, Math.floor((W + gap) / (5 + gap)))), start = addDays(monday(S.sel), -7 * (weeks - 1));
+      cal.style.gap = gap + 'px'; cal.style.height = H + 'px'; cal.style.gridTemplateRows = '11px repeat(7,minmax(0,1fr))'; cal.style.gridAutoColumns = 'minmax(0,1fr)';
       let logged = 0, hit = 0, sess = 0, card = 0, days = 0, away = 0, suppAll = 0; const frag = document.createDocumentFragment(), SL = suppList();
       const mon = s => s.slice(0, 7);
       for (let w = 0; w < weeks; w++) {
@@ -4417,7 +4625,7 @@ function toast(msg, o = {}) {
   $('#toasts').append(t); setTimeout(() => t.remove(), o.ms || (o.action ? 6000 : 3200));
 }
 function openSheet(title, build, o = {}) {
-  $('#sheet').classList.toggle('wide', !!o.wide);
+  $('#sheet').classList.toggle('wide', !!o.wide); $('#sheet').classList.toggle('full', !!o.full);
   $('#sheet-t').textContent = title; const b = $('#sheet-b'); b.replaceChildren(); b.scrollTop = 0; build(b);
   $('#sheet').hidden = false; $('#scrim').hidden = false; hidePop();
   setTimeout(() => { const f = b.querySelector('[autofocus]'); if (f && window.innerWidth > 640) f.focus(); }, 30);
@@ -5281,9 +5489,11 @@ function openPlanEditor() {
    A set is three relaxed poses, front, side and back, plus two optional flexed ones, on one date, with that
    morning's weight and body fat. Cadence: every 4 weeks, on a weigh-in morning: the scale trend is checked
    over 4 weeks, and weekly photos show lighting and water, not muscle. The bot asks when one is due.
+   14 Nov 2026: a window over the dashboard instead of a side panel (Sam: "use the screen"), a switch for the
+   blur (on by default, remembered on this device), and quick compare ranges: first → latest, 4 and 12 weeks.
    ============================================================ */
 const POSES = [['front', 'Front'], ['side', 'Side'], ['back', 'Back'], ['frontflex', 'Front, flexed'], ['backflex', 'Back, flexed']];
-const PHOTO = {rows: [], unblur: new Set(), cmp: null, img: new Map(), err: null};
+const PHOTO = {rows: [], unblur: new Set(), cmp: null, img: new Map(), err: null, blur: (() => { try { return localStorage.getItem('hf.photoBlur') !== '0'; } catch { return true; } })()};
 function shrinkImage(file, max) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
@@ -5297,7 +5507,11 @@ async function loadPhotos() {
   PHOTO.err = null;
   if (!MCP) return PHOTO.rows;
   try { const r = await MCP.callTool(SRV, 'list_photos', {}, {cache: false}); PHOTO.rows = (r.payload?.sets || []).map(x => ({date: x.date, w: x.w, bf: x.bf, shots: x.shots || {}})); }
-  catch (e) { PHOTO.err = /not.?found|unknown tool|no such tool/i.test(String(e?.message || e?.code)) ? 'old' : (e?.message || 'Couldn’t load photos'); console.warn(e); }
+  catch (e) {
+    const m = String(e?.message || '') + ' ' + String(e?.code || '');
+    // 14 Nov 2026: claude.ai answered "not available on this connector, blocked by your organization": new connector tools start switched off
+    PHOTO.err = /blocked|not available on this connector|not.?allowed|not_in_manifest|denied|permission/i.test(m) ? 'blocked' : /not.?found|unknown tool|no such tool/i.test(m) ? 'old' : (e?.message || 'Couldn’t load photos'); console.warn(e);
+  }
   return PHOTO.rows;
 }
 /* One image at a time, as an object URL, kept for the session. Thumbnails load as they render; the full photo only when opened. */
@@ -5322,45 +5536,54 @@ function openPhotos(view = 'sets') {
   openSheet('Progress photos', async b => {
     b.innerHTML = '<div class="empty">Loading…</div>';
     await loadPhotos();
-    const how = `<div class="sec"><button class="disc${PHOTO.how ? ' open' : ''}" data-how>How and when to take them</button>${PHOTO.how ? `<ol class="rank">
-      <li><b>Every 4 weeks, on a weigh-in morning.</b> After the toilet, before food or water, same as the scale. Weekly photos mostly show lighting, water and pump; 4 weeks matches the trend check and roughly one mesocycle. The bot asks on the morning one is due.</li>
-      <li><b>Send them to the bot.</b> Tap 📸 Start (or send /photos), then front, side, back, in that order or captioned with the pose. They land here straight away. Or add them below.</li>
+    const how = `<button class="disc${PHOTO.how ? ' open' : ''}" data-how>How and when to take them</button>${PHOTO.how ? `<ol class="rank">
+      <li><b>Every 4 weeks, on a weigh-in morning.</b> After the toilet, before food or water, same as the scale. Weekly photos mostly show lighting, water and pump; 4 weeks matches the trend check and roughly one mesocycle. The bot tells you on the morning one is due.</li>
+      <li><b>Send them to the bot, all at once.</b> Front, side, back (and flexed, if you like), in that order, no caption and nothing to tap. That day, any photo you send counts; on another day send /photos first, or caption one “progress”. They land here straight away. Or add them below.</li>
       <li><b>Same everything.</b> Same room, same light (overhead or a window in front of you, never behind), same shorts, same distance. Phone at chest height on a shelf or tripod, about 2 m away, timer on, rear camera, whole body in frame. Mark the spot on the floor.</li>
       <li><b>Relaxed poses.</b> Front, side (arms out in front so the waist shows) and back, standing naturally, not sucking in. These are the ones to compare.</li>
       <li><b>Flexed, if you like.</b> Front and back double biceps. Good for seeing arms, lats and abs, but harder to repeat exactly.</li>
       <li><b>Compare months, not weeks.</b> First set against the latest, side by side, same pose. The scale and tape measure what the eye can’t.</li></ol>
-      <p class="cap">Private: kept in Health DB in a table of their own, which only your connector key can open. Never sent to Claude, never in the GitHub backup or the snapshot. Photos added here are shrunk on your device first, which also removes the phone’s location data; Telegram removes it from photos itself.</p>` : ''}</div>`;
-    if (!MCP) { b.innerHTML = how + '<div class="empty">Photos need the dashboard connected to Health DB.</div>'; wire(); return; }
-    if (PHOTO.err === 'old') { b.innerHTML = how + '<div class="empty">Health DB hasn’t got photos yet. Merge the latest pull request so Cloudflare redeploys it, then reopen this.</div>'; wire(); return; }
-    if (PHOTO.err) { b.innerHTML = how + `<div class="empty">${esc(PHOTO.err)}</div>`; wire(); return; }
+      <p class="cap">Kept in Health DB in a table of their own: never sent to Claude, never in the GitHub backup or the snapshot. Photos added here are shrunk on your device first, which also drops the phone’s location data; Telegram drops it from photos itself.</p>` : ''}`;
+    const blurSw = `<label class="ph-sw"><input type="checkbox" data-blur ${PHOTO.blur ? 'checked' : ''}> Blur until tapped</label>`;
+    const tabs = `<div class="seg" data-pv2>${[['sets', 'Sets'], ['cmp', 'Compare'], ['add', 'Add today’s']].map(([k, l]) => `<button data-pt="${k}" class="${view === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    const bar = `<div class="ph-bar">${tabs}${blurSw}</div>`;
+    if (!MCP) { b.innerHTML = '<div class="empty">Photos need the dashboard connected to Health DB.</div><div class="sec">' + how + '</div>'; wire(); return; }
+    if (PHOTO.err === 'old') { b.innerHTML = '<div class="empty">Health DB hasn’t got photos yet. Merge the latest pull request so Cloudflare redeploys it, then reopen this.</div>'; wire(); return; }
+    if (PHOTO.err === 'blocked') { b.innerHTML = `<div class="sec"><div class="chip warn" style="white-space:normal">claude.ai is blocking Health DB’s four photo tools for this page. New tools on a connector start switched off. In claude.ai’s connector settings for Health DB (your organisation’s, if connectors are managed there), allow <b>list_photos</b>, <b>get_photo</b>, <b>put_photo</b> and <b>delete_photos</b>, then reopen this. Nothing in the dashboard can switch them on.</div></div><div class="sec">${how}</div>`; wire(); return; }
+    if (PHOTO.err) { b.innerHTML = `<div class="empty">${esc(PHOTO.err)}</div>`; wire(); return; }
     const due = photoDue(), rows = PHOTO.rows, td = today(), cur = rows.find(r => r.date === td) || {date: td, shots: {}};
-    const thumb = (r, k) => { const id = r.shots?.[k]; if (!id) return `<div class="ph-empty">${esc((POSES.find(p => p[0] === k) || [k, k])[1])}</div>`; const key = r.date + k, open = PHOTO.unblur.has(key);
-      return `<button class="ph-th${open ? '' : ' blur'}" data-th="${key}" data-id="${id}" title="${open ? 'Tap to view large' : 'Tap to show'}"><img alt="${esc(k)} ${esc(r.date)}" data-pid="${id}"></button>`; };
+    const hidden = key => PHOTO.blur && !PHOTO.unblur.has(key);
+    const thumb = (r, k) => { const id = r.shots?.[k]; if (!id) return `<div class="ph-empty">${esc((POSES.find(p => p[0] === k) || [k, k])[1])}</div>`; const key = r.date + k, hid = hidden(key);
+      return `<button class="ph-th${hid ? ' blur' : ''}" data-th="${key}" data-id="${id}" title="${hid ? 'Tap to show' : 'Tap to view large'}"><img alt="${esc(k)} ${esc(r.date)}" data-pid="${id}"></button>`; };
     const meta = r => [r.w ? fmt(r.w, 1) + ' kg' : '', r.bf ? fmt(r.bf, 1) + '% fat' : ''].filter(Boolean).join(' · ');
-    const tabs = `<div class="seg" data-pv2>${[['sets', 'Sets'], ['add', 'Add today’s'], ['cmp', 'Compare']].map(([k, l]) => `<button data-pt="${k}" class="${view === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     let body = '';
     if (view === 'add') {
-      body = `<div class="sec"><h5>${dLong(td)}</h5><div class="cap">Pick or take each pose; each one saves as soon as it’s chosen. Easier: send them to the bot.</div><div class="ph-add">${POSES.map(([k, l]) => `<label class="ph-slot"><span>${l}${k.includes('flex') ? ' <span class="dim">(optional)</span>' : ''}</span>${cur.shots[k] ? thumb(cur, k) : '<div class="ph-empty">+</div>'}<input type="file" accept="image/*" capture="environment" data-up="${k}" hidden></label>`).join('')}</div></div>`;
+      body = `<div class="sec"><h5>${dLong(td)}</h5><div class="cap">Pick or take each pose; each one saves as soon as it’s chosen. Easier: send them all to the bot.</div><div class="ph-add">${POSES.map(([k, l]) => `<label class="ph-slot"><span>${l}${k.includes('flex') ? ' <span class="dim">(optional)</span>' : ''}</span>${cur.shots[k] ? thumb(cur, k) : '<div class="ph-empty">+</div>'}<input type="file" accept="image/*" capture="environment" data-up="${k}" hidden></label>`).join('')}</div></div>`;
     } else if (view === 'cmp') {
-      if (rows.length < 2) body = '<div class="empty">Compare needs two sets on different dates.</div>';
+      if (rows.length < 2) body = '<div class="empty">Compare needs two sets on different dates. Your first set is the baseline; the next is due 4 weeks after it.</div>';
       else {
-        const c = PHOTO.cmp || (PHOTO.cmp = {a: rows[rows.length - 1].date, b: rows[0].date, pose: 'front'}), A = rows.find(r => r.date === c.a) || rows[rows.length - 1], B2 = rows.find(r => r.date === c.b) || rows[0];
+        // quick ranges: the latest set against the first, or against the set nearest 4 or 12 weeks before it
+        const latest = rows[0], first = rows[rows.length - 1], nearest = days => { const tgt = addDays(latest.date, -days); return rows.slice(1).reduce((x, r) => Math.abs(diffDays(r.date, tgt)) < Math.abs(diffDays(x.date, tgt)) ? r : x, rows[1]); };
+        const quick = [['first', 'First → latest', first], ['4w', '4 weeks', nearest(28)], ['12w', '12 weeks', nearest(84)]];
+        const c = PHOTO.cmp || (PHOTO.cmp = {a: first.date, b: latest.date, pose: 'front', q: 'first'}), A = rows.find(r => r.date === c.a) || first, B2 = rows.find(r => r.date === c.b) || latest;
         const sel = (k, v) => `<select class="pick" data-cmp="${k}">${rows.map(r => `<option value="${r.date}" ${r.date === v ? 'selected' : ''}>${dLong(r.date)}</option>`).join('')}</select>`;
-        body = `<div class="row" style="gap:8px;flex-wrap:wrap">${sel('a', A.date)}<span class="dim">vs</span>${sel('b', B2.date)}<div class="seg seg-sm">${POSES.map(([k, l]) => `<button data-cp="${k}" class="${c.pose === k ? 'on' : ''}">${l.replace(', flexed', ' flex')}</button>`).join('')}</div></div>
-          <div class="ph-cmp">${[A, B2].map(r => `<figure>${r.shots?.[c.pose] ? `<img alt="" data-pid="${r.shots[c.pose]}" data-size="full">` : '<div class="ph-empty">No photo</div>'}<figcaption>${dLong(r.date)}${meta(r) ? ' · ' + meta(r) : ''}</figcaption></figure>`).join('')}</div>
-          <div class="cap">${A.w && B2.w ? `${signed(B2.w - A.w)} kg${A.bf && B2.bf ? `, ${signed(B2.bf - A.bf)} points of body fat` : ''} between them.` : ''}</div>`;
+        body = `<div class="ph-bar"><div class="seg seg-sm">${quick.map(([k, l, r]) => `<button data-q="${k}" data-qa="${r.date}" class="${c.q === k ? 'on' : ''}">${l}</button>`).join('')}</div>${sel('a', A.date)}<span class="dim">vs</span>${sel('b', B2.date)}<div class="seg seg-sm">${POSES.map(([k, l]) => `<button data-cp="${k}" class="${c.pose === k ? 'on' : ''}">${l.replace(', flexed', ' flex')}</button>`).join('')}</div></div>
+          <div class="ph-cmp">${[A, B2].map(r => { const key = r.date + c.pose, id = r.shots?.[c.pose]; return `<figure class="${id && hidden(key) ? 'blur' : ''}" data-cf="${key}" data-id="${id || ''}">${id ? `<img alt="" data-pid="${id}" data-size="full">` : '<div class="ph-empty">No photo</div>'}<figcaption>${dLong(r.date)}${meta(r) ? ' · ' + meta(r) : ''}</figcaption></figure>`; }).join('')}</div>
+          <div class="cap">${diffDays(A.date, B2.date)} days apart.${A.w && B2.w ? ` ${signed(B2.w - A.w)} kg${A.bf && B2.bf ? `, ${signed(B2.bf - A.bf)} points of body fat` : ''} between them.` : ''}</div>`;
       }
     } else {
       body = rows.length ? rows.map(r => `<div class="sec ph-set"><div class="row between"><b>${dLong(r.date)}</b><span class="cap">${meta(r)}</span></div><div class="ph-row">${POSES.filter(([k]) => r.shots?.[k]).map(([k]) => thumb(r, k)).join('')}</div><button class="btn sm ghost" data-del="${r.date}">Delete this set</button></div>`).join('')
         : '<div class="empty">No photos yet.</div>';
     }
-    b.innerHTML = `<div class="sec"><div class="chip${due.due ? ' warn' : ''}" style="white-space:normal">${esc(due.msg)}</div></div>${how}${tabs}${body}`;
+    b.innerHTML = `<div class="sec"><div class="chip${due.due ? ' warn' : ''}" style="white-space:normal">${esc(due.msg)}</div></div>${bar}${body}<div class="sec">${how}</div>`;
     wire();
     b.querySelectorAll('img[data-pid]').forEach(im => photoSrc(im.dataset.pid, im.dataset.size || 'thumb').then(u => { im.src = u; }).catch(() => { im.alt = 'Couldn’t load'; }));
     function wire() {
       b.querySelector('[data-how]')?.addEventListener('click', () => { PHOTO.how = !PHOTO.how; openPhotos(view); });
+      b.querySelector('[data-blur]')?.addEventListener('change', e => { PHOTO.blur = e.target.checked; PHOTO.unblur.clear(); try { localStorage.setItem('hf.photoBlur', PHOTO.blur ? '1' : '0'); } catch {} openPhotos(view); });
       b.querySelectorAll('[data-pt]').forEach(x => x.onclick = () => openPhotos(x.dataset.pt));
-      b.querySelectorAll('[data-th]').forEach(x => x.onclick = e => { e.preventDefault(); const k = x.dataset.th; if (!PHOTO.unblur.has(k)) { PHOTO.unblur.add(k); x.classList.remove('blur'); return; } photoLightbox(x.dataset.id); });
+      b.querySelectorAll('[data-th]').forEach(x => x.onclick = e => { e.preventDefault(); const k = x.dataset.th; if (hidden(k)) { PHOTO.unblur.add(k); x.classList.remove('blur'); return; } photoLightbox(x.dataset.id); });
+      b.querySelectorAll('[data-cf]').forEach(x => x.onclick = () => { const k = x.dataset.cf; if (!x.dataset.id) return; if (hidden(k)) { PHOTO.unblur.add(k); x.classList.remove('blur'); return; } photoLightbox(x.dataset.id); });
       b.querySelectorAll('[data-up]').forEach(inp => inp.onchange = async () => {
         const f = inp.files?.[0]; if (!f) return; const k = inp.dataset.up;
         try {
@@ -5370,14 +5593,15 @@ function openPhotos(view = 'sets') {
           PHOTO.unblur.add(td2 + k); toast('Saved'); openPhotos('add');
         } catch (e) { toast(e?.message || 'Upload failed', {err: true}); }
       });
-      b.querySelectorAll('[data-cmp]').forEach(x => x.onchange = () => { PHOTO.cmp[x.dataset.cmp] = x.value; openPhotos('cmp'); });
+      b.querySelectorAll('[data-q]').forEach(x => x.onclick = () => { PHOTO.cmp = {...PHOTO.cmp, q: x.dataset.q, a: x.dataset.qa, b: PHOTO.rows[0].date}; openPhotos('cmp'); });
+      b.querySelectorAll('[data-cmp]').forEach(x => x.onchange = () => { PHOTO.cmp[x.dataset.cmp] = x.value; PHOTO.cmp.q = null; openPhotos('cmp'); });
       b.querySelectorAll('[data-cp]').forEach(x => x.onclick = () => { PHOTO.cmp.pose = x.dataset.cp; openPhotos('cmp'); });
       b.querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
         if (x.dataset.sure !== '1') { x.dataset.sure = '1'; x.textContent = 'Tap again to delete for good'; return; }
         try { await MCP.callTool(SRV, 'delete_photos', {date: x.dataset.del}, {cache: false}); toast('Set deleted'); openPhotos('sets'); } catch (e) { toast(e?.message || 'Couldn’t delete', {err: true}); }
       });
     }
-  }, {wide: true});
+  }, {full: true});
 }
 
 /* ============================================================
@@ -5444,7 +5668,7 @@ function openHelp(tab = 'why') {
         <p>So: mostly easy cardio you could talk through (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
-        <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (pullover, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
+        <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
         <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
         <p class="note">Body mesh: “Z-Anatomy — The libre 3D atlas of anatomy”, CC BY-SA 4.0, based on “BodyParts3D, © The Database Center for Life Science” (via the Svitylo 3D Anatomy Atlas data, v1.2.0). Changed here: skin remeshed and shrink-wrapped to the muscles, face and skin smoothed into a mannequin finish, arms rigged, scaled to 172 cm. This adapted mesh is shared under the same licence (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>). Mesh decoder: meshoptimizer reference decoder, MIT.</p></div>
       <div class="sec"><h5>In one sentence</h5><p class="quote">“I text my meals and workouts to a Telegram bot. Claude turns them into numbers and saves them in a tiny database I own on Cloudflare, and my dashboard and the scale both plug into the same database.”</p></div>`;

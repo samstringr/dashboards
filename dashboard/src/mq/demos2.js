@@ -8,12 +8,12 @@ function slerpV(a, b, k) {
   return V.sc(rot(na, ax, ang * k), lerp1(la, lb, k));
 }
 const arcAbout = (P, a, b, k) => V.add(P, slerpV(V.sub(a, P), V.sub(b, P), k));
-const gripOf = (B, s) => fAt(B['hand' + s], [-0.022, -0.078, 0]);
+const gripOf = (B, s) => fAt(B['hand' + s], [GX, -GRIP, 0]);
 // a frame at o whose x runs along dir, y as close to up as it can be
 const frameX = (o, dir) => { const x = V.norm(dir), y0 = Math.abs(x[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0], z = V.norm(V.cross(x, y0)); return F(o, x, V.cross(z, x), z); };
 const frameW = o => F(o, [1, 0, 0], [0, 1, 0], [0, 0, 1]);
 const seat = (z = 0, y = 0.43) => [pad([0, y, z], [0.19, 0.035, 0.18]), tube([0, 0.0, z], [0, y - 0.03, z], 0.035), tube([-0.22, 0.02, z], [0.22, 0.02, z], 0.03)];
-const dHandle = bone => [bone, 'Q', [-0.022, -0.078, -0.06], [-0.022, -0.078, 0.06], 0.015, {mat: 'steel'}];
+const dHandle = bone => [bone, 'Q', [GX, -GRIP, -0.06], [GX, -GRIP, 0.06], 0.015, {mat: 'steel'}];
 const vHandle = fr => [fr, 'Y', [0, -0.075, 0], [0, 0.075, 0], 0.018, {mat: 'pad'}];
 const SIT_FEET = p => legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1]);
 // right-side copy of a left-side point or direction given in a frame's terms

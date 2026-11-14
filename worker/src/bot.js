@@ -3,7 +3,7 @@ import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, vali
 import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
-import { isPhotoCaption, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, getPhoto, deletePhotos } from './photos.js';
+import { photoRoute, rememberImages, isProgressNote, moveRemembered, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, undoBatch } from './photos.js';
 import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
 import { closeDay, closeHtml, singleExtras } from './close.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
@@ -61,11 +61,14 @@ export async function onMessage(env, msg) {
   }
   // a progress photo (captioned with a pose or "progress", or sent while a photo session is open) is saved, never parsed
   const isImg = msg.photo?.length || (msg.document && /^image\//.test(msg.document.mime_type || ''));
-  if (isImg && (isPhotoCaption(msg.caption) || await photoSessionOpen(env))) return savePhotoFromTelegram(env, msg, (e, id) => tgImage(e, id, 'image/jpeg'), send, buttons);
+  const tgFile = (e, id) => tgImage(e, id, 'image/jpeg');
+  if (isImg && await photoRoute(env, msg)) return savePhotoFromTelegram(env, msg, tgFile, tg, chatId(env), buttons);
+  if (!isImg && isProgressNote(raw)) return moveRemembered(env, tgFile, send);
   if (raw.startsWith('/')) return command(env, raw);
   let image = null;
   if (msg.photo?.length) image = await tgImage(env, msg.photo[msg.photo.length - 1].file_id, 'image/jpeg');
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) image = await tgImage(env, msg.document.file_id, msg.document.mime_type);
+  if (image) await rememberImages(env, msg);
   return readMessage(env, raw, image);
 }
 /* Food, weigh-ins and workouts: what Claude reads. */
@@ -105,15 +108,13 @@ export async function onCallback(env, cq) {
     return commitPending(env, pending, true);
   }
   if (act === 'undo') { await strip(); return undoLast(env, token); }
-  if (act === 'phs') { await strip(); return openPhotoSession(env, send, buttons); }
+  if (act === 'phs') { await strip(); return openPhotoSession(env, send); }
   if (act === 'phd') { await strip(); return closePhotoSession(env, send); }
-  if (act === 'phx') {   // "not a progress photo" (a weigh-in screenshot sent during a photo session): take it back out and read it
+  if (act === 'phx') {   // "not progress photos": take the batch back out; a single photo is read as usual
     await strip();
-    const ph = await getPhoto(env, token, 'full');
-    if (!ph) return send(env, 'That photo has already gone.');
-    await deletePhotos(env, { id: token }); await delKV(env, 'photoset');
-    await send(env, 'Taken out of your progress photos; reading it instead. Photo session closed: tap /photos to carry on.');
-    return readMessage(env, '', { media_type: ph.mime, data: ph.data });
+    const u = await undoBatch(env, token);
+    if (u.one) { await send(env, 'Taken out of your progress photos; reading it instead.'); return readMessage(env, '', { media_type: u.one.mime, data: u.one.data }); }
+    return send(env, u.n ? `Took ${u.n} photos back out of your progress photos. If they were food or a label, send them again with a caption saying what they are.` : 'Those have already gone.');
   }
   if (act === 'rt') {
     await strip();
@@ -207,8 +208,6 @@ export async function handleParsed(env, ctx, r, pending) {
     if (pending) await clearPending(env, pending);
     const date = validDate(r.howmuch.date, td), id = uid();
     const itemFor = (U, q) => ({ ...U.item, name: U.name, qty: q, unit: U.u, kcal: q * U.m[0] / U.q, p: q * U.m[1] / U.q, c: q * U.m[2] / U.q, f: q * U.m[3] / U.q });
-    const closerOpt = c => ({ items: normaliseItems(ctx, c.items.map(x => ({ ...x, kcal: x.m[0], p: x.m[1], c: x.m[2], f: x.m[3] }))) });
-    const closerRow = cl => cl.length ? [cl.slice(0, 3).map((c, i) => ['+ ' + c.short, `ok:${id}:${i + 9}`])] : [];
     let html, options, rows;
     const c = closeDay(ctx, r.howmuch, date);
     if (!c.single) {   // two foods: numbered combinations, then closers
@@ -218,13 +217,12 @@ export async function handleParsed(env, ctx, r, pending) {
     } else {
       const h = howMuch(ctx, { ...r.howmuch, food: (r.howmuch.foods || [])[0] || r.howmuch.food }, date);
       if (h.why || h.q <= 0) return send(env, howMuchHtml(h, date));
-      const ex = singleExtras(ctx, h, date); c.closers = ex.closers;
+      const ex = singleExtras(ctx, h, date);
       options = { 0: { items: normaliseItems(ctx, [itemFor(h.U, h.q)]) } };
       html = howMuchHtml(h, date) + ex.html; rows = [[['✅ Log ' + (h.U.u === 'serving' ? fmt(h.q, h.q % 1 ? 1 : 0) + '×' : fmt(h.q) + ' ' + h.U.u), `ok:${id}:0`]]];
     }
-    // closers go in at 9+, so their buttons never collide with the numbered options
-    (c.closers || []).slice(0, 3).forEach((cl, i) => { options[i + 9] = closerOpt(cl); });
-    rows.push(...closerRow(c.closers || []), [['✖️ No thanks', 'no:' + id]]);
+    // 14 Nov 2026: buttons for the numbered options only (Sam: too many buttons). A closer is typed like any food.
+    rows.push([['✖️ No thanks', 'no:' + id]]);
     const p = { id, kind: 'food', date, payload: { date, items: options[0].items.map(i => ({ name: i.n, qty: i.q, unit: i.u, libId: i.lib || null, ref: i.ref || null })) }, items: options[0].items, options, created: Date.now() };
     const msg = await send(env, html, buttons(rows));
     p.messageId = msg?.result?.message_id; await setKV(env, 'pending', p); return;
@@ -328,14 +326,14 @@ Just tell me things:
 /supps · today’s supplements checklist
 /week · the last 7 days
 /foods · your presets and saved foods
-/photos · progress photos (front, side, back)
+/photos · progress photos (front, side, back). When a set is due, just send them: no caption, no /done
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/week') return send(env, await weekHtml(env));
   if (c === '/foods' || c === '/presets') return send(env, foodsHtml(await loadCtx(env)));
-  if (c === '/photos') return openPhotoSession(env, send, buttons);
+  if (c === '/photos') return openPhotoSession(env, send);
   if (c === '/done') return (await photoSessionOpen(env)) ? closePhotoSession(env, send) : send(env, 'Nothing to finish.');
   if (c === '/undo') return undoLast(env, null);
   if (c === '/supps') return sendSupps(env, await loadCtx(env), today());

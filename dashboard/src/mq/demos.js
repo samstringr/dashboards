@@ -16,7 +16,9 @@ function ik2(R, H, L1, L2, pole) {
   const up = V.norm(V.add(V.sc(dn, Math.cos(a)), V.sc(pp, Math.sin(a)))), E = V.add(R, V.sc(up, L1));
   return {up, fore: V.norm(V.sub(H, E)), E};
 }
-const GRIP = 0.075;   // wrist to the middle of a closed grip, along the hand
+/* Where a closed hand holds a bar, from the wrist (14 Nov 2026): measured on the physique body's fist, which
+   sits closer to the wrist than the old jointed hand's did (bars and dumbbell handles showed below the fingers). */
+const GRIP = 0.052, GX = -0.026;
 // arms to grip points (world, left then right), with world elbow poles; returns the pose's arm fields
 function armsTo(pose, gripL, gripR, poleL, poleR, extra = {}) {
   const B = solve(pose), out = {};
@@ -44,9 +46,9 @@ const pressArm = (up, fore, palm, crease, extra = {}) => ({up, fore, palm, creas
 const pad = (c, h, rot) => ['world', 'B', c, h, 0.025, {mat: 'pad', ...(rot ? {rot} : {})}];
 const tube = (a, b, r = 0.025) => ['world', 'Y', a, b, r, {mat: 'steel'}];
 const db = bone => [   // a dumbbell in the hand: handle across the palm, two iron heads
-  [bone, 'Q', [-0.022, -0.078, -0.07], [-0.022, -0.078, 0.07], 0.014, 0.003, {mat: 'steel'}],
-  [bone, 'Q', [-0.022, -0.078, 0.065], [-0.022, -0.078, 0.125], 0.052, 0.008, {mat: 'iron'}],
-  [bone, 'Q', [-0.022, -0.078, -0.065], [-0.022, -0.078, -0.125], 0.052, 0.008, {mat: 'iron'}]];
+  [bone, 'Q', [GX, -GRIP, -0.07], [GX, -GRIP, 0.07], 0.014, 0.003, {mat: 'steel'}],
+  [bone, 'Q', [GX, -GRIP, 0.065], [GX, -GRIP, 0.125], 0.052, 0.008, {mat: 'iron'}],
+  [bone, 'Q', [GX, -GRIP, -0.065], [GX, -GRIP, -0.125], 0.052, 0.008, {mat: 'iron'}]];
 
 /* ---- Incline dumbbell press, bench at 30° ----
    Footage cues: back flat on the pad, shoulder blades pinned, feet planted wide. Bottom: dumbbells beside the
@@ -131,13 +133,15 @@ demo('machpress', {
     p = legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1]);
     const C = solve(p).chest, e = ease(k);
     const up = slerpV(V.norm(fDir(C, [0.72, -0.4, -0.56])), V.norm(fDir(C, [0.12, -0.14, 1])), e), fore = slerpV(V.norm(fDir(C, [-0.06, 0.02, 1])), V.norm(fDir(C, [-0.04, -0.1, 1])), e);
-    p = {...p, arm: pressArm(up, fore, fDir(C, [-0.1, -1, 0.05]), fDir(C, [-1, 0.1, 0.4]), {clav: p.arm.clav, wrist: [-25, 0]})};
+    p = {...p, arm: pressArm(up, fore, fDir(C, [-0.1, -1, 0.05]), fDir(C, [-1, 0.1, 0.4]), {clav: p.arm.clav})};
     const B = solve(p), gL = gripOf(B, 'L');
     // levers: from a pivot on the frame above and behind each shoulder down to its handle
     const fr = {}, segs = [];
     for (const [s, g] of [['L', gL], ['R', gripOf(B, 'R')]]) {
       const piv = [s === 'L' ? 0.3 : -0.3, 1.58, -0.3];
-      fr['handle' + s] = F(g, [1, 0, 0], [0, 1, 0], [0, 0, 1]); segs.push([piv, V.add(g, [s === 'L' ? 0.09 : -0.09, 0, 0]), 0.022]);
+      // the handle runs through the closed hand (14 Nov 2026: it sat above the fingers), the lever meets its outer end
+      let hz = B['hand' + s].z; if (V.dot(hz, [s === 'L' ? 1 : -1, 0, 0]) < 0) hz = V.sc(hz, -1);
+      fr['handle' + s] = frameX(g, s === 'L' ? hz : V.sc(hz, -1)); segs.push([piv, V.add(g, V.sc(hz, 0.09)), 0.022]);
     }
     return {pose: p, frames: fr, segs};
   }

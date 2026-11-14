@@ -125,7 +125,7 @@ export function closeHtml(h, date = today()) {
     return `${NUM[i]} <b>${what.replace(/^./, ch => ch.toUpperCase())}</b>${why ? ` <i>(${why})</i>` : ''}\n+${fmt(o.add[0])} kcal · +${fmt(o.add[1], 1)} g ${lands(o, T)}${o.tag === 'alone' ? '.' + gapNote(o, T, all) : ''}`;
   };
   let s = `${head}\n\n${opts.map(line).join('\n\n')}\n<i>Ratio: ${usual}.</i>`;
-  if (cl.length) s += `\n\n<b>Or bridge it with a closer</b>\n${cl.map(c => `• ${esc(c.name)}: ${fmt(c.kcal)} kcal · ${fmt(c.p, 1)} g${c.learned ? ` <i>(ended ${c.learned} days)</i>` : ''}`).join('\n')}`;
+  if (cl.length) s += `\n\n<b>Or bridge it with a closer</b> <i>(send it like any food to log it)</i>\n${cl.map(c => `• ${esc(c.name)}: ${fmt(c.kcal)} kcal · ${fmt(c.p, 1)} g${c.learned ? ` <i>(ended ${c.learned} days)</i>` : ''}`).join('\n')}`;
   if (!A.known || !B.known) s += `\n<i>Using my estimate for ${esc(!A.known ? na : nb)}.</i>`;
   return s;
 }

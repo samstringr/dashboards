@@ -158,7 +158,7 @@ function liftView(host0, opt = {}) {
   scene.add(man.root);
   const cam = new T.PerspectiveCamera(27, 1, 0.05, 50), M = new T.Matrix4();
   const st = {playing: !opt.still && !window.__F3D_STATIC};
-  let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null;
+  let key = 'stand', ex = EX.stand, eq = null, t = opt.t ?? 0.4, lastT = null, yaw = 30, pitch = 10, dist = 3.6, target = [0, 0.95, 0], userAz = 0, userEl = 0, dragging = null, zoom = 1;
   const setMove = k => {
     key = EX[k] ? k : 'stand'; ex = EX[key];
     if (eq) { scene.remove(eq.g); eq.dispose(); }
@@ -168,7 +168,7 @@ function liftView(host0, opt = {}) {
     for (const q of Object.values(man.groups)) for (const c of q.children) if (!c.userData.body) c.userData.eq = true;
     man.paint(ex.muscles || {});
     const c = ex.cam || {yaw: 30, pitch: 10, dist: 3.9, target: [0, 0.95, 0]};
-    yaw = c.yaw; pitch = c.pitch; dist = c.dist; target = c.target; userAz = 0; userEl = 0; t = opt.t ?? 0.4;
+    yaw = c.yaw; pitch = c.pitch; dist = c.dist; target = c.target; userAz = 0; userEl = 0; zoom = 1; t = opt.t ?? 0.4;
     st.dirty = true;
   };
   for (const q of Object.values(man.groups)) for (const c of q.children) c.userData.body = true;
@@ -188,10 +188,21 @@ function liftView(host0, opt = {}) {
   // Front = facing him, Side = his left, Back = behind; play/pause stops the rep where it is
   const ctl = opt.still ? null : controls(wrap, st, a => { yaw = a; userAz = 0; userEl = 0; st.playing = true; st.dirty = true; }, [[0, 'Front'], [90, 'Side'], [180, 'Back']]);
   if (ctl) { const pb = wrap.querySelector('[data-f=play]'); pb.addEventListener('click', () => { st.dirty = true; }); }
-  el.addEventListener('pointerdown', e => { e.stopPropagation(); dragging = {x: e.clientX, y: e.clientY, a: userAz, e: userEl}; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing'; });
-  el.addEventListener('pointermove', e => { if (!dragging) return; userAz = dragging.a - (e.clientX - dragging.x) * 0.5; userEl = Math.max(-20, Math.min(60, dragging.e + (e.clientY - dragging.y) * 0.3)); st.dirty = true; kick(); });
-  const up = () => { dragging = null; el.style.cursor = 'grab'; };
+  /* Drag turns the camera round the figure; the wheel, or a pinch, zooms (14 Nov 2026, Sam: scrolling over the
+     figure should zoom it, scrolling over the chart changes its range). Stopping the wheel here keeps the
+     dashboard from zooming or the widget from changing range underneath. */
+  const pts = new Map(), pinchD = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  const setZoom = z => { zoom = Math.max(0.35, Math.min(1.8, z)); st.dirty = true; kick(); };
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); pts.set(e.pointerId, {x: e.clientX, y: e.clientY}); el.setPointerCapture(e.pointerId);
+    if (pts.size === 2) { dragging = {pinch: pinchD(), z: zoom}; return; }
+    dragging = {x: e.clientX, y: e.clientY, a: userAz, e: userEl}; el.style.cursor = 'grabbing'; });
+  el.addEventListener('pointermove', e => { if (!dragging) return; if (pts.has(e.pointerId)) pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (dragging.pinch) { if (pts.size === 2) setZoom(dragging.z * dragging.pinch / pinchD()); return; }
+    userAz = dragging.a - (e.clientX - dragging.x) * 0.5; userEl = Math.max(-20, Math.min(60, dragging.e + (e.clientY - dragging.y) * 0.3)); st.dirty = true; kick(); });
+  const up = e => { pts.delete(e.pointerId); dragging = null; el.style.cursor = 'grab'; };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); setZoom(zoom * Math.exp((e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY) * 0.0015)); }, {passive: false});
+  el.addEventListener('dblclick', e => { e.stopPropagation(); zoom = 1; userAz = 0; userEl = 0; st.dirty = true; kick(); });
   const v = {
     el: wrap,
     frame(now, force) {
@@ -202,7 +213,7 @@ function liftView(host0, opt = {}) {
       st.dirty = false;
       pose();
       // demos are framed for a square view; a tall, narrow widget pulls the camera back so nothing is cut off
-      const a = (yaw + userAz) * D2R, e = (pitch + userEl) * D2R, dd = dist * Math.max(1, 1.08 / cam.aspect);
+      const a = (yaw + userAz) * D2R, e = (pitch + userEl) * D2R, dd = dist * zoom * Math.max(1, 1.08 / cam.aspect);
       cam.position.set(target[0] + Math.sin(a) * Math.cos(e) * dd, target[1] + Math.sin(e) * dd, target[2] + Math.cos(a) * Math.cos(e) * dd); cam.lookAt(...target);
       renderer.render(scene, cam);
     },
