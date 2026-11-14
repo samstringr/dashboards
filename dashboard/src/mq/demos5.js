@@ -7,7 +7,7 @@
    Lean the chest forward a little and lower until the upper arms are about level with the bars; elbows go back,
    not out. Knees bent, ankles crossed behind. Press back up to straight arms. */
 {
-  const HAND = [0.255, 1.3, 0.04];
+  const HAND = [0.27, 1.27, 0.04];   // on the bar itself, so the closed hand wraps it (14 Nov 2026)
   demo('dip', {
     cam: {yaw: 58, pitch: 6, dist: 4.4, target: [0, 1.2, 0]}, tempo: [1.8, 0.4, 1.0, 0.5],
     props: [tube([0.27, 1.27, -0.38], [0.27, 1.27, 0.42], 0.022), tube([-0.27, 1.27, -0.38], [-0.27, 1.27, 0.42], 0.022),
@@ -71,20 +71,21 @@ demo('shrug', {
 });
 
 /* ---- Cable upright row (straight bar) ----
-   Cues: face a low pulley, hands a little narrower than shoulder-width, palms towards you. Lead with the elbows
-   and draw the bar up close to the body until the elbows reach shoulder height; the hands stay below the
-   elbows. Lower over 2 s. */
+   Cues (Jeff Nippard's upright-row fix, checked 14 Nov 2026): stand just behind the pulley, grip 1 to 1.5 times
+   shoulder width (wider works the side delts more), palms towards you. Lead with the elbows, "row out and up",
+   bar close to the body, and stop when the elbows reach shoulder height; the hands stay below the elbows.
+   Lower over 2 s. Was: hands narrower than the shoulders and the pulley 60 cm away. */
 {
-  const PUL = [0, 0.08, 0.6];
+  const PUL = [0, 0.08, 0.24];
   demo('uprow', {
     cam: {yaw: 34, pitch: 8, dist: 3.9, target: [0, 1.1, 0.12]}, tempo: [1.0, 0.4, 2.0, 0.4],
-    props: [tube([0, 0, 0.7], [0, 1.6, 0.7], 0.045), ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 0.75], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
-      ['bar', 'Y', [-0.25, 0, 0], [0.25, 0, 0], 0.014, {mat: 'steel'}]],
+    props: [tube([0, 0, 0.42], [0, 1.6, 0.42], 0.045), tube([0, PUL[1], 0.42], PUL, 0.03), ['world', 'Q', [-0.015, PUL[1], PUL[2]], [0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 0.47], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      ['bar', 'Y', [-0.34, 0, 0], [0.34, 0, 0], 0.014, {mat: 'steel'}]],
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.95, -0.02], pitch: 4}, spine: [1, 1], neck: -2, arm: {clav: [lerp1(-4, 14, ease(k)), lerp1(4, -2, k)]}});
-      const C = solve(p).chest, gL = V.lerp([0.12, 0.8, 0.16], [0.11, 1.3, 0.17], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.2, -0.15]), fDir(C, [1, 0.55, -0.25]), k));
+      let p = STAND({root: {p: [0, 0.95, -0.05], pitch: -2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-4, 12, ease(k)), lerp1(4, -2, k)]}});
+      const C = solve(p).chest, gL = V.lerp([0.25, 0.8, 0.13], [0.24, 1.22, 0.15], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.3, -0.1]), fDir(C, [1, 0.35, -0.2]), k));
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.1, -1])}, armR: {palm: V.mx(fDir(C, [0, 0.1, -1]))}});
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[PUL, m, 0.006]]};

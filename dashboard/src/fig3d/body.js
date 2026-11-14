@@ -46,6 +46,9 @@ async function loadBody() {
   REST_B = frames(REST_J);
   SK.kn3 = {L: toLocal(REST_B.hdL, J.kn3L), R: toLocal(REST_B.hdR, J.kn3R)};
   REST_B = frames(REST_J); // again, now the finger bone knows where the knuckles are
+  const fmidOf = (a, b) => V.add(a, V.sc(V.sub(b, a), 0.45));
+  SK.fmid = {L: toLocal(REST_B.fgL, fmidOf(J.kn3L, J.tipL)), R: toLocal(REST_B.fgR, fmidOf(J.kn3R, J.tipR))};
+  REST_B = frames(REST_J); // and once more for the second finger joint
   return ATL;
 }
 
@@ -103,7 +106,10 @@ function frames(J) {
     const fa = B['fa' + k] = limb(S.el, S.wr, neg(S.ep), J.F2.f, neg(uaY), wA), tw = sg * (S.pron || 0) * D2R;
     B['tw' + k] = rotF(fa, fa.y, tw / 2, V.sc(V.add(S.el, S.wr), 0.5));
     const hd = B['hd' + k] = rotF(fa, fa.y, tw, S.wr);
-    B['fg' + k] = rotF(hd, V.norm(V.cross(hd.y, hd.z)), (S.curl || 0) * D2R, SK && SK.kn3 ? toWorld(hd, SK.kn3[k]) : S.wr);
+    /* Two finger joints (14 Nov 2026, Sam: the hands weren't gripping the bars). One bend at the knuckles left the
+       fingers straight, sticking out of the palm; a grip curls at the knuckles and again halfway along. */
+    const fg = B['fg' + k] = rotF(hd, V.norm(V.cross(hd.y, hd.z)), (S.curl || 0) * 0.6 * D2R, SK && SK.kn3 ? toWorld(hd, SK.kn3[k]) : S.wr);
+    B['fx' + k] = rotF(fg, V.norm(V.cross(fg.y, fg.z)), (S.curl || 0) * 0.9 * D2R, SK && SK.fmid ? toWorld(fg, SK.fmid[k]) : fg.o);
     B['th' + k] = limb(S.hp, S.kn, S.kp, J.F0.f, neg(snY), wL);
     B['sn' + k] = limb(S.kn, S.an, S.kp, J.F0.f, thY, wL);
     B['ft' + k] = limb(S.an, S.toe, V.sub(S.kn, S.an), [0, 1, 0]);
@@ -133,18 +139,21 @@ function surface() {
   const bones = Object.keys(REST_B).concat(['clL', 'clR']), bi = Object.fromEntries(bones.map((b, i) => [b, i]));
   const SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4), SHORTS = new Float32Array(nv), SM = new Float32Array(nv), RY = new Float32Array(nv), MW = new Float32Array(nv * MUSCLES.length);
   const knots = [R.P[1] - 1, R.A[1], R.C[1], R.N[1] + 0.01, 1.505], spineB = ['pelvis', 'abdomen', 'chest', 'neck', 'head'], blend = [0, 0.05, 0.06, 0.035, 0.035];
-  /* The seam where each arm's skin meets the torso's: a ring that runs over the shoulder and down through the
-     armpit, about 20 cm below the joint. WHY (13 Nov 2026): Sam saw "a weird lat thing" on the pulldown, machine
-     press and incline press: the arm side of the armpit went fully with the upper arm while the torso side next
-     to it stayed put, so raising the arm pulled the seam into fins down the lats. Now the weights match across
-     the seam: skin on both sides near it follows the shoulder bone (half the arm's turn), handing over to the
-     upper arm within 10 cm down the arm and to the ribcage within 14 cm down the torso, so the armpit stretches
-     over a hand's width of skin instead of one row of triangles. */
+  /* The armpit: where each arm's skin meets the torso's, about 20 cm below the shoulder joint.
+     13 Nov 2026: Sam saw fins down the lats on the pulldown and presses: the arm side of the armpit followed the
+     upper arm fully while the torso side next to it stayed put. The first fix gave the torso skin near the
+     armpit the full shoulder-bone weight over 14 cm, which pushed the lats out like wings whenever the arms went
+     up (14 Nov: "freakishly wide lats", "a bat" on the hanging leg raise, the side delt hidden on raises).
+     Now both sides of the armpit seam carry a small, equal share of the shoulder bone (k = 0.2), the torso hands
+     back to the ribcage within 4 cm, and the arm hands over to the upper arm within 12 cm. Compared side by side
+     at k = 0, 0.2 and 0.4 (contact sheets, 14 Nov): 0 shows the fins, 0.4 the wings, 0.2 neither.
+     __SEAM is a test-only override for that comparison. */
+  const SP = globalThis.__SEAM || {k: 0.2, dArm: 0.12, dTorso: 0.04, drop: 0.06};
   const seam = {L: [], R: []};
   for (let t = 0; t < B.I.length; t += 3) {
     const gs = [B.grp[B.I[t]], B.grp[B.I[t + 1]], B.grp[B.I[t + 2]]], arm = gs.filter(g => g === 3 || g === 4);
     if (!arm.length || arm.length === 3 || gs.some(g => g >= 5)) continue;
-    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) seam[gs[q] === 3 ? 'L' : 'R'].push(B.I[t + q]);
+    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) { const k = gs[q] === 3 ? 'L' : 'R', v = B.I[t + q]; if (B.P[v * 3 + 1] < R.side[k].sh[1] - SP.drop) seam[k].push(v); }   // the armpit part only
   }
   const seamD = (p, k) => { const S = R.side[k]; if (V.len(V.sub(p, S.sh)) > 0.4) return 1; let d = 1; for (const q of seam[k]) { const dx = B.P[q * 3] - p[0], dy = B.P[q * 3 + 1] - p[1], dz = B.P[q * 3 + 2] - p[2], e = dx * dx + dy * dy + dz * dz; if (e < d) d = e; } return Math.sqrt(d); };
   for (let v = 0; v < nv; v++) {
@@ -155,10 +164,11 @@ function surface() {
     const sideOf = g >= 3 && g <= 8 ? (g % 2 ? 'L' : 'R') : p[0] >= 0 ? 'L' : 'R';
     if (g === 3 || g === 4) { // arm
       const k = g === 3 ? 'L' : 'R', S = R.side[k], u = chainU(p, [S.sh, S.el, S.wr, J['kn3' + k], J['tip' + k]]);
-      const a = Math.min(smooth01(-0.04, 0.12, u), smooth01(0, 0.10, seamD(p, k))), e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
-      add('cl' + k, 1 - a); add('ua' + k, a * (1 - e));
+      const aS = smooth01(0, SP.dArm, seamD(p, k)), a = Math.min(smooth01(-0.04, 0.12, u), aS), cs = SP.k + (1 - SP.k) * aS, e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
+      add('cl' + k, (1 - a) * cs); spine((1 - a) * (1 - cs)); add('ua' + k, a * (1 - e));
       const fore = a * e * (1 - f); if (q < 0.5) { add('fa' + k, fore * (1 - 2 * q)); add('tw' + k, fore * 2 * q); } else { add('tw' + k, fore * (2 - 2 * q)); add('hd' + k, fore * (2 * q - 1)); }
-      add('fg' + k, a * e * f);
+      const uM = LEN.ua + LEN.fa + LEN.palm + 0.45 * (LEN.hand - LEN.palm), f2 = smooth01(uM - 0.008, uM + 0.01, u);
+      add('fg' + k, a * e * f * (1 - f2)); add('fx' + k, a * e * f * f2);
     } else if (g >= 5) { // leg, hip, crotch
       const dd = (p[1] - J.hpL[1]) - 0.5 * (p[2] - J.hpL[2]), t = 1 - smooth01(-0.10, 0.03, dd);
       const legs = g === 9 || Math.abs(p[0]) < 0.03 ? [['L', smooth01(-0.03, 0.03, p[0])], ['R', 1 - smooth01(-0.03, 0.03, p[0])]] : [[sideOf, 1]];
@@ -171,7 +181,7 @@ function surface() {
       /* torso skin round the armpit follows the shoulder bone only partly, fading over 20 cm: a steep
          fade (v7 draft: full weight to 4.5 cm, gone by 15) folded the side of the chest into stripes when
          the arm moved */
-      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), 1 - smooth01(0, 0.14, seamD(p, sideOf)));
+      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), SP.k * (1 - smooth01(0, SP.dTorso, seamD(p, sideOf))));
       add('cl' + sideOf, c); spine(1 - c);
     }
     const list = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4), tot = list.reduce((s, x) => s + x[1], 0) || 1;

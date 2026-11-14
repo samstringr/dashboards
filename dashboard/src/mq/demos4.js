@@ -6,18 +6,21 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
 /* ---- Seated dumbbell shoulder press ----
    Footage cues: bench upright, back and head on the pad. Start with the dumbbells at about ear height,
    forearms vertical, elbows a little in front of the body (not flared straight out). Press up and slightly in
-   to just short of lockout over the shoulders; lower for 2 s. */
+   to just short of lockout over the shoulders; lower for 2 s. 14 Nov 2026, Sam: "the worst one": the forearms
+   weren't stacked and the dumbbells turned in. Now authored like the other presses: the upper arm 25° in front
+   of the shoulder line, the forearm vertical under the dumbbell, the handles level across, palms forward. */
 {
-  const base = {root: {p: [0, 0.545, 0.02], pitch: -7}, spine: [-2, -4], neck: 4};
+  const base = {root: {p: [0, 0.55, 0.02], pitch: -7}, spine: [-2, -4], neck: 4};
   const B0 = solve(SIT_FEET(base));
   demo('ohp', {
     cam: {yaw: 34, pitch: 10, dist: 3.9, target: [0, 1.15, 0.05]}, tempo: [1.0, 0.4, 2.2, 0.4],
-    props: [...seat(0.02), ['world', 'B', fAt(B0.chest, [0, 0.14, -0.145]), [0.16, 0.38, 0.035], 0.025, {mat: 'pad', rot: [-11, 0, 0]}], tube([0, 0.42, -0.2], [0, 0.0, -0.4], 0.035), ...db('handL'), ...db('handR')],
+    props: [...seat(0.02, 0.415), ['world', 'B', fAt(B0.chest, [0, 0.14, -0.145]), [0.16, 0.38, 0.035], 0.025, {mat: 'pad', rot: [-11, 0, 0]}], tube([0, 0.42, -0.2], [0, 0.0, -0.4], 0.035), ...db('handL'), ...db('handR')],
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = SIT_FEET({...base, arm: {clav: [lerp1(4, 16, k), lerp1(2, 6, k)]}});
-      const C = solve(p).chest, gL = fAt(C, V.lerp([0.27, 0.33, 0.08], [0.14, 0.83, 0.05], ease(k))), pole = V.norm(V.lerp(fDir(C, [1, -1, -0.35]), fDir(C, [1, -0.25, -0.1]), k));
-      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.05, 1])}, armR: {palm: V.mx(fDir(C, [0, 0.05, 1]))}});
+      const C = solve(p).chest, e = ease(k);
+      const up = slerpV(V.norm(fDir(C, [0.86, -0.22, 0.4])), V.norm([-0.08, 1, 0.03]), e), fore = slerpV([0, 1, 0], V.norm([-0.1, 1, 0.02]), e);
+      p = {...p, arm: pressArm(up, fore, V.norm([0, 0, 1]), V.norm([-1, 0.1, 0.5]), {clav: p.arm.clav})};
       return {pose: p};
     }
   });
@@ -38,7 +41,8 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = STAND({root: {p: [0, 0.94, -0.02], pitch: 8}, spine: [2, 3], neck: -6, arm: {clav: [-4, -2]}});
-      const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.14]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.2, -1]), k);
+      // straight arms at the bottom put the hands 10 cm in front of the thighs, so the bar and cable stay clear (14 Nov 2026)
+      const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.34]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.34, -1]), k);
       p = {...p, arm: armFix(C, [0.1, -1, 0.07], fo, palm, {clav: [-4, -2]})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[TOP, m, 0.006]]};
@@ -50,9 +54,11 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
    Footage cues: face away from the pulley in a split stance, lean forward, elbows up beside your head and
    pointing forward. Let the rope pull your hands back behind your head for a deep stretch, then extend fully
    in line with the upper arms. Elbows stay where they are, pointing forward: the elbow's bend is pinned to
-   the back of the head, so it can't flip as the arm straightens (13 Nov 2026, Sam: "the elbows invert"). */
+   the back of the head, so it can't flip as the arm straightens (13 Nov 2026, Sam: "the elbows invert").
+   The pulley is high (2 m) and behind, so the cable comes down over the head to the rope rather than through
+   it (14 Nov 2026). */
 {
-  const LOW = [0, 1.18, -0.78];
+  const LOW = [0, 1.98, -0.72];
   demo('ohtri', {
     cam: {yaw: 70, pitch: 8, dist: 4.4, target: [0, 1.2, -0.05]}, tempo: [1.0, 0.5, 2.2, 0.4],
     props: [tube([0, 0, -0.98], [0, 2.2, -0.98], 0.045), tube([0, LOW[1], -0.98], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],

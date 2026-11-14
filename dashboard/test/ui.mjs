@@ -62,6 +62,11 @@ check('training log: cardio X / 150 min this week', /^Cardio \d+ \/ 150 min/.tes
 const cardio0 = +((cn.match(/^Cardio (\d+)/) || [])[1] || 0);
 // consistency grid: gym dot vs cardio dot, legend
 const cal = await page.evaluate(() => { const c = d => document.querySelector(`.widget[data-id=calendar] i[data-d="${d}"]`); return {fb: c('2026-10-31')?.className, gym: c('2026-11-01')?.className, leg: document.querySelector('.widget[data-id=calendar] .pl')?.innerText}; });
+// 14 Nov 2026: the grid fills its widget, whatever the size (no gap at the bottom)
+const fill = async () => page.evaluate(() => { const w = document.querySelector('.widget[data-id=calendar]'), b = w.querySelector('.wbody') || w.querySelector('[data-cal]').parentElement, cal = b.querySelector('[data-cal]'), leg = cal.nextElementSibling;
+  const bb = b.getBoundingClientRect(), lb = leg.getBoundingClientRect(), cs = getComputedStyle(b); return {gap: Math.round(bb.bottom - parseFloat(cs.paddingBottom) - lb.bottom), calW: Math.round(cal.getBoundingClientRect().width), bodyW: Math.round(bb.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))}; });
+const f1 = await fill();
+check('consistency: the grid fills the widget (no gap under it, full width)', f1.gap <= 14 && f1.gap >= -2 && Math.abs(f1.calW - f1.bodyW) <= 2, JSON.stringify(f1));
 check('consistency: cardio has its own dot', /\bcd\b/.test(cal.fb) && !/\btr\b/.test(cal.fb) && /\btr\b/.test(cal.gym) && !/\bcd\b/.test(cal.gym) && /cardio/.test(cal.leg) && /gym/.test(cal.leg), JSON.stringify(cal));
 // lift picker: plan first, then a break, then the rest
 const lp = await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=lift] select[data-ex] optgroup')].map(g => g.label + ':' + g.children.length + ':' + [...g.children].map(o => o.textContent).join('|')));
@@ -231,7 +236,7 @@ await page.evaluate(() => { const s = document.querySelector('.widget[data-id=li
 await page.locator('.widget[data-id=lift]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=lift]').screenshot({ path: `${OUT}lift-variants-${vp.width}.png` });
 const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 } : null; });
 check('lift variants: three curls offered and the toggle fits the widget', vw?.n === 3 && vw.fits, JSON.stringify(vw));
-check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Seated, bar|Standing, rope' && vOn === 'Standing, rope' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
+check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Incline bench, bar|Standing, rope' && vOn === 'Standing, rope' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
 const lctl = await page.locator('.widget[data-id=lift] .f3d-ctl button').count();
 check('lift demo has pause/front/side/back', lctl === 4, String(lctl));
 check('lift legend lists working muscles', /Chest|Lats|delts|Biceps/.test(await page.locator('.widget[data-id=lift] .mlg').innerText().catch(() => '')));
@@ -252,11 +257,16 @@ const ps1 = (await mcpNode('list_photos', {})).structuredContent, fid = ps1.sets
 const th = fid ? (await mcpNode('get_photo', { id: fid })).structuredContent : null, fu = fid ? (await mcpNode('get_photo', { id: fid, size: 'full' })).structuredContent : null;
 // a photo just taken shows straight away; reopened, it's blurred until tapped
 await page.click('#sheet-x'); await page.reload(); await page.waitForTimeout(2500); await page.click('[data-act=photos]'); await page.waitForTimeout(2000);
+const full = await page.evaluate(() => document.querySelector('#sheet').classList.contains('full'));
 const p1 = await page.locator('#sheet-b').innerText(), blurred = await page.locator('#sheet-b .ph-th.blur').count(), loaded = await page.evaluate(() => [...document.querySelectorAll('#sheet-b .ph-th img')].filter(i => /^blob:/.test(i.src)).length);
 await page.evaluate(() => { const t = document.querySelector('#sheet-b .ph-th'); t.click(); t.click(); }); await page.waitForTimeout(1200);
 const lb = await page.evaluate(() => ({img: /^blob:/.test(document.querySelector('.ph-lb img')?.src || ''), n: document.querySelectorAll('.ph-lb').length})); await page.evaluate(() => document.querySelectorAll('.ph-lb').forEach(x => x.click()));
 const lbLeft = await page.evaluate(() => document.querySelectorAll('.ph-lb').length);
 await page.evaluate(() => { const d = document.querySelector('#sheet-b [data-del]'); d.click(); d.click(); }); await page.waitForTimeout(1200);
+await page.evaluate(() => { const x = document.querySelector('#sheet-b [data-blur]'); x.checked = false; x.dispatchEvent(new Event('change')); }); await page.waitForTimeout(1500);
+const unbl = await page.locator('#sheet-b .ph-th.blur').count(), blurSaved = await page.evaluate(() => { try { return localStorage.getItem('hf.photoBlur'); } catch { return 'x'; } });
+await page.evaluate(() => { const x = document.querySelector('#sheet-b [data-blur]'); x.checked = true; x.dispatchEvent(new Event('change')); }); await page.waitForTimeout(1200);
+check('photos: a full window, and the blur switch turns blur off and remembers it', full && unbl === 0 && blurSaved === '0', JSON.stringify({full, unbl, blurSaved}));
 const ps2 = (await mcpNode('list_photos', {})).structuredContent;
 check('photos: due notice; upload goes to Health DB with a thumbnail and the weigh-in; blurred; thumbnails and full size load; delete removes it',
   /No photos yet/.test(p0) && ps1.sets.length === 1 && ps1.sets[0].date === TD && fid && th?.data && fu?.data && fu.data.length > th.data.length && /Delete this set/.test(p1) && blurred === 1 && loaded === 1 && lb.img && lb.n === 1 && !lbLeft && ps2.sets.length === 0,
