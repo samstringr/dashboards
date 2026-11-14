@@ -30,15 +30,20 @@ const fTurn = (f, ax, deg) => fRot(f, f[ax], deg * D2R);
 // orthonormal frame with y = given, x close to the hint
 const fromYX = (o, y, xh) => { y = V.norm(y); let x = V.sub(xh, V.sc(y, V.dot(xh, y))); if (V.len(x) < 1e-6) x = Math.abs(y[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]; x = V.norm(V.sub(x, V.sc(y, V.dot(x, y)))); return F(o, x, y, V.cross(x, y)); };
 
-/* Body measurements for 172 cm (Drillis and Contini segment ratios, checked against ISO 7250 adult male
-   medians): hip joints at 0.91 m, knees 0.49, ankles 0.067, shoulders 1.40, upper arm 0.30, forearm 0.25. */
+/* Body measurements: the physique body's own (14 Nov 2026). WHY: the demos are choreographed on this rig and
+   then shown on the physique body (skin.js). The rig used textbook proportions for 172 cm (Drillis and Contini),
+   but the body's shins are 6 cm shorter than that, its arms 2 cm shorter and its shoulders 4 cm higher above
+   the hips. Every difference showed: standing figures hovered and looked like they were jumping at the top of a
+   squat, elbows snapped straight ("knocked") a few degrees early, and bars slid in the hands. With the same
+   skeleton in both places the rig's joints ARE the body's joints, so what is authored is what is seen.
+   Measured from the atlas (LEN and the rest joints in body.js); test/ui.mjs fails if they drift apart. */
 const SK = {
-  pelvis: [0, 0.95, 0],        // standing pelvis origin (between the hip joints, a little above)
-  hip: [0.087, -0.045, 0.01],  // hip joint, pelvis-local
-  lumbar: [0, 0.05, -0.03], chest: [0, 0.18, 0.01], neck: [0, 0.27, -0.03], head: [0, 0.105, 0.02],
-  sc: [0.022, 0.225, 0.085],   // sternoclavicular joint, chest-local
-  shoulder: [0.184, 0.205, -0.02],  // shoulder joint centre, chest-local, shoulders relaxed
-  upper: 0.300, fore: 0.250, palm: 0.095, fing1: 0.048, thigh: 0.418, shin: 0.423
+  pelvis: [0, 0.892, 0],       // standing pelvis origin: hip joints at 0.847 m
+  hip: [0.076, -0.045, 0],     // hip joint, pelvis-local
+  lumbar: [0, 0.103, 0], chest: [0, 0.192, 0], neck: [0, 0.213, 0], head: [0, 0.195, 0.008],
+  sc: [0.022, 0.2, 0.07],      // sternoclavicular joint, chest-local
+  shoulder: [0.167, 0.18, -0.017],  // shoulder joint centre, chest-local, shoulders relaxed
+  upper: 0.283, fore: 0.245, palm: 0.098, fing1: 0.048, thigh: 0.42, shin: 0.361
 };
 const sideIn = (side, v) => side > 0 ? v : V.mx(v);
 

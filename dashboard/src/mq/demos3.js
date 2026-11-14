@@ -42,7 +42,7 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
     props: [...barbell('bar')], frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo), e = ease(k), pitch = lerp1(66, 9, e), BAR_Z = lerp1(BAR_BOT, BAR_TOP, e);
-      let p = {root: {p: [0, lerp1(0.87, 0.94, e), 0], pitch}, spine: [lerp1(-4, -1, e), lerp1(-8, -2, e)], neck: lerp1(-22, -6, e), head: lerp1(-6, 0, e), arm: {clav: [lerp1(-6, -2, e), lerp1(6, 0, e)]}};
+      let p = {root: {p: [0, lerp1(0.82, 0.885, e), 0], pitch}, spine: [lerp1(-4, -1, e), lerp1(-8, -2, e)], neck: lerp1(-22, -6, e), head: lerp1(-6, 0, e), arm: {clav: [lerp1(-6, -2, e), lerp1(6, 0, e)]}};
       // hips go back until the shoulders sit just ahead of the bar: the bar stays on the legs
       const S0 = solve(p).upperL.o; p.root.p = [0, p.root.p[1], BAR_Z - (S0[2] - p.root.p[2]) - lerp1(0.04, 0.02, e)];
       p = legsTo(p, [0.11, 0.067, 0.0], [0.05, 0, 1], [0.12, 0, 1]);
@@ -61,13 +61,13 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
    jump (the front leg ran out of length and the foot pointed) and the back foot went into the bench; the
    bench now runs across, the laces rest on its front edge, and the top stops with the front knee soft. */
 {
-  const FRONT = [0.11, 0.067, 0.3], BACK = [-0.11, 0.53, -0.47];
+  const FRONT = [0.11, 0.067, 0.3], BACK = [-0.11, 0.53, -0.4];
   demo('splitsquat', {
     cam: {yaw: 76, pitch: 8, dist: 4.0, target: [0, 0.75, -0.1]}, tempo: [1.1, 0.4, 2.2, 0.4],
-    props: [pad([-0.1, 0.43, -0.6], [0.45, 0.035, 0.15]), tube([0.25, 0, -0.6], [0.25, 0.4, -0.6], 0.035), tube([-0.45, 0, -0.6], [-0.45, 0.4, -0.6], 0.035), tube([0.25, 0.02, -0.75], [0.25, 0.02, -0.45], 0.03), tube([-0.45, 0.02, -0.75], [-0.45, 0.02, -0.45], 0.03), ...db('handL'), ...db('handR')],
+    props: [pad([-0.1, 0.43, -0.53], [0.45, 0.035, 0.15]), tube([0.25, 0, -0.53], [0.25, 0.4, -0.53], 0.035), tube([-0.45, 0, -0.53], [-0.45, 0.4, -0.53], 0.035), tube([0.25, 0.02, -0.68], [0.25, 0.02, -0.38], 0.03), tube([-0.45, 0.02, -0.68], [-0.45, 0.02, -0.38], 0.03), ...db('handL'), ...db('handR')],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = {root: {p: [0, lerp1(0.585, 0.81, ease(k)), lerp1(-0.07, -0.02, k)], pitch: lerp1(13, 6, k)}, spine: [lerp1(2, 0, k), 2], neck: lerp1(-8, -3, k), arm: {clav: [-4, 0]}};
+      let p = {root: {p: [0, lerp1(0.56, 0.77, ease(k)), lerp1(-0.07, -0.02, k)], pitch: lerp1(13, 6, k)}, spine: [lerp1(2, 0, k), 2], neck: lerp1(-8, -3, k), arm: {clav: [-4, 0]}};
       p = legsTo(p, FRONT, [0.08, 0, 1], [0.1, 0, 1]);
       p = legR(p, solve(p), BACK, [0, -1, 0.25], V.norm([0, -0.1, -1]));
       const B1 = solve(p), C = B1.chest, S = B1.upperL.o, g = V.add(S, [0.04, -0.6, 0.02]);
@@ -85,7 +85,7 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
   const th = V.norm([0.03, -0.05, 1]), sS = V.norm([0, -0.2, 1]), sE = V.norm([0, -1, -0.5]);
   const B0 = solve({...base, leg: {thigh: th, shin: sS, foot: footFor(sS)}}), K0 = B0.shinL.o;
   demo('legcurl', {
-    cam: {yaw: 70, pitch: 12, dist: 3.8, target: [0, 0.65, 0.25]}, tempo: [1.0, 0.5, 2.2, 0.4],
+    cam: {yaw: 70, pitch: 12, dist: 3.8, target: [0, 0.65, 0.25]}, tempo: [1.3, 0.6, 2.6, 0.5],
     props: [pad([0, 0.47, 0.0], [0.2, 0.035, 0.2]), tube([0, 0, 0], [0, 0.44, 0], 0.035), ['world', 'B', fAt(B0.chest, [0, 0.0, -0.14]), [0.17, 0.32, 0.035], 0.025, {mat: 'pad', rot: [-16, 0, 0]}],
       ['world', 'Y', [-0.22, K0[1] + 0.135, K0[2] - 0.06], [0.22, K0[1] + 0.135, K0[2] - 0.06], 0.045, {mat: 'pad'}],
       tube([0.3, K0[1], K0[2]], [0.3, K0[1] + 0.135, K0[2] - 0.06], 0.025), tube([-0.3, K0[1], K0[2]], [-0.3, K0[1] + 0.135, K0[2] - 0.06], 0.025),
@@ -135,7 +135,7 @@ const barbell = (fr, half = 1.0) => [[fr, 'Y', [-half, 0, 0], [half, 0, 0], 0.01
       ['thighL', 'B', [-0.115, -0.31, 0.0], [0.025, 0.085, 0.06], 0.02, {mat: 'pad'}], ['thighR', 'B', [-0.115, -0.31, 0.0], [0.025, 0.085, 0.06], 0.02, {mat: 'pad'}]],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = {...base, leg: legAt(lerp1(40, 5, ease(k)))};
+      let p = {...base, leg: legAt(lerp1(40, 12, ease(k)))};   // stops with the pads a hand apart: at 5° they went into each other (14 Nov 2026)
       const C = solve(p).chest; p = armsTo(p, [0.29, 0.52, 0.06], [-0.29, 0.52, 0.06], fDir(C, [1, -0.3, -0.3]), V.mx(fDir(C, [1, -0.3, -0.3])), {arm: {palm: [-1, 0, 0]}, armR: {palm: [1, 0, 0]}});
       const B = solve(p), segs = [];
       for (const s of ['L', 'R']) segs.push([[s === 'L' ? 0.05 : -0.05, 0.36, 0.22], fAt(B['thigh' + s], [-0.14, -0.31, 0.0]), 0.022]);

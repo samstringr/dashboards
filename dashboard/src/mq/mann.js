@@ -174,6 +174,7 @@ function liftView(host0, opt = {}) {
   for (const q of Object.values(man.groups)) for (const c of q.children) c.userData.body = true;
   const pose = () => {
     const r = ex.pose ? ex.pose(t) : {pose: {}};
+    if (man.flex) { const k = ex.tempo ? phaseK(t, ex.tempo) : 0; man.flex(ex.flexInv ? 1 - k : k); }
     const B = solve(r.pose); man.pose(B);
     for (const [n, q] of Object.entries(eq.frames)) { const f = r.frames && r.frames[n]; q.visible = !!f; if (f) { frameMatrix(M, f); q.matrix.copy(M); q.matrixWorldNeedsUpdate = true; } }
     const segs = r.segs || [];
@@ -186,6 +187,16 @@ function liftView(host0, opt = {}) {
   const ro = window.ResizeObserver ? new ResizeObserver(size) : null; ro && ro.observe(host);
   const attach = h => { if (h === host && wrap.parentNode === h) return; ro && ro.unobserve(host); host = h; host.replaceChildren(wrap); ro && ro.observe(host); size(); };
   // Front = facing him, Side = his left, Back = behind; play/pause stops the rep where it is
+  /* Speed (14 Nov 2026, Sam asked for a slider): 0.25× to 1.5×, one setting for every exercise, remembered on
+     this device. Slow is for studying a rep; the tempo each demo is authored at is 1×. */
+  let speed = 1; try { speed = Math.max(0.25, Math.min(1.5, +localStorage.getItem('hf.liftSpeed') || 1)); } catch {}
+  if (!opt.still) {
+    const sp = document.createElement('label'); sp.className = 'f3d-speed'; sp.title = 'Playback speed';
+    sp.innerHTML = `<input type="range" min="0.25" max="1.5" step="0.25" value="${speed}" aria-label="Playback speed"><span>${speed}×</span>`;
+    const inp = sp.querySelector('input'); for (const ev of ['pointerdown', 'wheel', 'click', 'dblclick']) sp.addEventListener(ev, e => e.stopPropagation());
+    inp.oninput = () => { speed = +inp.value; sp.querySelector('span').textContent = speed + '×'; try { localStorage.setItem('hf.liftSpeed', String(speed)); } catch {} kick(); };
+    wrap.append(sp);
+  }
   const ctl = opt.still ? null : controls(wrap, st, a => { yaw = a; userAz = 0; userEl = 0; st.playing = true; st.dirty = true; }, [[0, 'Front'], [90, 'Side'], [180, 'Back']]);
   if (ctl) { const pb = wrap.querySelector('[data-f=play]'); pb.addEventListener('click', () => { st.dirty = true; }); }
   /* Drag turns the camera round the figure; the wheel, or a pinch, zooms (14 Nov 2026, Sam: scrolling over the
@@ -208,7 +219,7 @@ function liftView(host0, opt = {}) {
     frame(now, force) {
       const dt = lastT == null ? 0 : Math.min(0.1, (now - lastT) / 1000); lastT = now;
       if (!force) { if (!wrap.isConnected) return; const r = el.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth || r.width < 2) return; }
-      if (st.playing && ex.pose) t += dt;
+      if (st.playing && ex.pose) t += dt * speed;
       else if (!force && !st.dirty) return;
       st.dirty = false;
       pose();

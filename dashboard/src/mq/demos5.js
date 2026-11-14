@@ -9,6 +9,7 @@
 {
   const HAND = [0.27, 1.27, 0.04];   // on the bar itself, so the closed hand wraps it (14 Nov 2026)
   demo('dip', {
+    flexInv: true,   // the rep starts at the top: the muscles are shortest at k = 0
     cam: {yaw: 58, pitch: 6, dist: 4.4, target: [0, 1.2, 0]}, tempo: [1.8, 0.4, 1.0, 0.5],
     props: [tube([0.27, 1.27, -0.38], [0.27, 1.27, 0.42], 0.022), tube([-0.27, 1.27, -0.38], [-0.27, 1.27, 0.42], 0.022),
       tube([0.27, 0, 0.38], [0.27, 1.27, 0.38], 0.03), tube([-0.27, 0, 0.38], [-0.27, 1.27, 0.38], 0.03), tube([0.27, 0, -0.34], [0.27, 1.27, -0.34], 0.03), tube([-0.27, 0, -0.34], [-0.27, 1.27, -0.34], 0.03),
@@ -35,7 +36,7 @@
    Pull the handle to the belly button, elbows close to your sides, and squeeze the shoulder blades together;
    sit upright at the end, no swinging back. Return over 2 s. */
 {
-  const PUL = [0, 0.42, 1.0], base = {spine: [0, 0], neck: 0};
+  const PUL = [0, 0.74, 1.0], base = {spine: [0, 0], neck: 0};   // level with the lower ribs, so the cable runs about level: the pull is back, not up (14 Nov 2026, Sam; was 0.42)
   demo('cablerow', {
     cam: {yaw: 70, pitch: 10, dist: 4.0, target: [0, 0.8, 0.35]}, tempo: [1.0, 0.5, 2.0, 0.4],
     props: [pad([0, 0.4, -0.05], [0.17, 0.035, 0.32]), tube([0, 0.0, -0.05], [0, 0.37, -0.05], 0.035), tube([0, 0.02, -0.3], [0, 0.02, 1.0], 0.03),
@@ -64,7 +65,7 @@ demo('shrug', {
   props: [...db('handL'), ...db('handR')],
   pose(t) {
     const k = phaseK(t, this.tempo);
-    let p = STAND({root: {p: [0, 0.95, 0], pitch: 2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-6, 26, ease(k)), lerp1(2, -6, k)]}});
+    let p = STAND({root: {p: [0, 0.89, 0], pitch: 2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-6, 26, ease(k)), lerp1(2, -6, k)]}});
     const C = solve(p).chest;
     return {pose: {...p, arm: armFix(C, [0.06, -1, 0.02], [0.04, -1, 0.04], [-1, 0, 0.05], {clav: p.arm.clav})}};
   }
@@ -84,7 +85,7 @@ demo('shrug', {
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.95, -0.05], pitch: -2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-4, 12, ease(k)), lerp1(4, -2, k)]}});
+      let p = STAND({root: {p: [0, 0.89, -0.05], pitch: -2}, spine: [0, 0], neck: 0, arm: {clav: [lerp1(-4, 12, ease(k)), lerp1(4, -2, k)]}});
       const C = solve(p).chest, gL = V.lerp([0.25, 0.8, 0.13], [0.24, 1.22, 0.15], ease(k)), pole = V.norm(V.lerp(fDir(C, [1, -0.3, -0.1]), fDir(C, [1, 0.35, -0.2]), k));
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: fDir(C, [0, 0.1, -1])}, armR: {palm: V.mx(fDir(C, [0, 0.1, -1]))}});
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);

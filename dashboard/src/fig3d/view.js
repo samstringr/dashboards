@@ -18,18 +18,25 @@ const bodyData = c => { const k = compKey(c); if (!meshCache.has(k)) { if (meshC
 const SKIN = [0.87, 0.87, 0.885], SHORTS = [0.13, 0.135, 0.15];
 function bodyMaterial(skinned, dim) {
   const m = new T.MeshStandardMaterial({color: 0xffffff, vertexColors: true, roughness: 0.66, metalness: 0, skinning: skinned});
+  /* Contraction (14 Nov 2026, Sam: "I want to see the muscles contract"). wk is how hard each point's muscle works
+     in the exercise on show (0..1, soft at the muscle's edges); uFlex is where the rep is, 0 long to 1 shortened.
+     The belly swells along its normal as it shortens, up to 13 mm on a prime mover, and sits 3 mm flat when
+     long, and its colour deepens a little with it. Subtle on purpose: it should read as a person lifting. */
+  m.userData.uFlex = {value: 0};
   m.onBeforeCompile = sh => {
+    sh.uniforms.uFlex = m.userData.uFlex;
     sh.uniforms.rimColor = {value: new T.Color(0x9ea6b8)}; sh.uniforms.rimK = {value: dim ? 0.18 : 0.28};
     sh.uniforms.shortsCol = {value: new T.Color(...SHORTS)};
-    sh.vertexShader = 'attribute float ry;\nattribute float sm;\nvarying float vRy;\nvarying float vSm;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRy = ry; vSm = sm;');
-    sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimK;\nuniform vec3 shortsCol;\nvarying float vRy;\nvarying float vSm;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+    sh.vertexShader = 'attribute float ry;\nattribute float sm;\nattribute float wk;\nuniform float uFlex;\nvarying float vRy;\nvarying float vSm;\nvarying float vWk;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRy = ry; vSm = sm; vWk = wk;\n  transformed += objectNormal * wk * (uFlex * 0.016 - 0.003);');
+    sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimK;\nuniform vec3 shortsCol;\nuniform float uFlex;\nvarying float vRy;\nvarying float vSm;\nvarying float vWk;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  diffuseColor.rgb *= 1.0 - 0.22 * vWk * (1.0 - uFlex);   // a working muscle is a shade duller when long, full colour when shortened
   // shorts: hem and waistband cut per pixel from the rest-pose height, so the edges are clean
   float sht = step(0.5, vSm) * smoothstep(0.612, 0.618, vRy) * (1.0 - smoothstep(0.978, 0.984, vRy));
   diffuseColor.rgb = mix(diffuseColor.rgb, shortsCol, sht);
   float fres = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0);
   totalEmissiveRadiance += rimColor * fres * rimK * (1.0 - 0.7 * sht);`);
   };
-  m.customProgramCacheKey = () => 'hfmq2' + (skinned ? 's' : '') + (dim ? 'd' : '');
+  m.customProgramCacheKey = () => 'hfmq3' + (skinned ? 's' : '') + (dim ? 'd' : '');
   return m;
 }
 /* Strength colours: each muscle tinted by how its lifts compare with other men at the same bodyweight,
@@ -71,7 +78,7 @@ function bodyGeometry(d, skinned) {
   for (let v = 0; v < nv; v++) for (let k = 0; k < 3; k++) col[v * 3 + k] = SKIN[k];
   g.setAttribute('color', new T.BufferAttribute(col, 3));
   g.setAttribute('ry', new T.BufferAttribute(d.restY, 1)); g.setAttribute('sm', new T.BufferAttribute(d.shortsMask, 1));
-  g.setAttribute('hl', new T.BufferAttribute(new Float32Array(nv), 1));
+  g.setAttribute('hl', new T.BufferAttribute(new Float32Array(nv), 1)); g.setAttribute('wk', new T.BufferAttribute(new Float32Array(nv), 1));
   g.setAttribute('fib', new T.BufferAttribute(d.fib, 1));
   if (skinned) { g.setAttribute('skinIndex', new T.Uint16BufferAttribute(d.skinIndex, 4)); g.setAttribute('skinWeight', new T.Float32BufferAttribute(d.skinWeight, 4)); }
   return g;
