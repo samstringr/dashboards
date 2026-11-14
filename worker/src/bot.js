@@ -1,6 +1,7 @@
 /* Health DB · bot.js */
 import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, validDate, normName, webhookSecret, b64 } from './util.js';
-import { getDay, mutateDay, putConfig, getKV, setKV, delKV } from './store.js';
+import { getDay, mutateDay, getConfig, putConfig, getKV, setKV, delKV } from './store.js';
+import { reviewSession, reviewExercise, sessionReviewHtml, joinReview, coachNote, weeklyReview } from './coach.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
 import { photoRoute, rememberImages, isProgressNote, moveRemembered, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, undoBatch } from './photos.js';
@@ -127,6 +128,19 @@ export async function onCallback(env, cq) {
     return onMessage(env, { text: r.raw });
   }
   if (act === 'wk') return sendWorkout(env, token || null);
+  if (act === 'swp' || act === 'swn') {   // a swap offered after a session: change the plan, or leave it
+    await strip();
+    const sw = await getKV(env, 'swap');
+    if (!sw || sw.token !== token) return send(env, 'That offer has expired. Edit the plan on the dashboard instead.');
+    await delKV(env, 'swap');
+    if (act === 'swn') return send(env, 'Left the plan as it is.');
+    const plan = await getConfig(env, 'plan'), ses = plan?.sessions?.find(s => s.code === sw.code), done = [];
+    for (const { from, to } of sw.swaps) { const e = ses?.ex.find(x => normName(x.n) === normName(from)); if (e) { e.n = to; e.opener = 'calibrate'; done.push(`${from} → ${to}`); } }
+    if (!done.length) return send(env, 'The plan has changed since then, so I left it alone.');
+    plan.note = (plan.note ? plan.note + ' ' : '') + `${dLong(today())}: ${done.join('; ')} on ${sw.code} (swapped in the gym).`;
+    await putConfig(env, 'plan', plan);
+    return send(env, `✅ Plan updated · ${esc(sw.code)}: ${done.map(esc).join('; ')}. Same sets and reps; the dashboard follows.`);
+  }
   if (act === 'sp' || act === 'sa') return onSuppCallback(env, await loadCtx(env), cq);
 }
 
@@ -263,7 +277,21 @@ export async function handleParsed(env, ctx, r, pending) {
       if (ups.length) flags = '\n\n⬆️ Add load next time: ' + ups.map(u => esc(u.n)).join(', ');
     }
     const ctx2 = await loadCtx(env), ps = planState(ctx2);
-    return send(env, `💪 Session saved · ${dLong(date)}\n<b>${esc(rec.label)}</b>${ex.length ? '\n' + ex.map(e => `• ${esc(e.n)}: ${esc(setsText(e.sets))}`).join('\n') : ''}${rec.min ? `\n${rec.min} min` : ''}${rec.km ? ` · ${rec.km} km` : ''}${flags}${ps && planS ? `\n\nNext in the queue: <b>${esc(ps.next.code)} · ${esc(ps.next.name)}</b>` : ''}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
+    await send(env, `💪 Session saved · ${dLong(date)}\n<b>${esc(rec.label)}</b>${ex.length ? '\n' + ex.map(e => `• ${esc(e.n)}: ${esc(setsText(e.sets))}`).join('\n') : ''}${rec.min ? `\n${rec.min} min` : ''}${rec.km ? ` · ${rec.km} km` : ''}${flags}${ps && planS ? `\n\nNext in the queue: <b>${esc(ps.next.code)} · ${esc(ps.next.name)}</b>` : ''}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
+    /* The coach's review (14 Nov 2026): a second message, so the save is confirmed first and a slow or failed
+       review can't hold it up. ctx is the data from before this session, so "last time" is the previous one. */
+    if (kind === 'gym' && ex.length) {
+      const R = reviewSession(ctx, planS, ex), H = sessionReviewHtml(R, rec.label);
+      const note = await coachNote(env, 'session review', [H.verdict, H.lines.join('\n'), H.focus].join('\n'));
+      let extra = {}, swapTxt = '';
+      if (R.swaps.length) {   // done something that isn't in the plan, in place of something that is: offer to make it the plan
+        const tk = uid(); await setKV(env, 'swap', { token: tk, code: planS.code, swaps: R.swaps });
+        swapTxt = '\n\n🔁 You did ' + R.swaps.map(s => `<b>${esc(s.to)}</b> in place of ${esc(s.from)}`).join(', and ') + '. Make that the plan from now on?';
+        extra = buttons([[['🔁 Yes, change the plan', 'swp:' + tk], ['Just today', 'swn:' + tk]]]);
+      }
+      await send(env, joinReview(H, note) + swapTxt, extra);
+    }
+    return;
   }
   if (r.intent === 'recipe' && r.recipe?.per100) {
     const rc = r.recipe, m = rc.per100;
@@ -327,12 +355,14 @@ Just tell me things:
 /workout · the next session in your plan
 /supps · today’s supplements checklist
 /week · the last 7 days
+/review · the coach’s review of your week (sent by itself on Sunday evening)
 /foods · your presets and saved foods
 /photos · progress photos (front, side, back). When a set is due, just send them: no caption, no /done
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
   if (c === '/today') return send(env, await todayHtml(env));
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
+  if (c === '/review') return send(env, await weeklyReview(env, await loadCtx(env), today()));
   if (c === '/week') return send(env, await weekHtml(env));
   if (c === '/foods' || c === '/presets') return send(env, foodsHtml(await loadCtx(env)));
   if (c === '/photos') return openPhotoSession(env, send);
@@ -370,7 +400,9 @@ export async function sendWorkout(env, code) {
   const s = (code && ctx.plan.sessions.find(x => x.code.toLowerCase() === String(code).toLowerCase())) || ps.next;
   const lines = s.ex.map(e => {
     const lp = lastPerf(ctx.days, e.n);
-    return `${e.n} ${e.sets}×${e.reps}${e.rpe ? ' @' + e.rpe : ''} (${lp ? 'last ' + setsText(lp.sets) : e.opener ? 'start ' + e.opener : 'new'}):`;
+    // what to aim for today, by the same rule the coach's review uses (14 Nov 2026: "advise on what I should aim for")
+    const aim = lp ? reviewExercise(e, { n: e.n, sets: lp.sets }, null).next : null;
+    return `${e.n} ${e.sets}×${e.reps}${e.rpe ? ' @' + e.rpe : ''} (${lp ? 'last ' + setsText(lp.sets) + (aim ? ' → today ' + aim : '') : e.opener ? 'start ' + e.opener : 'new'}):`;
   });
   await send(env, `🏋️ <b>${esc(s.code)} · ${esc(s.name)}</b> · session ${ps.nextNo}${ctx.plan.length ? ' of ' + ctx.plan.length : ''}${ps.deload ? ' · <b>deload</b>: 60% load, RPE 6' : ''}\nCopy this, fill in after each colon (e.g. <i>30x10, 30x9, 30x8</i>), and send it back.\n<pre>${esc('WORKOUT ' + s.code + '\n' + lines.join('\n'))}</pre>`);
   return { ok: true, session: s.code + ' · ' + s.name };

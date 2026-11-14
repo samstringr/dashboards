@@ -95,9 +95,22 @@ m = await lastMsg();
 check('/workout sends next session with copy block', /<pre>WORKOUT U/.test(m.text), m.text.split('\n')[0]);
 await reset();
 await tgSend({ text: 'WORKOUT Ps\nFlat DB press 3×8-12 @8 (new): 30x12, 30x10\nPec deck: 45x13' });
-m = await lastMsg();
+{ const all = (await calls()).filter(x => x.api === 'tg' && x.method === 'sendMessage').map(x => x.body); m = all.find(x => /Session saved/.test(x.text)) || {}; var coachMsg = all.find(x => /Coach ·/.test(x.text)) || { text: '' }; }
 check('workout saved + progression flag', /Session saved/.test(m.text) && /Add load next time: Flat DB press/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 220));
 check('queue advances', /Next in the queue: <b>Pl/.test(m.text));
+// 14 Nov 2026: the coach's review follows the save as its own message
+check('coach review: opening note, per-lift next target with its reason, focus', /Good work today/.test(coachMsg.text) && /Flat DB press<\/b>: 30 kg × 12, 10/.test(coachMsg.text) && /next: <b>32 kg, aim 8–10<\/b>/.test(coachMsg.text) && /top of 8–12/.test(coachMsg.text) && /Focus next time/.test(coachMsg.text), coachMsg.text.replace(/\n/g, ' | ').slice(0, 600));
+// a lift that isn't in the plan, done in place of one that is: the bot offers to change the plan
+await reset(); await tgSend({ text: 'WORKOUT SWAP\nSmith machine chest press: 40x8, 40x7' }); m = await lastMsg();
+const swTok = (m.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data || '');
+const planBefore = (await tool('get_snapshot', {})).config.plan.sessions.find(s => s.code === 'Ps').ex[0].n;
+check('swap offered after the session', /in place of/.test(m.text) && /^swp:/.test(swTok), m.text.replace(/\n/g, ' | ').slice(-200));
+await reset(); await tgCb(swTok); m = await lastMsg();
+const planAfter = (await tool('get_snapshot', {})).config.plan.sessions.find(s => s.code === 'Ps').ex[0].n;
+check('swap applied to the plan', /Plan updated/.test(m.text) && planAfter === 'Smith machine chest press' && planBefore !== planAfter, planBefore + ' → ' + planAfter);
+await tool('put_config', { id: 'plan', doc: seed.config.plan });   // put the seed plan back for the checks that follow
+await reset(); await tgSend({ text: '/review' }); m = await lastMsg();
+check('/review: the week with went well, to improve and a focus', /Your week/.test(m.text) && /Training: <b>\d+<\/b> gym/.test(m.text) && /Focus for next week/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
 await reset();
 await tgSend({ text: 'ran 5k in 28 min' });
 check('run saved', /Easy run/.test((await lastMsg()).text));

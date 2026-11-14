@@ -5,12 +5,13 @@ import { dayTotals, targets, loadCtx } from './model.js';
 import { send, qtyTxt, proteinTip } from './bot.js';
 import { quietState, quietNote, suppReminder } from './extras.js';
 import { photoDue } from './photos.js';
+import { weeklyReview } from './coach.js';
 
 /* ============================================================ cron */
 export async function hourly(env, now) {
   const { hour, wd } = localParts(now), td = today();
   const once = async (key, fn) => { const k = 'sent:' + key + ':' + td; if (await getKV(env, k)) return; await setKV(env, k, 1); await fn(); };
-  const remindHours = [7, 10, 14, 21];
+  const remindHours = [7, 10, 14, 19, 21];
   if (env.TELEGRAM_TOKEN && remindHours.includes(hour)) {
     const ctx = await loadCtx(env), q = quietState(ctx, td);
     if (q.quiet) await quietNote(env, q);      // away, or 2+ empty days: no reminders (one heads-up per gap)
@@ -25,6 +26,8 @@ export async function hourly(env, now) {
       // If the morning weigh-in hasn't arrived by 10:00, say so: it's how you find out the Shortcut didn't fire.
       if (hour === 10 && ['Mon', 'Wed', 'Fri'].includes(wd) && !ctx.days.find(x => x.date === td)?.body?.w)
         await once('weigh-miss', () => send(env, '⚖️ No weigh-in has reached me yet today. If you stepped on the scale, the Shortcut didn’t send it: open Shortcuts and run <b>Send weigh-in to H&amp;F</b> by hand, or send me the Fit Profile screenshot. Skipping today is fine too.'));
+      // Sunday 19:00: the coach's review of the week (14 Nov 2026). Not sent while away or after a gap, like every reminder.
+      if (hour === 19 && wd === 'Sun') await once('weekly', async () => send(env, await weeklyReview(env, ctx, td)));
       if (hour === 14) await once('supps-lunch', () => suppReminder(env, ctx, td, ['morning', 'lunch', 'any']));
       if (hour === 21) {
         const t = dayTotals(ctx.days.find(x => x.date === td)), T = targets(ctx);

@@ -1748,6 +1748,7 @@ const INFO = {
   legext: {"muscles": {"quads": 1}, "cues": ["Knee lined up with the machine’s pivot", "Extend fully and squeeze for 1 s", "Lower over 2–3 s"]},
   legpress: {"muscles": {"quads": 1, "glutes": 0.7, "adductors": 0.5, "hams": 0.2}, "cues": ["Feet mid-platform, shoulder width", "Lower until your knees are about 90°", "Lower back stays flat on the pad", "Don’t lock the knees out"]},
   machlat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Shoulders level with the machine’s pivots", "Push out with your elbows, not your hands", "Up to shoulder height, lower slowly", "Chest stays on the pad"]},
+  smithpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Bench centred so the bar comes down to mid-chest", "Shoulder blades back and down, feet planted", "Lower 2–3 s until the bar is just off the chest", "Press to just short of lockout"]},
   machpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Seat so the handles line up with mid-chest", "Shoulder blades back against the pad", "Press forward, stop just short of locking out", "Let the handles come back for 2–3 s"]},
   ohp: {"muscles": {"fdelt": 1, "triceps": 0.6, "sdelt": 0.55, "traps": 0.3}, "cues": ["Back and head flat on the pad", "Start with the handles at chin height", "Press up without locking out hard; lower for 2 s"]},
   ohtri: {"muscles": {"triceps": 1, "abs": 0.2}, "cues": ["Elbows by your head, pointing forward", "Get a deep stretch behind your head", "Extend fully, return over 2–3 s"]},
@@ -1775,7 +1776,7 @@ const MATCH = [
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
-  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
+  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/smith.*(press|bench)/, 'smithpress'], [/(machine|seated) chest press|chest press/, 'machpress'],
   [/shoulder press|overhead press|military|ohp/, 'ohp'], [/straight.?arm|pullover/, 'straightarm'], [/pull.?up|chin.?up/, 'pullup'], [/pull.?down/, 'pulldown'], [/chest.?supported/, 'chestrow'],
   [/upright row/, 'uprow'], [/shrug/, 'shrug'], [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
@@ -2865,6 +2866,39 @@ rowBar('cablerowwide', 0.42, [0.34, 0.71, 0.62], [0.35, 0.97, 0.22], [0.8, -0.6,
   });
 }
 
+/* ---- Smith machine chest press, flat bench (14 Nov 2026: Sam swapped the machine chest press for it) ----
+   Footage cues: bench centred under the bar so it comes down to mid-chest. Shoulder blades pinned back and
+   down, feet planted. Grip a little wider than the shoulders, wrists stacked over the elbows. Lower for 2–3 s
+   until the bar is just off the chest, elbows about 45–60° from the sides; press to just short of lockout.
+   The bar runs on rails, so it can only travel straight up and down: the forearm is solved each frame so the
+   hands stay over the same line (on a free bar they would drift towards the shoulders at the top). */
+{
+  const P0 = [0, 0.47, 0], ZC = 0.12;   // bench top; how far towards the feet the bar's line sits from the shoulder joint
+  const poseAt = k => {
+    let p = {root: {p: [0, 0.56, 0.18], pitch: -90}, spine: [0, -3], neck: 4, head: 2, arm: {clav: [lerp1(0, 4, k), lerp1(-8, 2, k)]}};
+    const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]);
+    p.root.p = V.sub(p.root.p, [0, back[1] - P0[1] - 0.004, 0]);
+    const Cz = fAt(solve(p).chest, [0, 0, 0])[2], away = Math.sign(p.root.p[2] - Cz) || 1;   // which way the feet point: away from the head
+    p = legsTo(p, [0.25, 0.075, p.root.p[2] + away * 0.56], [0.3, 0.6, away], [0.25, 0, away]);
+    const e = ease(k), up = slerpV(V.norm([0.8, -0.22, 0.45]), V.norm([-0.05, 1, 0.2]), e);
+    const fz = clamp((ZC - up[2] * 0.283) / 0.245, -0.6, 0.6), fx = lerp1(0, -0.1, e), fore = [fx, Math.sqrt(Math.max(0.01, 1 - fz * fz - fx * fx)), fz];
+    return {...p, arm: pressArm(up, fore, V.norm([0, 0.1, 1]), V.norm([-1, 0.2, 0.3]), {clav: p.arm.clav})};
+  };
+  const barAt = p => { const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'); return {m: V.lerp(a, b, 0.5), ax: V.sub(a, b)}; };
+  const RZ = barAt(poseAt(0)).m[2];
+  // the bench sits under the body wherever the pose puts it: from just past the hips to past the head
+  const P00 = poseAt(0), CZ = fAt(solve(P00).chest, [0, 0, 0])[2], HZ = P00.root.p[2], DIR = Math.sign(CZ - HZ) || -1, BZ = HZ + DIR * 0.34, bz = d => BZ + DIR * d;
+  demo('smithpress', {
+    cam: {yaw: 58, pitch: 14, dist: 4.3, target: [0, 0.85, 0.1]}, tempo: [1.0, 0.4, 2.4, 0.4],
+    props: [pad([0, 0.435, BZ], [0.15, 0.035, 0.6]), tube([0, 0.4, bz(-0.55)], [0, 0.4, bz(0.55)]), tube([0, 0.03, bz(-0.48)], [0, 0.4, bz(-0.48)]), tube([0, 0.03, bz(0.48)], [0, 0.4, bz(0.48)]),
+      tube([-0.2, 0.03, bz(-0.48)], [0.2, 0.03, bz(-0.48)]), tube([-0.2, 0.03, bz(0.48)], [0.2, 0.03, bz(0.48)]),
+      ...[-1, 1].flatMap(sx => [tube([sx * 0.74, 0, RZ], [sx * 0.74, 2.05, RZ], 0.03), tube([sx * 0.74, 0.02, RZ - 0.35], [sx * 0.74, 0.02, RZ + 0.35], 0.03)]), tube([-0.74, 2.05, RZ], [0.74, 2.05, RZ], 0.03),
+      ['bar', 'Y', [-0.8, 0, 0], [0.8, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.6, 0, 0], [0.635, 0, 0], 0.15, {mat: 'iron'}], ['bar', 'Q', [-0.6, 0, 0], [-0.635, 0, 0], 0.15, {mat: 'iron'}]],
+    frames: ['bar'], box: [[[0, 0.6, 0], 1.0]],
+    pose(t) { const p = poseAt(phaseK(t, this.tempo)), b = barAt(p); return {pose: p, frames: {bar: frameX([0, b.m[1], RZ], [1, 0, 0])}}; }
+  });
+}
+
 /* ---------- MANNEQUIN: the form-demo figure ----------
    WHY rigid parts: one stretched skin (v7) smeared the chest and lats whenever an arm moved, which is
    the "weird stuff under the arms". An artist's mannequin can't do that: every part is solid and turns
@@ -3388,6 +3422,21 @@ function libUsage() {
 function qtyText(it) { if (it.q == null || it.q === '') return ''; const q = fmt(it.q, it.q % 1 ? 1 : 0); return it.u === 'serving' || !it.u ? q + '×' : q + ' ' + esc(it.u); }
 function libMacros(item, qty) { const k = (+qty || 0) / (item.q || 1); return item.m.map(v => v * k); }
 function rangeDates(n, end) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(addDays(end, -i)); return out; }
+/* Linked days, second pass (14 Nov 2026, Sam: "click on one of the bars and have that pop up in Today, the
+   supplements, highlighted in consistency, in intake… what I weighed, what my composition was, what I trained").
+   One selected day (S.sel) drives every widget. Three helpers keep that consistent:
+   - winEnd(n): where an n-day chart ends. WHY: charts used to end ON the selected day, so clicking a bar slid
+     the whole chart and the bar you clicked jumped to the right edge. Now a chart stays ending today and marks
+     the day in place; it only moves when the selected day is older than the chart can show.
+   - asOf(): null for today, else the selected day. Composition, strength levels and the plan read history up to
+     that day, so they show what was true then.
+   - backBtn(): the "↩ Today" button, shown only when another day is selected. */
+const winEnd = n => { const t = today(); return S.sel < addDays(t, -(n - 1)) ? S.sel : t; };
+// the same for week-based widgets: the grid ends this week unless the selected day is older than its first week
+const weekEnd = weeks => S.sel < addDays(monday(today()), -7 * (weeks - 1)) ? S.sel : today();
+const asOf = () => S.sel === today() ? null : S.sel;
+const backBtn = () => S.sel === today() ? '' : '<button class="btn sm" data-today title="Back to today">↩ Today</button>';
+const dayName = () => S.sel === today() ? 'Today' : S.sel === addDays(today(), -1) ? 'Yesterday · ' + dShort(S.sel) : dLong(S.sel);
 
 /* ============================================================
    CHARTS (SVG, crisp at every zoom)
@@ -3473,8 +3522,9 @@ function chart(host, o) {
   }
   /* Linked days (14 Nov 2026, Sam): the day on show is marked on every dated chart, and clicking a day on any
      of them selects it everywhere: the Today widget, supplements, consistency, the weight and intake charts. */
-  const si = o.dates ? o.dates.indexOf(S.sel) : -1;
+  const si = o.si != null ? o.si : o.dates ? o.dates.indexOf(S.sel) : -1;
   if (si >= 0 && S.sel !== today()) {
+    if (bars) svg.append(sv('rect', {x: X(si) - band / 2, y: padT, width: band, height: ph, style: 'fill:var(--ink);fill-opacity:.1'}));   // a bar can't be circled, so its column is shaded
     svg.append(sv('line', {x1: X(si), x2: X(si), y1: padT, y2: padT + ph, style: 'stroke:var(--ink);stroke-width:1;stroke-opacity:.55'}));
     for (const s of o.series) { const v = s.vals[si]; if (s.type !== 'bar' && v != null && isFinite(v)) svg.append(sv('circle', {cx: X(si), cy: Y(v), r: 6, style: 'fill:none;stroke:var(--ink);stroke-width:1.5'})); }
   }
@@ -3573,6 +3623,7 @@ function tipDay(d, t, extra = '') {
 }
 
 const OPEN = new Set();            // click-to-expand sections that are open (per widget, this session)
+const LOG_PICK = new Map();        // Training log: which session of a clicked week is showing, per widget
 const PLAN_TAB = new Map();        // which plan session tab is showing, per widget
 const V3 = new Map();              // live 3D views, per widget
 const MUSCLE_NAMES = {chest: 'Chest', lats: 'Lats', upperback: 'Upper back', traps: 'Traps', fdelt: 'Front delts', sdelt: 'Side delts', rdelt: 'Rear delts', biceps: 'Biceps', triceps: 'Triceps', forearms: 'Forearms', abs: 'Abs', obliques: 'Obliques', erectors: 'Lower back', glutes: 'Glutes', quads: 'Quads', hams: 'Hamstrings', adductors: 'Adductors', calves: 'Calves'};
@@ -3600,8 +3651,8 @@ function foodFoot(d) {
   return `<div class="foot"><span class="sp"></span>${d?.items?.length ? `<button class="btn sm ghost" data-partial>${d.partial ? 'Partial ✓' : 'Mark partial'}</button>` : ''}<button class="btn sm" data-add>+ Add</button></div>`;
 }
 /* 7-day-average composition from the latest readings: the numbers every body widget starts from */
-function compNow() {
-  const wl = weighins(), lw = wl.filter(x => x.w).pop(), lb = wl.filter(x => x.bf).pop();
+function compNow(at = null) {   // at: a date → the composition as it stood that day (readings up to it)
+  const wl = at ? weighins().filter(x => x.date <= at) : weighins(), lw = wl.filter(x => x.w).pop(), lb = wl.filter(x => x.bf).pop();
   if (!lw || !lb) return null;
   const w = rollAvg(wl, lw.date, 'w'), bf = rollAvg(wl, lb.date, 'bf');
   return {w, bf, lean: w * (1 - bf / 100), fat: w * bf / 100, date: lw.date};
@@ -3674,9 +3725,9 @@ function levelScore(k, x, bw) { const s = stdAt(k, bw); if (!s || !(x > 0)) retu
 // weekly 1RM gain by level, compounding: novices add load most sessions, intermediates week to week, advanced
 // lifters month to month (Rippetoe & Kilgore's progression model). An assumption to aim at, not a forecast.
 const WEEKLY = sc => sc < 2 ? 0.02 : sc < 3 ? 0.012 : sc < 4 ? 0.006 : 0.003;
-function liftBests(days = 180) {
-  const out = {}, from = addDays(today(), -days);
-  for (const w of allWorkouts()) { if (w.date < from) continue; for (const e of (w.ex || [])) { const k = Fig3D.moveFor(e.n); if (!STD[k]) continue;
+function liftBests(days = 180, at = asOf()) {   // at: strength as it stood on the selected day
+  const out = {}, to = at || today(), from = addDays(to, -days);
+  for (const w of allWorkouts()) { if (w.date < from || w.date > to) continue; for (const e of (w.ex || [])) { const k = Fig3D.moveFor(e.n); if (!STD[k]) continue;
     for (const st of (e.sets || [])) { const kg = +st.kg, r = +st.r; if (!(kg > 0 && r > 0 && r <= 15)) continue; const x = kg * (1 + r / 30); if (!out[k] || x > out[k].e1) out[k] = {e1: x, n: e.n, from: fmt(kg, 1) + ' kg × ' + r + ', ' + dShort(w.date)}; } } }
   for (const ss of (S.plan?.sessions || [])) for (const e of ss.ex) { const k = Fig3D.moveFor(e.n); if (!STD[k] || out[k]) continue; const m = String(e.opener || '').match(/(\d+(?:\.\d+)?)\s*kg/); if (!m) continue;
     const rr = String(e.reps || '').split(/[-–]/).map(Number).filter(Boolean), r = rr.length ? Math.round(rr.reduce((a, c) => a + c) / rr.length) : 8; out[k] = {e1: +m[1] * (1 + r / 30), n: e.n, from: m[1] + ' kg × ' + r + ', plan opener', est: true}; }
@@ -3686,9 +3737,9 @@ function liftBests(days = 180) {
    they start at your overall level (the mean of the muscles that do have one), move with it into 4 weeks and
    the goal, and shift up as your own ab lifts improve: every 25% better on your best logged ab set since your
    first one is one level (decline crunch by estimated 1RM, leg raises by reps). Up to two levels from progress. */
-function absProgress(days = 180) {
-  const from = addDays(today(), -days), first = {}, best = {};
-  for (const w of allWorkouts().slice().reverse()) { if (w.date < from) continue; for (const e of (w.ex || [])) { const k = Fig3D.moveFor(e.n); if ((Fig3D.muscles(k).abs || 0) < 0.5) continue;
+function absProgress(days = 180, at = asOf()) {
+  const to = at || today(), from = addDays(to, -days), first = {}, best = {};
+  for (const w of allWorkouts().slice().reverse()) { if (w.date < from || w.date > to) continue; for (const e of (w.ex || [])) { const k = Fig3D.moveFor(e.n); if ((Fig3D.muscles(k).abs || 0) < 0.5) continue;
     for (const st of (e.sets || [])) { const r = +st.r; if (!(r > 0)) continue; const x = +st.kg > 0 ? +st.kg * (1 + r / 30) : r; if (first[k] == null) first[k] = x; best[k] = Math.max(best[k] || 0, x); } } }
   const g = Object.keys(best).map(k => Math.log(best[k] / first[k]) / Math.log(1.25));
   return g.length ? Math.min(2, Math.max(0, g.reduce((a, c) => a + c) / g.length)) : 0;
@@ -3776,7 +3827,8 @@ function mount3D(host, inst, make) {
 
 const WT = {
   today: {
-    title: 'Today', cat: 'food', desc: 'Protein, calories, carbs and fat against today’s targets, with everything you’ve eaten.', def: [10, 14], min: [7, 6],
+    title: 'Today', cat: 'food', desc: 'Protein, calories, carbs and fat against the day’s targets, with everything you’ve eaten. Click a day in Consistency, Intake or Weight and this widget shows that day and takes its name; ↩ Today brings it back.', def: [10, 14], min: [7, 6],
+    dayTitle: dayName,   // the header follows the selected day (14 Nov 2026)
     render(b, inst) {
       const T = targets(S.sel), t0 = dayTotals(S.sel), t = t0 || {kcal: 0, p: 0, c: 0, f: 0}, d = dayDoc(S.sel), isToday = S.sel === today();
       const status = !d || (!d.items?.length && !d.legacy) ? '<span class="chip">Not logged</span>'
@@ -3803,7 +3855,7 @@ const WT = {
           <div class="cap">${left}</div>`;
       }
       const showList = S.layoutMode === 'stack' || inst.h >= 9;
-      b.innerHTML = `<div class="row between"><span class="lab">${dLong(S.sel)}</span>${status}</div>${head}`
+      b.innerHTML = `<div class="row between"><span class="lab">${dLong(S.sel)}</span><span class="row" style="gap:6px">${backBtn()}${status}</span></div>${head}`
         + (showList ? '<div class="hair"></div>' + foodListHtml(d, t0) + foodFoot(d) : '');
       wireFoodList(b);
     }
@@ -3840,7 +3892,7 @@ const WT = {
   intake: {
     title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
     render(b, inst) {
-      const R = inst.cfg.range || 14, T = targets(), dates = rangeDates(R, S.sel), weekly = R >= 90;
+      const R = inst.cfg.range || 14, T = targets(), dates = rangeDates(R, winEnd(R)), weekly = R >= 90;
       const tots = dates.map(d => dayTotals(d));
       const cnt = dates.map((d, i) => countable(d, tots[i]) ? tots[i] : null).filter(Boolean);
       const hit = T.ok ? cnt.filter(t => t.p >= T.protein - 0.5).length : null;
@@ -3850,33 +3902,34 @@ const WT = {
           <span class="dim">${cnt.length} complete day${cnt.length === 1 ? '' : 's'} of ${R}</span></div>
         <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories</div><div class="chart" data-c="k"></div>
         <div class="pl"><span class="sw" style="background:var(--p)"></span>Protein, g</div><div class="chart" data-c="p"></div>`;
-      let n, kv, pv, hatch, xl, tip;
+      let n, kv, pv, hatch, xl, tip, si = null;   // si: weekly bars mark the selected day's week
       if (weekly) {
         const weeks = []; const map = new Map();
         dates.forEach((d, i) => { const m = monday(d); if (!map.has(m)) { map.set(m, []); weeks.push(m); } if (countable(d, tots[i])) map.get(m).push(tots[i]); });
         n = weeks.length; kv = weeks.map(m => mean(map.get(m).map(t => t.kcal))); pv = weeks.map(m => mean(map.get(m).map(t => t.p)));
-        hatch = null; xl = i => dShort(weeks[i]);
+        hatch = null; xl = i => dShort(weeks[i]); si = weeks.indexOf(monday(S.sel));
         tip = i => { const c = map.get(weeks[i]); return '<b>Week of ' + dShort(weeks[i]) + '</b><br>' + (c.length ? 'avg ' + fmt(kv[i]) + ' kcal · ' + fmt(pv[i]) + ' g P<br><span class="t">' + c.length + ' complete day' + (c.length > 1 ? 's' : '') + '</span>' : '<span class="t">no complete days</span>'); };
       } else {
         n = R; kv = tots.map(t => t && !t.void ? t.kcal : null); pv = tots.map(t => t && !t.void ? t.p : null);
         hatch = dates.map((d, i) => !!tots[i] && (tots[i].partial || d === today()));
         xl = i => dShort(dates[i]); tip = i => tipDay(dates[i], tots[i]);
       }
-      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch}], target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day'});
-      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch}], target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day'});
+      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch}], target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day', dates: weekly ? null : dates, si});
+      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch}], target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day', dates: weekly ? null : dates, si});
     }
   },
   weight: {
     title: 'Weight & body fat', cat: 'body', desc: 'Each reading is a dot joined by the solid line; the dashed line is the 7-day rolling average. Read the trend, never a single day. The scale never zooms in tighter than 2 kg or 2 points, so a normal daily wobble doesn’t look like a cliff.', def: [14, 8], min: [8, 6], ranges: [30, 60, 90, 180, 365], range: 90,
     render(b, inst) {
-      const R = inst.cfg.range || 90, dates = rangeDates(R, S.sel), wl = weighins();
+      const R = inst.cfg.range || 90, dates = rangeDates(R, winEnd(R)), wl = weighins();
       const wv = dates.map(d => dayDoc(d)?.body?.w ?? null), bv = dates.map(d => dayDoc(d)?.body?.bf ?? null);
       const wa = dates.map((d, i) => wv[i] != null ? rollAvg(wl, d, 'w') : null);
       const ba = dates.map((d, i) => bv[i] != null ? rollAvg(wl, d, 'bf') : null);
       const last = wl.filter(x => x.w).pop(); const stale = last ? diffDays(last.date, today()) : null;
       b.innerHTML = `<div class="stats">${last ? `<span>Latest <b>${fmt(rollAvg(wl, last.date, 'w'), 1)} kg</b></span>` : ''}
           ${S.settings.goalW ? `<span>Goal <b>${fmt(S.settings.goalW, 1)} kg @ ${fmt(S.settings.goalBf)}%</b></span>` : ''}
-          ${last ? `<span class="${stale > 7 ? 'est' : 'dim'}">${stale === 0 ? 'weighed today' : stale + ' day' + (stale === 1 ? '' : 's') + ' ago'}</span>` : ''}</div>
+          ${last ? `<span class="${stale > 7 ? 'est' : 'dim'}">${stale === 0 ? 'weighed today' : stale + ' day' + (stale === 1 ? '' : 's') + ' ago'}</span>` : ''}
+          ${asOf() ? (() => { const x = dayDoc(S.sel)?.body; return `<span>${dShort(S.sel)} <b>${x?.w ? fmt(x.w, 1) + ' kg' : 'no weigh-in'}</b>${x?.bf ? ' · <b>' + fmt(x.bf, 1) + '%</b>' : ''}</span>`; })() : ''}</div>
         <div class="pl"><span class="sw" style="background:var(--wt)"></span>Weight, kg</div><div class="chart" data-c="w"></div>
         <div class="pl"><span class="sw" style="background:var(--bf)"></span>Body fat, %</div><div class="chart" data-c="b"></div>`;
       const tip = i => { const x = dayDoc(dates[i])?.body; const a = wa[i];
@@ -3889,9 +3942,9 @@ const WT = {
   body: {
     title: 'Composition', cat: 'body', desc: 'Weight and body fat up top, lean and fat mass against your goal, the rest of the scale behind a click.', def: [10, 10], min: [7, 6],
     render(b, inst) {
-      const st = S.settings, C = compNow(), G = compGoal();
+      const st = S.settings, at = asOf(), C = compNow(at), G = compGoal();
       if (!G) { b.innerHTML = '<div class="empty">Set a goal weight and body fat in Settings.</div>'; return; }
-      if (!C) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat %. Log one from the scale.</div>'; return; }
+      if (!C) { b.innerHTML = at ? `<div class="empty">No weigh-in with body fat % on or before ${dLong(at)}.<br>${backBtn()}</div>` : '<div class="empty">Needs a weigh-in with body fat %. Log one from the scale.</div>'; return; }
       const base = st.baseline?.w && st.baseline?.bf ? {lean: st.baseline.w * (1 - st.baseline.bf / 100), fat: st.baseline.w * st.baseline.bf / 100, w: st.baseline.w, bf: st.baseline.bf, date: st.baseline.date} : null;
       const since = base?.date ? 'since ' + dShort(base.date) : '';
       const dl = base ? C.lean - base.lean : 0, df = base ? C.fat - base.fat : 0;
@@ -3900,17 +3953,17 @@ const WT = {
         <div class="row between"><span class="lab">${label}</span><span class="num"><b>${fmt(now, 1)}</b> <span class="dim">→ ${fmt(goal, 1)} kg</span></span></div>
         <div class="bar"><i style="width:${Math.max(2, prog * 100)}%;background:var(--${c === 'flat' ? 'line-2' : c})"></i></div>
         ${base ? `<div class="cap num"><span class="d-${c}">${signed(d)} kg</span> ${since}</div>` : ''}</div>`; };
-      const stale = diffDays(C.date, today());
-      const last = weighins().filter(x => x.scale || x.smm).pop(), sc = last?.scale || {}, bs = base ? (dayDoc(base.date)?.body || {}) : {}, bsc = bs.scale || {};
+      const stale = diffDays(C.date, at || today());
+      const last = weighins().filter(x => (x.scale || x.smm) && (!at || x.date <= at)).pop(), sc = last?.scale || {}, bs = base ? (dayDoc(base.date)?.body || {}) : {}, bsc = bs.scale || {};
       const extras = [['Skeletal muscle', last?.smm, bs.smm, 'kg', 1, true], ['Muscle mass', sc.muscleKg, bsc.muscleKg, 'kg', 1, true], ['Fat-free mass', sc.ffmKg, bsc.ffmKg, 'kg', 1, true],
         ['Body water', sc.waterPct, bsc.waterPct, '%', 1, null], ['Protein', sc.proteinPct, bsc.proteinPct, '%', 1, true], ['Subcutaneous fat', sc.subqPct, bsc.subqPct, '%', 1, false],
         ['Visceral fat', sc.visceral, bsc.visceral, '', 0, false], ['Bone mass', sc.boneKg, bsc.boneKg, 'kg', 2, null], ['BMR', sc.bmr, bsc.bmr, 'kcal', 0, null], ['BMI', sc.bmi, bsc.bmi, '', 1, null], ['Metabolic age', sc.metAge, bsc.metAge, '', 0, false]]
         .filter(x => x[1] != null);
       const open = OPEN.has(inst.id + ':x');
-      b.innerHTML = `<div class="duo"><div><div class="big num">${fmt(C.w, 1)}<span class="unit">kg</span></div><div class="cap">Weight · 7-day avg</div></div>
+      b.innerHTML = `<div class="duo"><div><div class="big num">${fmt(C.w, 1)}<span class="unit">kg</span></div><div class="cap">Weight · 7-day avg${at ? ' to ' + dShort(at) : ''}</div></div>
           <div><div class="big num">${fmt(C.bf, 1)}<span class="unit">%</span></div><div class="cap">Body fat</div></div></div>
         ${row('Lean mass', C.lean, G.lean, dl, true, pl)}${row('Fat mass', C.fat, G.fat, df, false, pf)}
-        ${stale > 7 ? `<div class="cap est">Last reading ${stale} days ago</div>` : ''}
+        ${at ? `<div class="row between"><span class="cap">As it stood on <b style="color:var(--ink)">${dLong(at)}</b>${stale > 0 ? ' · last reading ' + dShort(C.date) : ''}</span>${backBtn()}</div>` : stale > 7 ? `<div class="cap est">Last reading ${stale} days ago</div>` : ''}
         ${extras.length ? `<button class="disc${open ? ' open' : ''}" data-x>More from the scale <span class="dim">${extras.length}</span></button>
         ${open ? `<div class="scroll"><table class="extab"><tbody>${extras.map(([n, v, bv, u, dd, up]) => `<tr><td>${n}</td><td class="r"><b style="color:var(--ink);font-weight:400">${fmt(v, dd)}</b> ${u}</td><td class="r">${bv != null && up !== null ? `<span class="d-${dirCls(v - bv, up)}">${signed(v - bv, dd)}</span>` : ''}</td></tr>`).join('')}</tbody></table><div class="cap">Bioimpedance estimates from ${dShort(last.date)}. Only weight is measured directly; trust trends over weeks, not single readings.</div></div>` : ''}` : ''}`;
       const xb = b.querySelector('[data-x]'); if (xb) xb.onclick = () => { OPEN.has(inst.id + ':x') ? OPEN.delete(inst.id + ':x') : OPEN.add(inst.id + ':x'); renderWidget(inst.id); };
@@ -3919,17 +3972,17 @@ const WT = {
   physique: {
     title: 'Physique', cat: 'body', desc: 'Your body as a mannequin built from your lean and fat mass: now, in 4 weeks and at the goal. Each muscle is coloured by how strong its lifts are against other men your weight (darker = stronger); white means no lifts logged for it yet. At 4 weeks and the goal, every muscle your split trains is coloured, on the assumption you train it as planned. Pause the turn, pick Front, Side or Back, or drag.', def: [10, 18], min: [7, 11],
     render(b, inst) {
-      const C = compNow(), G = compGoal();
+      const at = asOf(), C = compNow(at), G = compGoal();
       if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
       const view = ['now', 'in4', 'goal'].includes(inst.cfg.view) ? inst.cfg.view : 'now', colours = inst.cfg.colours !== false;
       const {F4, wk, comps, weeks, bests, SV} = strengthViews(C, G);
       const levelsOf = k => colours ? Object.fromEntries(Object.entries(SV[k].mus).map(([m, x]) => [m, x.sc])) : null;
       const avg = k => { const v = Object.values(SV[k].mus).map(x => x.sc); return v.length ? v.reduce((a, c) => a + c) / v.length : null; };
       const on = k => k === view ? 'on' : '', hx = Fig3D.levelHex, anyEst = Object.values(bests).some(x => x.est);
-      const when = {now: 'Now', in4: 'In 4 weeks', goal: weeks.goal ? 'Goal, in about ' + Math.round(weeks.goal / 4.35) + ' months' : 'Goal'}[view], c = comps[view];
+      const when = {now: at ? 'On ' + dLong(at) : 'Now', in4: at ? '4 weeks after ' + dShort(at) : 'In 4 weeks', goal: weeks.goal ? 'Goal, in about ' + Math.round(weeks.goal / 4.35) + ' months' : 'Goal'}[view], c = comps[view];
       const order = ['chest', 'fdelt', 'sdelt', 'rdelt', 'lats', 'upperback', 'traps', 'biceps', 'triceps', 'forearms', 'abs', 'erectors', 'glutes', 'quads', 'hams', 'adductors', 'calves'];
       const rows = order.filter(m => SV.goal.mus[m] || SV.now.mus[m]);
-      b.innerHTML = `<div class="row between" style="gap:8px;align-items:center"><div class="seg seg-sm" data-phv>${[['now', 'Now'], ['in4', '4 weeks'], ['goal', 'Goal']].map(([k, l]) => `<button type="button" data-v="${k}" class="${on(k)}">${l}</button>`).join('')}</div>
+      b.innerHTML = `<div class="row between" style="gap:8px;align-items:center"><div class="seg seg-sm" data-phv>${[['now', at ? dShort(at) : 'Now'], ['in4', '4 weeks'], ['goal', 'Goal']].map(([k, l]) => `<button type="button" data-v="${k}" class="${on(k)}">${l}</button>`).join('')}</div>
           <button class="btn sm ghost" data-col title="${colours ? 'Hide' : 'Show'} the strength colours">${colours ? 'Colours on' : 'Colours off'}</button></div>
         <div class="figwrap"><div class="fig" data-fig></div></div>
         ${colours ? `<div class="lvl"><div class="lvbar" style="background:linear-gradient(90deg,${hx.join(',')})"></div><div class="lvlab"><span>Beginner</span><span>Novice</span><span>Intermediate</span><span>Advanced</span><span>Elite</span></div>
@@ -3937,7 +3990,7 @@ const WT = {
             : view === 'now' ? 'Against other men your weight. White: no lifts logged for that muscle yet' + (anyEst ? '; some levels come from your plan’s opening weights until you log them' : '') + '.'
             : 'Against other men your weight, assuming you train the split as planned. Muscles with no lift logged yet start at your overall level and move with it.'}</div></div>` : ''}
         <div class="pread"><b>${when}</b> · ${fmt(c.w, 1)} kg · ${fmt(c.bf, 1)}% fat · lean ${fmt(c.lean, 1)} kg</div>
-        <table class="ctab"><thead><tr><th></th><th class="${on('now')}">Now</th><th class="${on('in4')}">+4 wk</th><th class="${on('goal')}">Goal</th></tr></thead><tbody>
+        <table class="ctab"><thead><tr><th></th><th class="${on('now')}">${at ? dShort(at) : 'Now'}</th><th class="${on('in4')}">+4 wk</th><th class="${on('goal')}">Goal</th></tr></thead><tbody>
           ${[['Weight', 'w', 1, ' kg'], ['Body fat', 'bf', 1, '%'], ['Lean', 'lean', 1, ' kg'], ['Fat', 'fat', 1, ' kg']].map(([n, k, d, u]) => `<tr><td>${n}</td>${[C, F4, G].map((x, i) => `<td class="${on(['now', 'in4', 'goal'][i])}">${fmt(x[k], d)}${u}</td>`).join('')}</tr>`).join('')}
           ${rows.length ? `<tr><td>Strength</td>${['now', 'in4', 'goal'].map(k => `<td class="${on(k)}">${lvlName(avg(k))}</td>`).join('')}</tr>` : ''}
         </tbody></table>
@@ -3954,13 +4007,13 @@ const WT = {
   muscles: {
     title: 'Muscle development', cat: 'body', desc: 'A front and back chart of every muscle, filled by how strong its lifts are against other men your weight: Beginner (palest) to Elite (darkest). Now, in 4 weeks and at the goal; tap a muscle for its level and the lifts behind it. The 4-week and goal views assume you train the split as planned.', def: [10, 13], min: [7, 9],
     render(b, inst) {
-      const C = compNow(), G = compGoal();
+      const at = asOf(), C = compNow(at), G = compGoal();
       if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
       const view = ['now', 'in4', 'goal'].includes(inst.cfg.view) ? inst.cfg.view : 'now', {comps, weeks, SV, wk} = strengthViews(C, G);
       const L = Object.fromEntries(Object.entries(SV[view].mus).map(([m, x]) => [m, x.sc])), hx = Fig3D.levelHex, on = k => k === view ? 'on' : '';
       const rows = MD_ORDER.filter(m => SV.goal.mus[m] || SV.now.mus[m]);
-      const when = {now: 'Now', in4: 'In 4 weeks', goal: weeks.goal ? 'Goal, in about ' + Math.round(weeks.goal / 4.35) + ' months' : 'Goal'}[view];
-      b.innerHTML = `<div class="row between" style="gap:8px;align-items:center"><div class="seg seg-sm" data-mdv>${[['now', 'Now'], ['in4', '4 weeks'], ['goal', 'Goal']].map(([k, l]) => `<button type="button" data-v="${k}" class="${on(k)}">${l}</button>`).join('')}</div><span class="cap">${when}</span></div>
+      const when = {now: at ? 'On ' + dLong(at) : 'Now', in4: at ? '4 weeks after ' + dShort(at) : 'In 4 weeks', goal: weeks.goal ? 'Goal, in about ' + Math.round(weeks.goal / 4.35) + ' months' : 'Goal'}[view];
+      b.innerHTML = `<div class="row between" style="gap:8px;align-items:center"><div class="seg seg-sm" data-mdv>${[['now', at ? dShort(at) : 'Now'], ['in4', '4 weeks'], ['goal', 'Goal']].map(([k, l]) => `<button type="button" data-v="${k}" class="${on(k)}">${l}</button>`).join('')}</div><span class="cap">${when}</span></div>
         <div class="mdmap" data-map><div class="mdside"><div class="mdc" data-side="front"></div><span class="cap">Front</span></div><div class="mdside"><div class="mdc" data-side="back"></div><span class="cap">Back</span></div><div class="mdtip" hidden></div></div>
         <div class="lvl"><div class="lvbar" style="background:linear-gradient(90deg,${hx.join(',')})"></div><div class="lvlab"><span>Beginner</span><span>Novice</span><span>Intermediate</span><span>Advanced</span><span>Elite</span></div></div>
         <div class="cap" data-mdinfo>${rows.length ? (view === 'now' ? 'Pale grey: no lift logged for that muscle yet. Tap a muscle.' : 'Assumes you train the split as planned. Tap a muscle.') : 'Log a gym session with weights and reps and the muscles you train fill in.'}</div>
@@ -4010,15 +4063,21 @@ const WT = {
       const ps = planState();
       if (!ps) { b.innerHTML = '<div class="empty">No plan loaded yet.<br><button class="btn sm" data-edit style="margin-top:8px">Build one</button></div>'; b.querySelector('[data-edit]').onclick = () => openPlanEditor(); return; }
       const P = S.plan, code = P.sessions.some(s => s.code === PLAN_TAB.get(inst.id)) ? PLAN_TAB.get(inst.id) : ps.next.code, s = P.sessions.find(x => x.code === code), isNext = code === ps.next.code;
+      // a past day is selected: say what was trained that day and show that day's sets in place of "last" (selectDay
+      // has already switched the tab to the session trained)
+      // (today counts too once a session is logged: clicking it in the Training log opens its tab with what was hit)
+      const at = asOf(), dd = at || today(), dayGym = allWorkouts().filter(w => w.date === dd && kindGroup(w.kind) === 'gym'), tw = dayGym.find(w => w.planCode === code);
+      const dayRow = !at ? (tw ? `<div class="cap">Trained today: <b style="color:var(--ink)">${esc(code)}</b> · today’s sets on the right</div>` : '') : `<div class="row between"><span class="cap">${dayGym.length ? `Trained on ${dLong(at)}: <b style="color:var(--ink)">${dayGym.map(w => esc(w.planCode || w.label || 'gym')).join(', ')}</b>${tw ? ' · that day’s sets on the right' : ''}` : 'No gym session on ' + dLong(at)}</span>${backBtn()}</div>`;
       b.innerHTML = `<div class="row between"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
         <div class="row between"><div class="tabs" role="tablist">${P.sessions.map(x => `<button role="tab" data-tab="${esc(x.code)}" class="${x.code === code ? 'on' : ''}${x.code === ps.next.code ? ' next' : ''}" title="${esc(x.name)}${x.code === ps.next.code ? ' · next' : ''}">${esc(x.code)}</button>`).join('')}</div>
           <span class="cap num">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
-        <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>
+        <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>${dayRow}
         <div class="scroll"><table class="extab"><tbody>${s.ex.map(e => {
-          const lp = lastPerf(e.n), hint = progressHint(e);
+          const done = tw ? (tw.ex || []).find(x => normName(x.n) === normName(e.n)) : null;
+          const lp = tw ? (done ? {date: dd, sets: done.sets} : null) : at ? liftHistory(e.n).filter(x => x.date <= at).pop() || null : lastPerf(e.n), hint = at ? null : progressHint(e);
           return `<tr><td><button class="exlink" data-lift="${esc(e.n)}" title="Show in Lift progress">${esc(e.n)}</button>${hint ? ' <span class="up" title="First set hit the top of the range at the planned effort">↑ load</span>' : ''}</td>
             <td class="r" title="${e.rpe ? 'RPE ' + e.rpe + ' = ' + (10 - e.rpe) + ' rep' + (10 - e.rpe === 1 ? '' : 's') + ' in reserve' + (e.rpe >= 10 ? ' (failure)' : '') : ''}">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}</td>
-            <td class="r" title="${lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan'}">${lp ? esc(setsText(lp.sets)) : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
+            <td class="r" title="${tw ? 'Logged ' + dShort(dd) : lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan'}"${tw && done ? ' style="color:var(--ink)"' : ''}>${lp ? esc(setsText(lp.sets)) : tw ? '<span class="dim">not logged</span>' : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
         }).join('')}</tbody></table></div>`;
       b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { PLAN_TAB.set(inst.id, x.dataset.tab); renderWidget(inst.id); });
       // linked widgets (14 Nov 2026): an exercise here opens in every Lift progress widget
@@ -4031,7 +4090,7 @@ const WT = {
     }
   },
   workouts: {
-    title: 'Training log', cat: 'train', desc: 'Sessions per week: gym, cardio and sport. Hover a week to see what you did. Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
+    title: 'Training log', cat: 'train', desc: 'Sessions per week: gym, cardio and sport. Hover a week to see what you did; click it to show its latest session in every widget, with the sets you hit in the Training plan (click again for the one before). Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
     add: {label: '+ Cardio', title: 'Log cardio or sport', run: () => openCardio({})},
     note(inst) {
       const tg = cardioTarget(inst), mon = monday(S.sel), c = cardioWeek(mon), cur = mon === monday(today());
@@ -4040,11 +4099,11 @@ const WT = {
         title: `${cur ? 'This week (Mon–Sun)' : 'Week of ' + dShort(mon)}: ${c.n} cardio or sport session${c.n === 1 ? '' : 's'}${c.untimed ? ', ' + c.untimed + ' without minutes' : ''}. Target ${fmt(tg)} min a week (WHO: 150–300 moderate). ${over ? 'Past ' + CARDIO_CEIL + ' min: fine for health, but recovery and calories start competing with muscle gain.' : 'Up to about ' + CARDIO_CEIL + ' min is fine alongside lifting.'}`};
     },
     render(b, inst) {
-      const R = inst.cfg.range || 84, weeks = Math.round(R / 7), start = addDays(monday(S.sel), -7 * (weeks - 1));
+      const R = inst.cfg.range || 84, weeks = Math.round(R / 7), E = weekEnd(weeks), start = addDays(monday(E), -7 * (weeks - 1)), at = asOf();
       const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, list: []}));
-      for (const w of allWorkouts()) { if (w.date < start || w.date > S.sel) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; c[kindGroup(w.kind)]++; c.list.push(w); if (kindGroup(w.kind) !== 'gym') c.cmin = (c.cmin || 0) + (+w.min || 0); }
-      const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= S.sel).length;
-      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span><span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport</span></div><div class="chart" data-c="w"></div>`;
+      for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; c[kindGroup(w.kind)]++; c.list.push(w); if (kindGroup(w.kind) !== 'gym') c.cmin = (c.cmin || 0) + (+w.min || 0); }
+      const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= E).length, dayW = allWorkouts().filter(w => w.date === (at || today()));
+      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${at || dayW.length ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b></span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport</span></div><div class="chart" data-c="w"></div>`;
       const host = b.querySelector('[data-c=w]');
       if (!tot) { host.innerHTML = '<div class="empty">No sessions in the last ' + weeks + ' weeks.</div>'; return; }
       const W = Math.max(80, host.clientWidth), H = Math.max(40, host.clientHeight), padL = 18, padB = 16, padT = 6, pw = W - padL - 4, ph = H - padB - padT, band = pw / weeks;
@@ -4061,6 +4120,8 @@ const WT = {
       const idx = weeks <= 2 ? [0, weeks - 1] : [0, Math.floor((weeks - 1) / 2), weeks - 1];
       idx.forEach((i, k) => { const t = sv('text', {x: k === 0 ? padL : k === idx.length - 1 ? W - 4 : padL + band * (i + .5), y: H - 3, 'text-anchor': k === 0 ? 'start' : k === idx.length - 1 ? 'end' : 'middle'}); t.textContent = dShort(cols[i].mon); svg.append(t); });
       const hl = sv('rect', {y: padT, height: ph, width: band, style: 'fill:var(--ink);fill-opacity:.04', visibility: 'hidden'}); svg.append(hl);
+      // the selected day's week stays shaded; clicking a week selects its latest session day
+      const sw = at ? Math.floor(diffDays(start, at) / 7) : -1; if (sw >= 0 && sw < weeks) svg.append(sv('rect', {x: padL + band * sw, y: padT, height: ph, width: band, style: 'fill:var(--ink);fill-opacity:.1'}));
       const hit = sv('rect', {x: padL, y: 0, width: pw, height: H, style: 'fill:transparent'}); svg.append(hit);
       host.replaceChildren(svg);
       const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; host.append(tip);
@@ -4072,15 +4133,24 @@ const WT = {
       };
       hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
       hit.addEventListener('pointerleave', () => { tip.hidden = true; hl.setAttribute('visibility', 'hidden'); });
+      hit.style.cursor = 'pointer';
+      /* Click a week: its latest session is selected everywhere and opens in the Training plan with the sets hit;
+         click the same week again for the session before it (14 Nov 2026, Sam: "when I click on the training log,
+         see the gym session I hit reflected in the training plan"). */
+      hit.addEventListener('click', e => {
+        const r = svg.getBoundingClientRect(), c = cols[clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / band), 0, weeks - 1)]; if (!c.list.length) return;
+        const prev = LOG_PICK.get(inst.id), i = prev && prev.mon === c.mon ? (prev.i + 1) % c.list.length : 0, w = c.list[i]; LOG_PICK.set(inst.id, {mon: c.mon, i});
+        showSession(w);
+      });
     }
   },
   calendar: {
-    title: 'Consistency', cat: 'misc', desc: 'Every day in the range: food logged, protein floor hit, gym sessions (green dot, top), cardio or sport (blue dot, bottom right), supplements (violet dot, bottom left: filled = all taken, ring = some), days away. Click a day for its summary.', def: [14, 6], min: [8, 4], ranges: [56, 84, 182, 364], range: 182,
+    title: 'Consistency', cat: 'misc', desc: 'Every day in the range: food logged, protein floor hit, gym sessions (green dot, top), cardio or sport (blue dot, bottom right), supplements (violet dot, bottom left: filled = all taken, ring = some), days away. Today has the dark outline, the selected day the amber one. Click a day to show it in every widget; double-click for its summary.', def: [14, 6], min: [8, 4], ranges: [56, 84, 182, 364], range: 182,
     render(b, inst) {
       const R = inst.cfg.range || 182, T = targets(), td = today();
       const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) (kindGroup(w.kind) === 'gym' ? gymD : cardD).add(w.date);
-      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
-      const cal = b.querySelector('[data-cal]');
+      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>' + (asOf() ? '00 Nov selected ' + backBtn() + ' · ' : '') + '000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
+      const cal = b.querySelector('[data-cal]');   // (the summary placeholder above carries the ↩ Today button too: the grid is sized from that row's measured height)
       /* Square cells that use the box (14 Nov 2026). First they stretched to fill it and Sam didn't like the
          squashed look: "keep them as squares… stack them". So the range is cut into 1 to 4 bands of weeks stacked
          top to bottom, oldest first, and the band count that gives the biggest square cell wins: a wide short
@@ -4092,7 +4162,7 @@ const WT = {
       let bands = 1, sz = 0; for (let nb = 1; nb <= 4; nb++) { const z = fit(nb, rw); if (z > sz + 0.5) { sz = z; bands = nb; } }
       let weeks = rw; while (sz < 7 && weeks > 4) { weeks -= 2; sz = fit(bands, weeks); }
       sz = Math.floor(clamp(sz, 5, 24)); const wpb = Math.ceil(weeks / bands); weeks = wpb * bands;
-      const start = addDays(monday(S.sel), -7 * (weeks - 1));
+      const start = addDays(monday(weekEnd(weeks)), -7 * (weeks - 1));   // ends this week unless the selected day is older than the grid
       cal.style.setProperty('--cz', sz + 'px'); cal.style.gap = bandGap + 'px'; cal.classList.toggle('tiny', sz < 10);
       const bandEls = Array.from({length: bands}, () => { const g = document.createElement('div'); g.className = 'cal-band'; cal.append(g); return g; });
       let logged = 0, hit = 0, sess = 0, card = 0, days = 0, away = 0, suppAll = 0; const SL = suppList(); let frag = null;
@@ -4122,18 +4192,21 @@ const WT = {
             if (d === td) c.classList.add('today');
             if (d === S.sel && d !== td) c.classList.add('sel');
           }
-          c.title = dLong(d) + (t && t.kcal != null ? ' · ' + fmt(t.kcal) + ' kcal · ' + fmt(t.p) + ' g P' + (t.partial ? ' (partial)' : '') : awayOn(d) ? ' · away' : ' · not logged') + (gymD.has(d) ? ' · gym' : '') + (cardD.has(d) ? ' · cardio' : '') + (d <= td ? '\nClick for the day' : '') + (() => { const sp = dayDoc(d)?.supps, sk = sp ? SL.items.filter(x => sp[x.id]).length : 0; return sk ? ` · supplements ${sk}/${SL.items.length}` : ''; })();
+          c.title = dLong(d) + (t && t.kcal != null ? ' · ' + fmt(t.kcal) + ' kcal · ' + fmt(t.p) + ' g P' + (t.partial ? ' (partial)' : '') : awayOn(d) ? ' · away' : ' · not logged') + (gymD.has(d) ? ' · gym' : '') + (cardD.has(d) ? ' · cardio' : '') + (d <= td ? '\nClick to show this day everywhere · double-click for its summary' : '') + (() => { const sp = dayDoc(d)?.supps, sk = sp ? SL.items.filter(x => sp[x.id]).length : 0; return sk ? ` · supplements ${sk}/${SL.items.length}` : ''; })();
           frag.append(c);
         }
       }
-      cal.onclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) openDay(c.dataset.d); };
-      b.querySelector('[data-sum]').innerHTML = `<b style="color:var(--ink)">${logged}</b> of ${days} days logged · <b style="color:var(--ink)">${hit}</b> floor hit · <b style="color:var(--ink)">${sess}</b> gym · <b style="color:var(--ink)">${card}</b> cardio${away ? ` · ${away} away` : ''}`;
+      // a click selects the day in every widget; the summary sheet moved to a double-click (14 Nov 2026, Sam: "I don't want
+      // it to pop up on the right, I just want to see it in the Today widget")
+      cal.onclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) selectDay(c.dataset.d); };
+      cal.ondblclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) openDay(c.dataset.d); };
+      b.querySelector('[data-sum]').innerHTML = (asOf() ? `<b style="color:var(--accent)">${dShort(S.sel)}</b> selected ${backBtn()} · ` : '') + `<b style="color:var(--ink)">${logged}</b> of ${days} days logged · <b style="color:var(--ink)">${hit}</b> floor hit · <b style="color:var(--ink)">${sess}</b> gym · <b style="color:var(--ink)">${card}</b> cardio${away ? ` · ${away} away` : ''}`;
     }
   },
   lift: {
     title: 'Lift progress', cat: 'train', desc: 'Top set over time for one exercise, with a 3D loop of the movement and its cues.', def: [12, 8], min: [7, 5], ranges: [56, 90, 180, 365, 730], range: 180,
     render(b, inst) {
-      const ex = inst.cfg.ex || 'Incline DB bench', R = inst.cfg.range || 180, dates = rangeDates(R, S.sel);
+      const ex = inst.cfg.ex || 'Incline DB bench', R = inst.cfg.range || 180, dates = rangeDates(R, winEnd(R));
       const h = liftHistory(ex), by = new Map(h.map(x => [x.date, x]));
       const kv = dates.map(d => by.get(d)?.top.kg ?? null);
       const last = h[h.length - 1], best = h.reduce((a, x) => (!a || x.e1rm > a.e1rm) ? x : a, null);
@@ -4193,11 +4266,11 @@ const WT = {
       b.innerHTML = '<div class="chart" data-c="m"></div>';
       const host = b.querySelector('[data-c=m]');
       if (M.kind === 'train') {
-        const weeks = Math.max(2, Math.round(R / 7)), ws = weeklySessions(weeks, S.sel);
+        const weeks = Math.max(2, Math.round(R / 7)), ws = weeklySessions(weeks, weekEnd(weeks));
         chart(host, {n: weeks, series: [{type: 'bar', vals: ws.counts, color: M.color}], xl: i => dShort(ws.labels[i]), tip: i => '<b>Week of ' + dShort(ws.labels[i]) + '</b><br>' + ws.counts[i] + ' sessions', label: M.label});
         return;
       }
-      const dates = rangeDates(R, S.sel), vals = metricDaily(key, dates);
+      const dates = rangeDates(R, winEnd(R)), vals = metricDaily(key, dates);
       const tg = inst.cfg.target === false ? null : (M.target ? M.target() : null);
       const series = (inst.cfg.chart || (M.kind === 'intake' ? 'bar' : 'line')) === 'bar'
         ? [{type: 'bar', vals, color: M.color, hatch: dates.map(d => d === today() || !!dayTotals(d)?.partial)}]
@@ -4293,7 +4366,7 @@ function placeWidget(node, inst) {
     Object.assign(node.style, {left: '', top: '', width: '', height: clamp(hh * CELL - 10, hh <= 4 ? 100 : 200, 460) + 'px'});
   }
   node.querySelector('.dim-tag').textContent = inst.w + ' × ' + inst.h + ' cm';
-  node.querySelector('.w-title').textContent = inst.cfg.title || def.title;
+  node.querySelector('.w-title').textContent = inst.cfg.title || (def.dayTitle ? def.dayTitle() : def.title);
   const rb = node.querySelector('.w-range');
   rb.hidden = !def.ranges; node.querySelector('.w-hint').hidden = !def.ranges;
   if (def.ranges) rb.textContent = rangeLabel(inst.cfg.range || def.range);
@@ -4740,14 +4813,26 @@ function renderTop() {
   $('#d-next').disabled = d >= t; $('#d-next').style.opacity = d >= t ? .3 : 1;
 }
 // select a day everywhere, and pulse the widgets that follow the selected day so the eye finds them
-function selectDay(d) {
-  if (d === S.sel) return; S.sel = d; renderAll();
-  for (const [id, n] of nodes) { const t = S.layout.find(w => w.id === id)?.type; if (['today', 'foodlog', 'supps', 'calendar', 'weight', 'intake', 'workouts', 'body'].includes(t)) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } }
+function selectDay(d, quiet) {
+  if (d === S.sel) return; S.sel = d;
+  // Training plan: open the session trained that day; back on today, the next session again
+  const tr = d === today() ? null : allWorkouts().find(w => w.date === d && w.planCode);
+  for (const w of S.layout) if (w.type === 'plan') { if (tr) PLAN_TAB.set(w.id, tr.planCode); else PLAN_TAB.delete(w.id); }
+  renderAll(); if (quiet) return;
+  for (const [id, n] of nodes) { const t = S.layout.find(w => w.id === id)?.type; if (['today', 'foodlog', 'supps', 'calendar', 'weight', 'intake', 'workouts', 'body', 'plan', 'physique', 'muscles', 'lift', 'metric', 'stat'].includes(t)) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } }
 }
-function shiftDay(n) { const d = addDays(S.sel, n); if (d > today()) return; S.sel = d; renderAll(); }
+// show one logged session everywhere: select its day, open its tab in the Training plan, pulse what changed
+function showSession(w) {
+  const same = w.date === S.sel; if (!same) selectDay(w.date);
+  for (const x of S.layout) if (x.type === 'plan') { if (w.planCode) PLAN_TAB.set(x.id, w.planCode); if (same || w.planCode) renderWidget(x.id); const n = nodes.get(x.id); if (n && same) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } }
+  if (same) for (const x of S.layout) if (x.type === 'workouts') renderWidget(x.id);
+}
+function shiftDay(n) { const d = addDays(S.sel, n); if (d > today()) return; selectDay(d, true); }
 $('#d-prev').onclick = () => shiftDay(-1);
 $('#d-next').onclick = () => shiftDay(1);
-$('#d-lbl').onclick = () => { S.sel = today(); renderAll(); };
+$('#d-lbl').onclick = () => selectDay(today());
+// every "↩ Today" button, wherever a widget puts one
+document.addEventListener('click', e => { if (e.target.closest('[data-today]')) { e.stopPropagation(); selectDay(today()); } }, true);
 
 function toast(msg, o = {}) {
   const t = document.createElement('div'); t.className = 'toast' + (o.err ? ' err' : '');
@@ -5336,7 +5421,7 @@ function openDay(date) {
     const n = L.items.filter(s => tk[s.id]).length;
     h += `<div class="sec"><h5>Supplements · ${n} of ${L.items.length}</h5><div class="stats">${L.items.map(s => `<span class="${tk[s.id] ? '' : 'dim'}">${tk[s.id] ? '✓' : '·'} ${esc(s.n)}</span>`).join('')}</div></div>`;
     b.innerHTML = h;
-    const go = b.querySelector('[data-go]'); if (go) go.onclick = () => { S.sel = date; renderAll(); closeSheet(); };
+    const go = b.querySelector('[data-go]'); if (go) go.onclick = () => { selectDay(date); closeSheet(); };
   });
 }
 
@@ -5501,12 +5586,12 @@ const PRESETS = [{
   id: 'ct-bb-l-sa', label: '4-day: Chest & triceps · Back & biceps · Legs · Shoulders & arms, then rest',
   priority: {abs: 'grow', traps: 'grow'},
   plan: {name: 'Mesocycle 05 — Chest & triceps · Back & biceps · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.6, length: 28, deloadEvery: 28,
-    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats).',
+    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a second lateral raise and a face pull on shoulders day, and a third set of shrugs on back day, keep side delts, rear delts and traps in band.',
     sessions: [
       {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Machine chest press', 2, '6-10', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
-      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Seated cable row (close grip)', 2, '6-10', 10], ['Cable pullover (bench)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (seated)', 2, '8-12', 10], ['Cable curl (facing away)', 2, '8-12', 10], ['Preacher curl', 2, '8-12', 10]]},
+      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Seated cable row (close grip)', 2, '6-10', 10], ['Cable pullover (bench)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Cable curl (facing away)', 2, '8-12', 10], ['Preacher curl', 2, '8-12', 10]]},
       {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '8-12', 10], ['Seated calf raise', 3, '8-12', 10], ['Adductor machine', 2, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Decline weighted crunch', 3, '8-12', 10]]},
-      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['Cable upright row', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
+      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB lateral raise', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Face pull', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
     ]}
 }];
 function applyPreset(P, id) {
@@ -5799,6 +5884,7 @@ function openHelp(tab = 'why') {
         <p>So: mostly easy cardio you could talk through (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
+        <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet.</p>
         <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset, and use the slider at its top right to slow a rep down or speed it up; the working muscles swell and deepen in colour as they shorten. Click an exercise in the Training plan to open it here, and click a day on any chart to see that day everywhere; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
         <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
         <p class="note">Body mesh: “Z-Anatomy — The libre 3D atlas of anatomy”, CC BY-SA 4.0, based on “BodyParts3D, © The Database Center for Life Science” (via the Svitylo 3D Anatomy Atlas data, v1.2.0). Changed here: skin remeshed and shrink-wrapped to the muscles, face and skin smoothed into a mannequin finish, arms rigged, scaled to 172 cm. This adapted mesh is shared under the same licence (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>). Mesh decoder: meshoptimizer reference decoder, MIT.</p></div>
