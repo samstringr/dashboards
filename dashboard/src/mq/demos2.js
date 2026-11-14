@@ -70,7 +70,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
       tube([-0.3, 1.88, ZB], [0.3, 1.88, ZB], 0.04), ...deckHousing(PIVL, ZB), vHandle('handleL'), vHandle('handleR')],
     frames: ['handleL', 'handleR'],
     pose(t) {
-      const k = phaseK(t, this.tempo), th = lerp1(-14, 104, k);
+      const k = phaseK(t, this.tempo), th = lerp1(-14, 99, k);   // 99°, not 104°: the fists stop a hand's width apart instead of passing into each other (14 Nov 2026)
       let p = SIT_FEET({...base, arm: {clav: [0, lerp1(-10, 6, k)]}});
       const B1 = solve(p), C = B1.chest, gL = hand(C, B1.upperL.o, th), c = Math.cos(th * D2R), s = Math.sin(th * D2R);
       const pole = V.norm(fDir(C, [s, -0.35, -c])), palm = fDir(C, [-s, 0, c]);
@@ -114,21 +114,28 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
    Sweep the rope from overhead down to the thighs in an arc, moving only at the shoulders: the lats do it,
    the elbows don't bend more. Let it rise until the arms are overhead and the lats stretch. */
 {
-  const base = {root: {p: [0, 0.935, -0.08], pitch: 24}, spine: [2, 2], neck: -10, head: -4};
+  const base = {root: {p: [0, 0.875, -0.08], pitch: 24}, spine: [2, 2], neck: -10, head: -4};
   const st = p => legsTo(p, [0.12, 0.067, -0.03], [0.1, 0, 1], [0.12, 0, 1]);
-  const B0 = solve(st(base)), S0 = B0.upperL.o, TOP = [0, 2.2, 0.95], L = 0.6;
-  const dS = V.norm(V.sub([0.08, TOP[1], TOP[2]], S0)), dE = V.norm([-0.1, -1, 0.02]);
-  demo('straightarm', {
+  const B0 = solve(st(base)), S0 = B0.upperL.o, TOP = [0, 2.2, 0.95], L = 0.55;
+  const dS = V.norm(V.sub([S0[0], TOP[1] - 0.25, TOP[2] - 0.2], S0)), dE = V.norm([0, -1, 0.42]);
+  /* 14 Nov 2026, Sam: the rope version "looks crazy", arms inside each other and into the body. The hands were
+     pulled 10 cm inside the shoulders and finished behind the thighs. Now the hands stay shoulder-width, the
+     elbows keep one soft bend, and the sweep ends in front of the thighs. A straight bar is the default; the rope
+     (hands a palm apart, ends flaring past the hips) is the other option. */
+  for (const [key, rope] of [['straightarm', false], ['straightarmrope', true]]) demo(key, {
     cam: {yaw: 72, pitch: 8, dist: 4.7, target: [0, 1.25, 0.35]}, tempo: [1.0, 0.5, 2.0, 0.4],
     props: [tube([0, 0, 1.08], [0, 2.3, 1.08], 0.045), tube([0, 2.3, 1.08], [0, 2.3, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
-      ['world', 'B', [0, 0.45, 1.1], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}]],
+      ['world', 'B', [0, 0.45, 1.1], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}], ...(rope ? [] : [['bar', 'Y', [-0.3, 0, 0], [0.3, 0, 0], 0.014, {mat: 'steel'}]])],
+    frames: rope ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = st({...base, arm: {clav: [lerp1(14, -4, k), lerp1(6, -6, k)]}});
-      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, k), gL = V.add(V.add(S, V.sc(d, L)), [-0.1, 0, 0]);
-      const pole = V.norm(V.lerp(fDir(C, [0.7, 0.3, -0.6]), fDir(C, [0.5, 0, -1]), k)), palm = fDir(C, [-1, 0, 0]);
-      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm}, armR: {palm: V.mx(palm)}});
-      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.add(V.lerp(a, b, 0.5), V.sc(V.norm(V.sub(TOP, V.lerp(a, b, 0.5))), 0.12));
+      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, L)), [rope ? lerp1(-0.11, 0.0, k) : 0.02, 0, 0]);
+      const pole = V.norm(V.lerp(fDir(C, [0.7, 0.3, -0.6]), fDir(C, [0.6, 0, -1]), k)), palm = rope ? fDir(C, [-1, 0, 0]) : slerpV(V.norm([0, 0.3, 1]), V.norm([0, -1, -0.2]), k);
+      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm}, armR: {palm: rope ? V.mx(palm) : palm}});
+      const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), mid = V.lerp(a, b, 0.5);
+      if (!rope) return {pose: p, frames: {bar: frameX(mid, V.sub(a, b))}, segs: [[TOP, mid, 0.006]]};
+      const m = V.add(mid, V.sc(V.norm(V.sub(TOP, mid)), 0.12));
       return {pose: p, segs: [[TOP, m, 0.006], [m, a, 0.011], [m, b, 0.011]]};
     }
   });
@@ -139,13 +146,14 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
    arm out to the side, a little in front (the shoulder blade's plane), elbow soft and leading, to shoulder
    height; palm ends facing down. Lower over 2–3 s and keep tension at the bottom. The other hand holds the frame. */
 {
-  const base = {root: {p: [0, 0.95, 0], pitch: 2, roll: 3}, spine: [0, 0], neck: 0};
+  const base = {root: {p: [0, 0.89, 0], pitch: 2, roll: 3}, spine: [0, 0], neck: 0};
   const st = p => legsTo(p, [0.12, 0.067, 0.02], [0.05, 0, 1], [0.12, 0, 1]);
-  const LOW = [-0.46, 0.13, 0.06], B0 = solve(st(base)), S0 = B0.upperL.o, L = 0.6;
+  const LOW = [-0.46, 0.78, 0.06];   // at about hand height, as Jeff Nippard sets it: the cable pulls hardest with the arm low, where the side delt is longest (was at the floor)
+  const B0 = solve(st(base)), S0 = B0.upperL.o, L = 0.6;
   const dS = V.norm(V.sub([-0.05, 0.86, 0.17], S0)), dE = V.norm([0.86, -0.04, 0.5]);
   demo('cablelat', {
     cam: {yaw: 18, pitch: 10, dist: 3.9, target: [0, 1.05, 0]}, tempo: [1.0, 0.4, 2.4, 0.4],
-    props: [tube([-0.58, 0, 0.06], [-0.58, 2.1, 0.06], 0.045), tube([-0.58, 0.13, 0.06], LOW, 0.03), ['world', 'Q', [LOW[0], LOW[1], LOW[2] - 0.015], [LOW[0], LOW[1], LOW[2] + 0.015], 0.045, {mat: 'steel'}],
+    props: [tube([-0.58, 0, 0.06], [-0.58, 2.1, 0.06], 0.045), tube([-0.58, LOW[1], 0.06], LOW, 0.03), ['world', 'Q', [LOW[0], LOW[1], LOW[2] - 0.015], [LOW[0], LOW[1], LOW[2] + 0.015], 0.045, {mat: 'steel'}],
       ['world', 'B', [-0.64, 0.45, 0.06], [0.06, 0.3, 0.14], 0.01, {mat: 'iron'}], dHandle('handL')],
     pose(t) {
       const k = phaseK(t, this.tempo);
@@ -172,7 +180,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
       const k = phaseK(t, this.tempo), phi = lerp1(4, 95, k) * D2R, kb = lerp1(3, 8, k) * D2R;
       const legDir = (a, x) => ({t: [x, -Math.cos(a), Math.sin(a)]}), toes = a => ({t: [-0.02, Math.sin(a) * 0.5 - 0.2, Math.cos(a)]});
       let p = {root: {p: [0, 1.27 + 0.03 * k, lerp1(0, 0.04, k)], pitch: lerp1(0, -16, k)}, spine: [lerp1(0, 14, k), lerp1(0, 4, k)], neck: lerp1(0, 8, k),
-        arm: {clav: [lerp1(18, 12, k), 0]}, leg: {thigh: legDir(phi, -0.085), shin: legDir(phi - kb, -0.04), foot: toes(phi - kb + 0.35)}};
+        arm: {clav: [lerp1(18, 12, k), 0]}, leg: {thigh: legDir(phi, -0.03), shin: legDir(phi - kb, -0.03), foot: {t: rot([0, -Math.cos(phi - kb), Math.sin(phi - kb)], [1, 0, 0], -75 * D2R)}}};   // feet a steady 75° to the shins: the old toe direction swung through zero as the legs passed level (14 Nov: "glitching")
       // hang from straight arms: lift the body until the shoulder is an arm's length below the grip
       let B1 = solve(p); const reach = SK.upper + SK.fore + GRIP - 0.012, dy = Math.sqrt(Math.max(0, reach * reach - (G[0] - B1.upperL.o[0]) ** 2 - (G[2] - B1.upperL.o[2]) ** 2));
       p.root.p = [p.root.p[0], p.root.p[1] + (G[1] - dy - B1.upperL.o[1]), p.root.p[2]]; B1 = solve(p);

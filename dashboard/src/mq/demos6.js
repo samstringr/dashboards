@@ -13,7 +13,7 @@ demo('lateral', {
   props: [...db('handL'), ...db('handR')],
   pose(t) {
     const k = phaseK(t, this.tempo), e = lerp1(10, 86, ease(k));
-    let p = STAND({root: {p: [0, 0.95, 0], pitch: 4}, spine: [1, 0], neck: -2, arm: {clav: [lerp1(0, 5, k), 2]}});
+    let p = STAND({root: {p: [0, 0.89, 0], pitch: 4}, spine: [1, 0], neck: -2, arm: {clav: [lerp1(0, 5, k), 2]}});
     const C = solve(p).chest, up = armDir(C, e, 28), fore = armDir(C, e - lerp1(8, 14, k), 40);
     const palm = slerpV(fDir(C, [-1, 0, 0.1]), [0, -1, 0], ease(k));
     return {pose: {...p, arm: {up, fore, palm, grip: 0.9, thumb: 0.8, clav: p.arm.clav, crease: fDir(C, [0, 0.3, 1])}}};
@@ -23,22 +23,29 @@ demo('lateral', {
 /* ---- Cable curls ----
    One shape for three variants: the upper arms stay still and the forearms turn about the elbow, a straight bar
    between the hands and a cable to a low pulley. curl: facing the pulley, palms up. revcurl: the same with an
-   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the pulley, the
-   cable running up between the feet, upper arms a little behind the body: the biceps are stretched at the
-   bottom, which is the point of it (Sam's choice for back & biceps day). */
+   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the machine, upper
+   arms behind the body: the biceps are stretched at the bottom, which is the point of it (Sam's choice for
+   back & biceps day). 14 Nov 2026, Sam: "the cable clips and the bar moves in the hands". A bar can't be used
+   facing away: its one cable has to pass through the legs and hips. So facecurl (o.dual) is how it is done in
+   a gym: a handle in each hand, each on its own low pulley set wider than the hips, the cables running up
+   outside the legs. With no bar in front of the thighs the elbows can sit properly behind the body. */
 function cableCurl(key, o) {
   const LOW = o.low, col = [0, 0, LOW[2] + Math.sign(LOW[2]) * 0.2];
   demo(key, {
     cam: o.cam, tempo: [0.9, 0.5, 2.2, 0.3],
-    props: [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
+    props: o.dual ? [-1, 1].flatMap(sx => [tube([sx * LOW[0], 0, col[2]], [sx * LOW[0], 2.1, col[2]], 0.045), tube([sx * LOW[0], LOW[1], col[2]], [sx * LOW[0], LOW[1], LOW[2]], 0.03),
+      ['world', 'Q', [sx * LOW[0] - 0.015, LOW[1], LOW[2]], [sx * LOW[0] + 0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}], ['world', 'B', [sx * LOW[0], 0.45, col[2] - 0.04], [0.1, 0.3, 0.05], 0.01, {mat: 'iron'}]])
+      : [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
       ['world', 'B', [0, 0.45, col[2] + Math.sign(LOW[2]) * 0.04], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.24, 0, 0], [0.24, 0, 0], 0.014, {mat: 'steel'}]],
-    frames: ['bar'],
+    frames: o.dual ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo), th = lerp1(o.th0, o.th1, ease(k)) * D2R;
-      let p = legsTo({root: {p: [0, 0.95, -0.02], pitch: o.lean}, spine: [0, -1], neck: -4, arm: {clav: [0, -4]}}, [o.foot, 0.067, 0.02], [0.08, 0, 1], [0.15, 0, 1]);
+      let p = legsTo({root: {p: [0, 0.89, -0.02], pitch: o.lean}, spine: [0, -1], neck: -4, arm: {clav: [0, -4]}}, [o.foot, 0.067, 0.02], [0.08, 0, 1], [0.15, 0, 1]);
       const C = solve(p).chest, up = fDir(C, o.up), fore = V.norm(fDir(C, [0.04, -Math.cos(th), Math.sin(th)])), sup = V.norm(fDir(C, [0, Math.sin(th), Math.cos(th)]));
       p = {...p, arm: {up, fore, palm: o.over ? V.sc(sup, -1) : sup, grip: 0.9, thumb: 0.8, clav: [0, -4], crease: fDir(C, [0, 0.2, 1])}};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      if (o.dual) { const ax = V.norm(V.sub(a, b)), h = V.sc(ax, 0.06);   // each handle lies across its palm, on the line between the hands
+        return {pose: p, segs: [[LOW, V.add(a, h), 0.006], [V.mx(LOW), V.sub(b, h), 0.006], [V.sub(a, V.sc(h, 0.9)), V.add(a, h), 0.013], [V.add(b, V.sc(h, 0.9)), V.sub(b, h), 0.013]]}; }
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[LOW, m, 0.006]]};
     }
   });
@@ -47,7 +54,7 @@ function cableCurl(key, o) {
 // instead of through them (14 Nov 2026, Sam: all three clipped at full extension)
 cableCurl('curl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.08], th0: 17, th1: 128});
 cableCurl('revcurl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.1], th0: 26, th1: 118, over: true});   // overhand: the grip sits behind the knuckles, so a little more forearm angle
-cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, 0.0]}, lean: 7, foot: 0.24, up: [0.07, -1, -0.06], th0: 27, th1: 122});   // a bar can't pass the thighs, so the elbows sit only just behind the body
+cableCurl('facecurl', {dual: true, low: [0.36, 0.12, -0.5], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, -0.05]}, lean: 6, foot: 0.12, up: [0.09, -1, -0.3], th0: 8, th1: 118});
 
 /* ---- Preacher curl (straight bar) ----
    Cues: sit with the armpits snug over the top of the pad, the backs of the upper arms flat on it. Lower until
@@ -130,7 +137,7 @@ cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0
   const B0 = solve(SIT_FEET(base)), C0 = B0.chest, S0 = B0.upperL.o, dS = V.norm([0.04, Math.cos(-REC * D2R), -Math.sin(-REC * D2R) - 0.1]), dE = V.norm([0.06, -0.45, 0.89]);
   const backC = fAt(C0, [0, 0.06, -0.16]), BN = V.norm(fDir(C0, [0, 0, -1]));   // the backrest under the back, and its back face
   demo('pullover', {
-    cam: {yaw: 70, pitch: 10, dist: 4.3, target: [0, 1.0, -0.1]}, tempo: [1.0, 0.5, 2.2, 0.4],
+    cam: {yaw: 70, pitch: 10, dist: 4.3, target: [0, 1.0, -0.1]}, tempo: [1.6, 0.6, 2.8, 0.5],   // slower (14 Nov 2026)
     props: [pad([0, 0.43, 0.02], [0.17, 0.035, 0.2]), tube([0, 0, 0.05], [0, 0.4, 0.05], 0.035), tube([-0.2, 0.02, 0.05], [0.2, 0.02, 0.05], 0.03),
       ['world', 'B', backC, [0.17, 0.36, 0.035], 0.025, {mat: 'pad', rot: [REC, 0, 0]}], tube(V.add(backC, V.sc(BN, 0.05)), [0, 0.02, backC[2] - 0.25], 0.035), tube(V.add(backC, V.sc(BN, 0.05)), [0, 0.4, 0.02], 0.03),
       tube([0, 0, -1.05], [0, 2.33, -1.05], 0.045), tube([0, 2.31, -1.05], [0, 2.31, TOP[2]], 0.035), ['world', 'Q', [-0.015, TOP[1], TOP[2]], [0.015, TOP[1], TOP[2]], 0.05, {mat: 'steel'}],
@@ -139,7 +146,7 @@ cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0
     pose(t) {
       const k = phaseK(t, this.tempo);
       let p = SIT_FEET({...base, arm: {clav: [lerp1(16, -2, k), lerp1(6, -4, k)]}});
-      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, lerp1(0.58, 0.55, k))), [0.02, 0, 0]);
+      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, 0.545)), [0.02, 0, 0]);   // one fixed reach: the elbows keep the same soft bend all the way (they straightened and re-bent before)
       const pole = V.norm(V.lerp(fDir(C, [0.8, 0.2, -0.6]), fDir(C, [0.7, 0, -1]), k));
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: slerpV(V.norm([0, 0.3, 1]), [0, -1, -0.1], k)}, armR: {palm: slerpV(V.norm([0, 0.3, 1]), [0, -1, -0.1], k)}});
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);

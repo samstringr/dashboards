@@ -40,7 +40,7 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
     frames: ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.94, -0.02], pitch: 8}, spine: [2, 3], neck: -6, arm: {clav: [-4, -2]}});
+      let p = STAND({root: {p: [0, 0.885, -0.02], pitch: 8}, spine: [2, 3], neck: -6, arm: {clav: [-4, -2]}});
       // straight arms at the bottom put the hands 10 cm in front of the thighs, so the bar and cable stay clear (14 Nov 2026)
       const C = solve(p).chest, fo = slerpV(V.norm([0.05, 0.2, 1]), V.norm([0.05, -1, 0.34]), ease(k)), palm = slerpV(V.norm([0, -1, 0.15]), V.norm([0, -0.34, -1]), k);
       p = {...p, arm: armFix(C, [0.1, -1, 0.07], fo, palm, {clav: [-4, -2]})};
@@ -65,7 +65,7 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
       ['world', 'B', [0, 0.45, -1.02], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}]],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = {root: {p: [0, 0.9, 0.0], pitch: 24}, spine: [4, 6], neck: -16, head: -4, arm: {clav: [14, 4]}};
+      let p = {root: {p: [0, 0.85, 0.0], pitch: 24}, spine: [4, 6], neck: -16, head: -4, arm: {clav: [14, 4]}};
       p = legsTo(p, [0.13, 0.067, 0.34], [0.05, 0, 1], [0.12, 0, 1]);
       p = legR(p, solve(p), [-0.12, 0.08, -0.33], [0, 0.2, 1], V.norm([-0.1, -0.25, 1]));
       // the forearm turns in the upper arm's own front-to-back plane: from folded behind the head (150°) to almost straight
@@ -91,7 +91,7 @@ const armFix = (C, up, fore, palm, extra = {}) => ({up: fDir(C, up), fore: fDir(
       ['world', 'B', [0, 0.45, 0.7], [0.14, 0.3, 0.06], 0.01, {mat: 'iron'}]],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = STAND({root: {p: [0, 0.95, -0.02], pitch: 3}, spine: [0, -2], neck: -6});
+      let p = STAND({root: {p: [0, 0.89, -0.02], pitch: 3}, spine: [0, -2], neck: -6});
       const C = solve(p).chest, fo = slerpV(V.norm([-0.2, -1, 0.42]), V.norm([-0.04, 0.6, 0.8]), ease(k));
       p = {...p, arm: armFix(C, [0.03, -1, 0.12], fo, [-1, 0, 0], {clav: [0, -3], crease: fDir(C, [0, 0.2, 1])})};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.add(V.lerp(a, b, 0.5), V.sc(V.norm(V.sub(LOW, V.lerp(a, b, 0.5))), 0.1));

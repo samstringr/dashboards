@@ -62,17 +62,17 @@ check('training log: cardio X / 150 min this week', /^Cardio \d+ \/ 150 min/.tes
 const cardio0 = +((cn.match(/^Cardio (\d+)/) || [])[1] || 0);
 // consistency grid: gym dot vs cardio dot, legend
 const cal = await page.evaluate(() => { const c = d => document.querySelector(`.widget[data-id=calendar] i[data-d="${d}"]`); return {fb: c('2026-10-31')?.className, gym: c('2026-11-01')?.className, leg: document.querySelector('.widget[data-id=calendar] .pl')?.innerText}; });
-// 14 Nov 2026: the grid fills its widget, whatever the size (no gap at the bottom)
-const fill = async () => page.evaluate(() => { const w = document.querySelector('.widget[data-id=calendar]'), b = w.querySelector('.wbody') || w.querySelector('[data-cal]').parentElement, cal = b.querySelector('[data-cal]'), leg = cal.nextElementSibling;
-  const bb = b.getBoundingClientRect(), lb = leg.getBoundingClientRect(), cs = getComputedStyle(b), k = bb.width / b.offsetWidth;   // the canvas may be zoomed: rects are scaled, styles aren't
-  return {gap: Math.round((bb.bottom - lb.bottom) / k - parseFloat(cs.paddingBottom)), calW: Math.round(cal.getBoundingClientRect().width / k), bodyW: Math.round(b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))}; });
+// 14 Nov 2026: square cells, stacked into bands so the grid uses its box at any size
+const fill = async () => page.evaluate(() => { const w = document.querySelector('.widget[data-id=calendar]'), cal = w.querySelector('[data-cal]'), b = cal.parentElement, c = cal.querySelector('i'), r = c.getBoundingClientRect(), k = b.getBoundingClientRect().width / b.offsetWidth, cs = getComputedStyle(b);
+  const used = cal.offsetHeight + cal.nextElementSibling.offsetHeight, avail = b.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  return {sq: Math.abs(r.width - r.height) < 0.6, cell: Math.round(r.width / k), bands: cal.querySelectorAll('.cal-band').length, over: cal.scrollWidth > b.clientWidth + 1, usedH: +(used / avail).toFixed(2)}; });
 const f1 = await fill();
-check('consistency: the grid fills the widget (no gap under it, full width)', f1.gap <= 14 && f1.gap >= -2 && Math.abs(f1.calW - f1.bodyW) <= 2, JSON.stringify(f1));
+check('consistency: cells are square, fit the box, and the bands use most of its height', f1.sq && f1.cell >= 7 && !f1.over && f1.usedH <= 1.02 && f1.usedH >= 0.6, JSON.stringify(f1));
 check('consistency: cardio has its own dot', /\bcd\b/.test(cal.fb) && !/\btr\b/.test(cal.fb) && /\btr\b/.test(cal.gym) && !/\bcd\b/.test(cal.gym) && /cardio/.test(cal.leg) && /gym/.test(cal.leg), JSON.stringify(cal));
 // lift picker: plan first, then a break, then the rest
 const lp = await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=lift] select[data-ex] optgroup')].map(g => g.label + ':' + g.children.length + ':' + [...g.children].map(o => o.textContent).join('|')));
 const lpIn = (lp[0] || '').split(':')[2]?.split('|') || [], lpOut = (lp[1] || '').split(':')[2]?.split('|') || [];
-check('lift picker: in the plan, then not in the plan', lp.length === 2 && /^In the plan:/.test(lp[0]) && /^Not in the plan:/.test(lp[1]) && lpOut.includes('Reverse cable curl') && !lpOut.some(n => lpIn.includes(n)), lp.map(x => x.slice(0, 80)).join(' / '));
+check('lift picker: in the plan, then not in the plan', lp.length === 2 && /^In the plan:/.test(lp[0]) && /^Not in the plan:/.test(lp[1]) && lpOut.includes('Cable curl (reverse grip)') && !lpOut.some(n => lpIn.includes(n)), lp.map(x => x.slice(0, 80)).join(' / '));
 // daily thought: a quote with its source; click gives another
 const q1 = await page.locator('.widget[data-id=quote] .qt').innerText().catch(() => ''), qsrc = await page.locator('.widget[data-id=quote] .qs').innerText().catch(() => '');
 await page.locator('.widget[data-id=quote] .qcard').click(); await page.waitForTimeout(150);
@@ -221,11 +221,11 @@ await page.screenshot({ path: `${OUT}v18-muscles-${vp.width}.png` });
 const MESO5 = ['Incline DB bench', 'Machine chest press', 'Weighted dip (+kg)', 'Pec deck', 'Tricep pushdown', 'Hanging leg raise',
   'Lat pulldown', 'Chest-supported row (wide grip)', 'Seated cable row (close grip)', 'Cable pullover (bench)', 'Reverse pec deck', 'DB shrug (seated)', 'Cable curl (facing away)', 'Preacher curl',
   'Back squat or leg press', 'RDL', 'Bulgarian split squat', 'Seated leg curl', 'Seated calf raise', 'Adductor machine', 'Cable lateral raise', 'Decline weighted crunch',
-  'DB shoulder press', 'Cable upright row', 'Overhead cable triceps extension', 'Cable hammer curl', 'Cable crunch', 'Lateral raise', 'Reverse cable curl'];
+  'DB shoulder press', 'Cable upright row', 'Overhead cable triceps extension', 'Cable hammer curl', 'Cable crunch', 'Lateral raise', 'Reverse cable curl', 'Face pull'];
 const nd = await page.evaluate(L => L.map(n => [n, Fig3D.moveFor(n), Fig3D.ready(Fig3D.moveFor(n))]), MESO5);
 const notBuilt = nd.filter(x => !x[2]).map(x => x[0]), m = Object.fromEntries(nd.map(x => [x[0], x[1]]));
 const want = {'Weighted dip (+kg)': 'dip', 'Seated cable row (close grip)': 'cablerow', 'DB shrug (seated)': 'shrugseat', 'Cable upright row': 'uprow', 'Machine chest press': 'machpress', 'Chest-supported row (wide grip)': 'chestrow', 'Reverse pec deck': 'revpec',
-  'Cable pullover (bench)': 'pullover', 'Bulgarian split squat': 'splitsquat', 'Cable curl (facing away)': 'facecurl', 'Preacher curl': 'preacher', 'Cable crunch': 'cablecrunch', 'Lateral raise': 'lateral', 'Reverse cable curl': 'revcurl', 'Decline weighted crunch': 'crunch', 'RDL': 'rdl'};
+  'Cable pullover (bench)': 'pullover', 'Bulgarian split squat': 'splitsquat', 'Cable curl (facing away)': 'facecurl', 'Preacher curl': 'preacher', 'Cable crunch': 'cablecrunch', 'Lateral raise': 'lateral', 'Reverse cable curl': 'revcurl', 'Decline weighted crunch': 'crunch', 'RDL': 'rdl', 'Face pull': 'facepull'};
 const wrong = Object.entries(want).filter(([n, k]) => m[n] !== k).map(([n, k]) => `${n} → ${m[n]} (want ${k})`);
 check('lift demos: all 29 exercises built (27 in the plan + lateral raise, reverse curl), names map right', !notBuilt.length && !wrong.length, (notBuilt.join(', ') + ' ' + wrong.join('; ')).trim());
 // variants: the pullover offers seated (bar) and standing (rope); the pick is remembered for that exercise
@@ -237,10 +237,24 @@ await page.evaluate(() => { const s = document.querySelector('.widget[data-id=li
 await page.locator('.widget[data-id=lift]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=lift]').screenshot({ path: `${OUT}lift-variants-${vp.width}.png` });
 const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 && g.getBoundingClientRect().height > 12 } : null; });
 check('lift variants: three curls offered and the toggle fits the widget', vw?.n === 3 && vw.fits, JSON.stringify(vw));
-check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Incline bench, bar|Standing, rope' && vOn === 'Standing, rope' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
+const vTitle = await page.evaluate(() => document.querySelector('.widget[data-id=lift] [data-ex]').selectedOptions[0].textContent);
+check('lift variants: the title names the set-up on screen', vTitle === 'Cable curl (facing away)', vTitle);
+// the rig and the body share one skeleton (14 Nov 2026): if these drift, standing demos hover and grips slide
+const dims = await page.evaluate(() => { const D = Fig3D._dbg, L = D.LEN, K = D.MQ.SK, R = D.REST_J.side.L; return [[K.upper, L.ua], [K.fore, L.fa], [K.thigh, L.th], [K.shin, L.sh], [K.hip[0], R.hp[0]], [K.shoulder[0], R.sh[0]], [K.pelvis[1] + K.hip[1], R.hp[1]]]; });
+check('3D: the choreography rig has the body’s own bone lengths (within 2 mm)', dims.every(([a, b]) => Math.abs(a - b) < 0.002), JSON.stringify(dims.map(x => x.map(v => +v.toFixed(3)))));
+// linked widgets: an exercise in the Training plan opens in Lift progress; a day clicked on a chart is selected everywhere
+await page.evaluate(() => document.querySelector('.widget[data-id=plan] [data-lift]').click()); await page.waitForTimeout(800);
+const linked = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan] [data-lift]').dataset.lift, lift: document.querySelector('.widget[data-id=lift] [data-ex]').value, speed: !!document.querySelector('.widget[data-id=lift] .f3d-speed input')}));
+check('linked: plan exercise opens in the lift widget; speed slider present', linked.plan === linked.lift && linked.speed, JSON.stringify(linked));
+const selBefore = await page.evaluate(() => document.querySelector('#d-lbl').textContent.trim());
+await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=weight] [data-c=w] svg'), hit = svg.querySelector('rect[style*="transparent"]'), r = svg.getBoundingClientRect(); hit.dispatchEvent(new MouseEvent('click', {bubbles: true, clientX: r.left + r.width * 0.6, clientY: r.top + 10})); }); await page.waitForTimeout(900);
+const selAfter = await page.evaluate(() => ({lbl: document.querySelector('#d-lbl').textContent.trim(), pulsed: document.querySelectorAll('.widget.pulse').length}));
+check('linked: clicking a day on the weight chart selects it everywhere', selAfter.lbl !== selBefore && selAfter.pulsed >= 3, JSON.stringify({selBefore, ...selAfter}));
+await page.evaluate(() => document.querySelector('#d-lbl').click()); await page.waitForTimeout(600);
+check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Incline bench, bar ★|Standing, bar|Standing, rope' && vOn === 'Standing, bar' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
 const lctl = await page.locator('.widget[data-id=lift] .f3d-ctl button').count();
 check('lift demo has pause/front/side/back', lctl === 4, String(lctl));
-check('lift legend lists working muscles', /Chest|Lats|delts|Biceps/.test(await page.locator('.widget[data-id=lift] .mlg').innerText().catch(() => '')));
+check('lift legend lists working muscles', /Chest|Lats|delts|Biceps|Quads|Glutes|Triceps|Abs|Hamstrings|Traps|back/i.test(await page.locator('.widget[data-id=lift] .mlg').innerText().catch(() => '')));
 await page.screenshot({ path: `${OUT}v6-${vp.width}.png` });
 // palette shows real widgets
 await page.click('[data-act=widgets]'); await page.waitForTimeout(4500);

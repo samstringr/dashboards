@@ -28,9 +28,9 @@ head = ('/* ============================================================\n'
   "const Fig3D = (() => {\n'use strict';\n")
 mqwrap = ("/* ---------- FORM DEMOS (own scope: the rig reuses names like V, SK and solve) ---------- */\n"
   "const MQ = (() => {\n" + mq +
-  "return {liftView, liftSnapshot, moveFor, variantsOf, EX, solve, V, fAt, F};\n})();\n")
+  "return {liftView, liftSnapshot, moveFor, variantsOf, groupName, buildSkinned, EX, solve, V, fAt, F, SK};\n})();\n")
 tail = ("return {load, view: (h, o) => o && o.mode === 'lift' ? MQ.liftView(h, o) : view(h, o), snapshot: (o, w, h) => o && o.mode === 'lift' ? MQ.liftSnapshot(o, w, h) : snapshot(o, w, h),\n"
-  "  moveFor: MQ.moveFor, variants: MQ.variantsOf, cues: k => (MQ.EX[k] || MQ.EX.stand).cues || [], muscles: k => (MQ.EX[k] || MQ.EX.stand).muscles || {},\n"
+  "  moveFor: MQ.moveFor, variants: MQ.variantsOf, groupName: MQ.groupName, cues: k => (MQ.EX[k] || MQ.EX.stand).cues || [], muscles: k => (MQ.EX[k] || MQ.EX.stand).muscles || {},\n"
   "  map: mapViews, musclesList: MUSCLES, levelHex: LEVEL_HEX, has: k => !!MQ.EX[k] && k !== 'stand', ready: k => !!(MQ.EX[k] && MQ.EX[k].pose), list: () => Object.keys(MQ.EX),\n"
   "  _dbg: {MQ, buildMesh, solve, standPose, surface, get ATL() { return ATL; }, get REST_J() { return REST_J; }, get LEN() { return LEN; }}};\n})();\n")
 bundle = head + atlas + src('fig3d/body.js') + '\n' + src('fig3d/view.js') + '\n' + src('fig3d/map.js') + '\n' + mqwrap + tail

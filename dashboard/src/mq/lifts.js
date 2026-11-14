@@ -12,7 +12,7 @@ const INFO = {
   closegrip: {"muscles": {"triceps": 1, "chest": 0.7, "fdelt": 0.5}, "cues": ["Grip just inside shoulder width", "Elbows tucked; touch the lower chest", "Press with the triceps, wrists stacked"]},
   crunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Plate on the chest, feet hooked", "Curl the ribs towards the hips, don’t yank the neck", "Lower under control; no rest at the bottom"]},
   curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Face the low pulley, straight bar, palms up", "Elbows pinned to your sides", "Curl without swinging; lower all the way over 2–3 s"]},
-  facecurl: {"muscles": {"biceps": 1, "forearms": 0.45}, "cues": ["Face away from a low pulley; the cable runs up between your feet", "Elbows a little behind your body and kept there: that’s the stretch", "Curl without the elbows coming forward; lower over 2–3 s"]},
+  facecurl: {"muscles": {"biceps": 1, "forearms": 0.45}, "cues": ["Face away from two low pulleys, a handle in each hand, cables outside your legs", "Elbows a little behind your body and kept there: that’s the stretch", "Curl without the elbows coming forward; lower over 2–3 s"]},
   revcurl: {"muscles": {"forearms": 1, "biceps": 0.75}, "cues": ["Overhand grip on the bar, palms down", "Elbows pinned, wrists straight", "Curl without swinging; lower over 2 s"]},
   cablecrunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Kneel facing a high pulley, rope beside your head", "Curl the ribs down towards the hips; the hips stay put", "Pause, then let the spine lengthen over 2 s"]},
   shrugseat: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Sit at the end of a bench, tall, dumbbells hanging beside it", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
@@ -22,6 +22,8 @@ const INFO = {
   cablerowmid: {"muscles": {"lats": 0.85, "upperback": 0.85, "rdelt": 0.4, "biceps": 0.5, "traps": 0.45, "forearms": 0.3}, "cues": ["Shoulder-width bar, overhand", "Elbows about 45° out, bar to the lower ribs", "Squeeze the shoulder blades, return over 2 s"]},
   cablerowwide: {"muscles": {"upperback": 1, "rdelt": 0.6, "traps": 0.5, "lats": 0.45, "biceps": 0.4, "forearms": 0.3}, "cues": ["Wide bar, overhand", "Elbows out about 70°, bar to the lower chest", "Squeeze, then return over 2 s"]},
   shrugincline: {"muscles": {"traps": 1, "upperback": 0.35, "forearms": 0.4}, "cues": ["Chest and stomach on a 45° incline bench, feet planted", "Arms hang straight down, palms in", "Shrug up towards the ears, pause, lower slowly"]},
+  facepull: {"muscles": {"rdelt": 1, "upperback": 0.6, "traps": 0.5, "biceps": 0.2}, "cues": ["Pulley at face height, rope, thumbs towards you", "Pull the rope apart and to your ears, elbows high and out", "Pause with the forearms upright, return slowly"]},
+  straightarmrope: {"muscles": {"lats": 1, "triceps": 0.4, "rdelt": 0.3, "abs": 0.3}, "cues": ["Hinge about 25°, soft knees, arms long", "Sweep the rope to your thighs with straight arms, ends past the hips", "Let it rise overhead slowly for the stretch"]},
   pullover: {"muscles": {"lats": 1, "triceps": 0.35, "rdelt": 0.3, "abs": 0.3}, "cues": ["Sit facing away from a high pulley, straight bar overhead", "Arms nearly straight; sweep the bar over and down to your lap with your lats", "Let it pull your arms back overhead for the stretch, slowly"]},
   dbrow: {"muscles": {"lats": 1, "upperback": 0.75, "rdelt": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Flat back, torso close to horizontal", "Row the dumbbell towards your hip", "Full stretch at the bottom"]},
   dip: {"muscles": {"triceps": 1, "chest": 0.85, "fdelt": 0.6}, "cues": ["Lean forward a little to load the chest", "Lower until the upper arms are level", "Elbows travel back, not out"]},
@@ -60,7 +62,7 @@ const INFO = {
    bench, so cable rows now come first. */
 const MATCH = [
   [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
-  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
@@ -72,12 +74,21 @@ const MATCH = [
 ];
 /* Variations of one movement (13 Nov 2026, Sam asked for a toggle where an exercise has variants). The name
    picks the default; the lift widget lets him switch and remembers it per exercise. */
-const VARIANTS = [[['pullover', 'Incline bench, bar'], ['straightarm', 'Standing, rope']], [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']],
-  [['shrugseat', 'Seated'], ['shrug', 'Standing'], ['shrugincline', 'Chest on a bench']], [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']],
-  // 14 Nov 2026
-  [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']], [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']],
-  [['cablerow', 'Close'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide']], [['legpress', 'Leg press'], ['squat', 'Back squat']]];
-const variantsOf = k => (VARIANTS.find(g => g.some(([x]) => x === k)) || []).map(([key, label]) => ({key, label}));
+/* Each group: the movement's general name, then its set-ups. The general name is what the lift widget shows
+   ("Weighted crunch", with decline bench or cable as the set-up), so the title never names a set-up that isn't
+   the one on screen (14 Nov 2026, Sam: it said "seated" while showing the standing shrug). */
+const VARIANTS = [
+  ['Cable pullover', [['pullover', 'Incline bench, bar'], ['straightarm', 'Standing, bar'], ['straightarmrope', 'Standing, rope']]],
+  ['Cable curl', [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']]],
+  ['Dumbbell shrug', [['shrugseat', 'Seated'], ['shrug', 'Standing'], ['shrugincline', 'Chest on a bench']]],
+  ['Weighted crunch', [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']]],
+  ['Tricep pushdown', [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']]],
+  ['Overhead triceps extension', [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']]],
+  ['Seated cable row', [['cablerow', 'Close grip'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide grip']]],
+  ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]]];
+const groupOf = k => VARIANTS.find(g => g[1].some(([x]) => x === k));
+const variantsOf = k => ((groupOf(k) || [])[1] || []).map(([key, label]) => ({key, label}));
+const groupName = k => (groupOf(k) || [])[0] || null;
 const moveFor = name => { const n = String(name || '').toLowerCase(); for (const [re, k] of MATCH) if (re.test(n)) return k; return 'stand'; };
 const EX = {};
 for (const [k, v] of Object.entries(INFO)) EX[k] = {...v};

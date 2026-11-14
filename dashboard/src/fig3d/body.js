@@ -92,7 +92,7 @@ function solve(pose) {
 function frames(J) {
   const B = {};
   const tf = (o, F, sg = 1) => ({o, x: V.sc(F.l, sg), y: F.u, z: F.f});
-  B.pelvis = tf(J.P, J.F0); B.abdomen = tf(J.A, J.F1); B.chest = tf(J.C, J.F2); B.neck = tf(J.N, J.F3); B.head = tf(J.H, J.F3);
+  B.pelvis = tf(J.P, J.F0); B.abdomen = tf(J.A, J.F1); B.chest = tf(J.C, J.F2); B.neck = tf(J.N, J.F3n || J.F3); B.head = tf(J.H, J.F3);
   for (const k of ['L', 'R']) {
     const S = J.side[k], sg = S.sg;
     /* front of a limb bone: from the bend itself once the joint is bent past ~10° (the hinge decides which way
@@ -104,8 +104,14 @@ function frames(J) {
     const thY = V.norm(V.sub(S.kn, S.hp)), snY = V.norm(V.sub(S.an, S.kn)), wL = bw(thY, snY);
     B['ua' + k] = limb(S.sh, S.el, neg(S.ep), J.F2.f, faY, wA);
     const fa = B['fa' + k] = limb(S.el, S.wr, neg(S.ep), J.F2.f, neg(uaY), wA), tw = sg * (S.pron || 0) * D2R;
-    B['tw' + k] = rotF(fa, fa.y, tw / 2, V.sc(V.add(S.el, S.wr), 0.5));
-    const hd = B['hd' + k] = rotF(fa, fa.y, tw, S.wr);
+    /* The forearm's turn is spread over four steps down to the wrist (14 Nov 2026: with one step in the middle a
+       palms-down grip pinched the forearm to 70% of its width, "squished and stretched"; four steps keep 92%).
+       The hand then takes its own frame when the pose gives one (the demos do: wrist bend and all), so it sits
+       exactly where the rig's hand is; otherwise it just follows the forearm's turn. */
+    for (let i = 1; i <= 4; i++) B['t' + i + k] = rotF(fa, fa.y, tw * i / 4, V.add(S.el, V.sc(V.sub(S.wr, S.el), i / 4)));
+    const hd = B['hd' + k] = S.hand ? {o: S.wr, x: S.hand.x, y: S.hand.y, z: S.hand.z} : rotF(fa, fa.y, tw, S.wr);
+    // the shoulder girdle: moves with the shoulder joint (shrugs, reaches, squeezing the blades) but turns with the ribcage
+    B['gd' + k] = {o: S.sh, x: J.F2.l, y: J.F2.u, z: J.F2.f};
     /* Two finger joints (14 Nov 2026, Sam: the hands weren't gripping the bars). One bend at the knuckles left the
        fingers straight, sticking out of the palm; a grip curls at the knuckles and again halfway along. */
     const fg = B['fg' + k] = rotF(hd, V.norm(V.cross(hd.y, hd.z)), (S.curl || 0) * 0.6 * D2R, SK && SK.kn3 ? toWorld(hd, SK.kn3[k]) : S.wr);
@@ -139,23 +145,31 @@ function surface() {
   const bones = Object.keys(REST_B).concat(['clL', 'clR']), bi = Object.fromEntries(bones.map((b, i) => [b, i]));
   const SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4), SHORTS = new Float32Array(nv), SM = new Float32Array(nv), RY = new Float32Array(nv), MW = new Float32Array(nv * MUSCLES.length);
   const knots = [R.P[1] - 1, R.A[1], R.C[1], R.N[1] + 0.01, 1.505], spineB = ['pelvis', 'abdomen', 'chest', 'neck', 'head'], blend = [0, 0.05, 0.06, 0.035, 0.035];
-  /* The armpit: where each arm's skin meets the torso's, about 20 cm below the shoulder joint.
-     13 Nov 2026: Sam saw fins down the lats on the pulldown and presses: the arm side of the armpit followed the
-     upper arm fully while the torso side next to it stayed put. The first fix gave the torso skin near the
-     armpit the full shoulder-bone weight over 14 cm, which pushed the lats out like wings whenever the arms went
-     up (14 Nov: "freakishly wide lats", "a bat" on the hanging leg raise, the side delt hidden on raises).
-     Now both sides of the armpit seam carry a small, equal share of the shoulder bone (k = 0.2), the torso hands
-     back to the ribcage within 4 cm, and the arm hands over to the upper arm within 12 cm. Compared side by side
-     at k = 0, 0.2 and 0.4 (contact sheets, 14 Nov): 0 shows the fins, 0.4 the wings, 0.2 neither.
-     __SEAM is a test-only override for that comparison. */
-  const SP = globalThis.__SEAM || {k: 0.2, dArm: 0.12, dTorso: 0.04, drop: 0.06};
+  /* THE SHOULDER (third version, 14 Nov 2026). The arm and the torso are separate skins joined along a ring that
+     runs over the top of the shoulder and down through the armpit. History, so this isn't re-tried:
+       v20  the two sides of the ring had unrelated weights → fins down the lats when the arm lifted;
+       v21  torso skin near the armpit got the full shoulder-bone weight → lats pushed out like wings ("a bat");
+       v22  a small equal share each side → the underside of the upper arm stayed tied to the ribs, so the
+            triceps looked merged into the lat ("bingo wings") and the deltoid slid under the torso skin.
+     Now the weights are continuous across the whole ring and differ by where on the ring a point is:
+       • over the top (deltoid, acromion): both sides follow the shoulder bone, which takes half the upper arm's
+         turn, handing over to the upper arm within dCa down the arm and to the ribcage within dCt across the torso;
+       • in the armpit: a straight blend between the ribcage and the upper arm, half each at the ring, the arm fully
+         its own within dA and the torso its own within dT. A straight blend pulls the fold in towards the joint
+         as the arm lifts (a hollow armpit, a lat that sweeps up to the arm) where the shoulder bone swung it outwards.
+     The ribcage's share near the shoulder rides on the girdle bone, so the armpit, the traps and the shoulder
+     blades lift and slide with a shrug or a row instead of the shoulder rising out of a still back.
+     __SEAM is a test-only override used to compare settings side by side. */
+  const SP = {dCa: 0.11, dCt: 0.13, aS: 0.5, dA: 0.07, dT: 0.12, h0: 0.035, h1: 0.105, gd: 0.85, ...(globalThis.__SEAM || {})};
   const seam = {L: [], R: []};
   for (let t = 0; t < B.I.length; t += 3) {
     const gs = [B.grp[B.I[t]], B.grp[B.I[t + 1]], B.grp[B.I[t + 2]]], arm = gs.filter(g => g === 3 || g === 4);
     if (!arm.length || arm.length === 3 || gs.some(g => g >= 5)) continue;
-    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) { const k = gs[q] === 3 ? 'L' : 'R', v = B.I[t + q]; if (B.P[v * 3 + 1] < R.side[k].sh[1] - SP.drop) seam[k].push(v); }   // the armpit part only
+    for (let q = 0; q < 3; q++) if (gs[q] === 3 || gs[q] === 4) seam[gs[q] === 3 ? 'L' : 'R'].push(B.I[t + q]);
   }
-  const seamD = (p, k) => { const S = R.side[k]; if (V.len(V.sub(p, S.sh)) > 0.4) return 1; let d = 1; for (const q of seam[k]) { const dx = B.P[q * 3] - p[0], dy = B.P[q * 3 + 1] - p[1], dz = B.P[q * 3 + 2] - p[2], e = dx * dx + dy * dy + dz * dz; if (e < d) d = e; } return Math.sqrt(d); };
+  const seamD = (p, k) => { const S = R.side[k]; if (V.len(V.sub(p, S.sh)) > 0.45) return 1; let d = 1; for (const q of seam[k]) { const dx = B.P[q * 3] - p[0], dy = B.P[q * 3 + 1] - p[1], dz = B.P[q * 3 + 2] - p[2], e = dx * dx + dy * dy + dz * dz; if (e < d) d = e; } return Math.sqrt(d); };
+  // 1 over the top of the shoulder, 0 in the armpit, by how far below the joint the point sits at rest
+  const topness = (p, k) => 1 - smooth01(SP.h0, SP.h1, R.side[k].sh[1] - p[1]);
   for (let v = 0; v < nv; v++) {
     const p = [B.P[v * 3], B.P[v * 3 + 1], B.P[v * 3 + 2]], g = B.grp[v], w = new Map(), add = (b, x) => { if (x > 1e-4) w.set(b, (w.get(b) || 0) + x); };
     const spine = share => { // partition of unity along the spine by height
@@ -164,11 +178,15 @@ function surface() {
     const sideOf = g >= 3 && g <= 8 ? (g % 2 ? 'L' : 'R') : p[0] >= 0 ? 'L' : 'R';
     if (g === 3 || g === 4) { // arm
       const k = g === 3 ? 'L' : 'R', S = R.side[k], u = chainU(p, [S.sh, S.el, S.wr, J['kn3' + k], J['tip' + k]]);
-      const aS = smooth01(0, SP.dArm, seamD(p, k)), a = Math.min(smooth01(-0.04, 0.12, u), aS), cs = SP.k + (1 - SP.k) * aS, e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), f = smooth01(LEN.ua + LEN.fa + LEN.palm - 0.012, LEN.ua + LEN.fa + LEN.palm + 0.016, u);
-      add('cl' + k, (1 - a) * cs); spine((1 - a) * (1 - cs)); add('ua' + k, a * (1 - e));
-      const fore = a * e * (1 - f); if (q < 0.5) { add('fa' + k, fore * (1 - 2 * q)); add('tw' + k, fore * 2 * q); } else { add('tw' + k, fore * (2 - 2 * q)); add('hd' + k, fore * (2 * q - 1)); }
-      const uM = LEN.ua + LEN.fa + LEN.palm + 0.45 * (LEN.hand - LEN.palm), f2 = smooth01(uM - 0.008, uM + 0.01, u);
-      add('fg' + k, a * e * f * (1 - f2)); add('fx' + k, a * e * f * f2);
+      const sd = u < 0.3 ? seamD(p, k) : 1, tau = topness(p, k);
+      const cl = tau * (1 - smooth01(0, SP.dCa, sd)), rib = (1 - tau) * (1 - SP.aS) * (1 - smooth01(0, SP.dA, sd)), a = 1 - cl - rib;
+      const e = smooth01(LEN.ua - 0.035, LEN.ua + 0.035, u), q = Math.min(1, Math.max(0, (u - LEN.ua) / LEN.fa)), uW = LEN.ua + LEN.fa, wst = smooth01(uW - 0.018, uW + 0.02, u), f = smooth01(uW + LEN.palm - 0.012, uW + LEN.palm + 0.016, u);
+      add('cl' + k, cl); add('gd' + k, rib); add('ua' + k, a * (1 - e));
+      // forearm: the turn in four steps, then the hand from the wrist
+      const fore = a * e * (1 - wst), qi = Math.min(3, Math.floor(q * 4)), qf = q * 4 - qi, tb = i => i ? 't' + i + k : 'fa' + k;
+      add(tb(qi), fore * (1 - qf)); add(tb(qi + 1), fore * qf);
+      const uM = uW + LEN.palm + 0.45 * (LEN.hand - LEN.palm), f2 = smooth01(uM - 0.008, uM + 0.01, u);
+      add('hd' + k, a * e * wst * (1 - f)); add('fg' + k, a * e * f * (1 - f2)); add('fx' + k, a * e * f * f2);
     } else if (g >= 5) { // leg, hip, crotch
       const dd = (p[1] - J.hpL[1]) - 0.5 * (p[2] - J.hpL[2]), t = 1 - smooth01(-0.10, 0.03, dd);
       const legs = g === 9 || Math.abs(p[0]) < 0.03 ? [['L', smooth01(-0.03, 0.03, p[0])], ['R', 1 - smooth01(-0.03, 0.03, p[0])]] : [[sideOf, 1]];
@@ -178,11 +196,17 @@ function surface() {
         add('th' + k, t * s * (1 - kk)); add('sn' + k, t * s * kk * (1 - aa)); add('ft' + k, t * s * aa);
       }
     } else { // torso, neck, head; the shoulder bone carries the skin around the joint
-      /* torso skin round the armpit follows the shoulder bone only partly, fading over 20 cm: a steep
-         fade (v7 draft: full weight to 4.5 cm, gone by 15) folded the side of the chest into stripes when
-         the arm moved */
-      const S = R.side[sideOf], c = g === 2 ? 0 : Math.max(0.55 * (1 - smooth01(0.02, 0.20, V.len(V.sub(p, S.sh)))) * smooth01(0.05, 0.12, Math.abs(p[0])), SP.k * (1 - smooth01(0, SP.dTorso, seamD(p, sideOf))));
-      add('cl' + sideOf, c); spine(1 - c);
+      const S = R.side[sideOf];
+      if (g === 2 || V.len(V.sub(p, S.sh)) > 0.42) spine(1);
+      else {
+        const sd = seamD(p, sideOf), tau = topness(p, sideOf);
+        const cl = tau * (1 - smooth01(0, SP.dCt, sd)), ua = (1 - tau) * SP.aS * (1 - smooth01(0, SP.dT, sd));
+        // the girdle: traps, the shoulder blade and the skin round the armpit; fades out at the neck, the spine and the lower ribs
+        const ax = Math.abs(p[0]), yy = p[1] - S.sh[1], back = 1 - 0.5 * smooth01(S.sh[2] - 0.02, S.sh[2] + 0.05, p[2]);
+        const region = smooth01(0.025, 0.1, ax) * smooth01(-0.2, -0.09, yy) * (1 - smooth01(0.07, 0.13, yy)) * back;
+        const gd = SP.gd * Math.max(region, 1 - smooth01(0, 0.1, sd)) * (1 - cl - ua);
+        add('cl' + sideOf, cl); add('ua' + sideOf, ua); add('gd' + sideOf, gd); spine(1 - cl - ua - gd);
+      }
     }
     const list = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4), tot = list.reduce((s, x) => s + x[1], 0) || 1;
     list.forEach(([b, x], i) => { SI[v * 4 + i] = bi[b]; SW[v * 4 + i] = x / tot; });

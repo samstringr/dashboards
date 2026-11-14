@@ -43,3 +43,29 @@ Everything else here is how that file is built and checked.
   with no logged lift yet are marked "assumed" in the strength sheet.
 - **No secrets and no personal data** are in the page: settings default to empty, and everything personal
   comes from Health DB at runtime.
+
+## 14 Nov 2026: what changed and why
+
+- **One skeleton.** `src/mq/rig.js` `SK` now holds the atlas body's own joint positions and bone lengths.
+  WHY: the demo rig had its own proportions (shin 6 cm longer, arm 2 cm, shoulders 4 cm wider), so every pose
+  was solved for one body and drawn on another. That one mismatch produced the "jumping" squat, elbows knocking
+  at lockout and grips sliding on bars. `toAtlas` (skin.js) now copies the rig's joints straight across.
+- **Shoulder skin v3** (`body.js`, `SP`). The top of the shoulder ring follows the collar bone, the armpit is a
+  linear blend from chest to upper arm, the ribs follow the girdle bone. WHY: v1 gave wings, v2 (k = 0.2) gave
+  loose skin under the arm that merged the triceps into the lats.
+- **Muscles contract.** Each vertex carries `wk` (how much its muscle works in this lift); the material's
+  `uFlex` (0 long, 1 short) pushes those vertices out by up to 13 mm and dulls the colour when long.
+  Not done: the three triceps heads as separate shapes; the atlas paints the triceps as one region.
+- **Linked widgets.** `selectDay(d)` is the one way to change the day (charts call it on click); it pulses the
+  widgets that changed. Plan exercise names are `.exlink` buttons that set the lift widget.
+- **Consistency grid.** Square cells, stacked in 1–4 bands chosen to fit the box. WHY: stretched cells were
+  rejected ("don't squish"); squares at the largest size that fits use the space without distorting.
+- **Speed slider** (`mann.js`, 0.25–1.5×, remembered on the device) on every demo.
+- **Facing-away cable curl** uses two handles on two pulleys: a bar's single cable has to pass through the hips.
+- **Adding an exercise** (Sam, 14 Nov: "every new exercise gets a model, graph, motion path, best form"):
+  1. a `demo('key', …)` in `src/mq/demos*.js`, with the footage cues written above it;
+  2. `INFO[key]` (muscles, three cues) and a `MATCH` pattern in `lifts.js`; add it to `VARIANTS` if it is a
+     set-up of an existing lift, best set-up first (it gets the ★);
+  3. an `EXMAP` row in `health-fitness.html` if the name doesn't already match one (weekly sets per muscle);
+  4. render a contact sheet at the start, middle and end of the rep from two angles and look at it. A demo that
+     parses is not a demo that looks right.
