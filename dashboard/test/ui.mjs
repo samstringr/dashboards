@@ -21,13 +21,15 @@ const out = []; let fails = 0; const check = (n, c, x = '') => { out.push((c ? '
 const mcpNode = async (name, args) => { const r = await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args || {} } }) }); return (await r.json()).result; };
 const imp = await mcpNode('import_data', { days: seed.days, config: seed.config, mode: 'missing' });
 for (const [date, kind, label, extra] of [['2026-10-27', 'gym', 'U · Upper', { planCode: 'U' }], ['2026-10-29', 'run', 'Easy run', { minutes: 28, distance_km: 5 }], ['2026-10-31', 'football', 'Football', { minutes: 60 }], ['2026-11-01', 'gym', 'L · Lower', { planCode: 'L', exercises: [{ name: 'Back squat', sets: [{ kg: 80, reps: 8 }, { kg: 80, reps: 7 }] }] }], ['2026-11-03', 'cycle', 'Easy ride', { minutes: 45 }], ['2026-11-04', 'swim', 'Swim', {}]]) await mcpNode('log_workout', { date, kind, label, ...extra });
+{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);   // made-up step counts for the last 20 days
+  await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ steps: Array.from({ length: 20 }, (_, i) => dd(i) + '=' + (6000 + (i * 1373) % 6000)).join(';') }) }); }
 const vp = process.argv[2] === 'phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
 await ctx.route('https://cdnjs.cloudflare.com/**', r => r.fulfill({ path: R + '../vendor/three.min.js', contentType: 'application/javascript' }));
 await ctx.route('https://fonts.googleapis.com/**', r => r.abort()); await ctx.route('https://fonts.gstatic.com/**', r => r.abort());
 const page = await ctx.newPage();
-const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/ERR_|net::|Failed to load resource/.test(m.text())) errors.push(m.text()); });
+const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).join(' | '))); page.on('console', m => { if (m.type() === 'error' && !/ERR_|net::|Failed to load resource/.test(m.text())) errors.push(m.text()); });
 await page.exposeFunction('__mcp', async (name, args) => JSON.stringify(await mcpNode(name, args)));
 await page.addInitScript(mode => { window.__F3D_STATIC = true;
   localStorage.setItem('hf.mode', JSON.stringify(mode));
@@ -146,6 +148,7 @@ check('arrow keys reorder exercises', kb[1] === after[0] && kb[0] === after[1], 
 await page.screenshot({ path: `${OUT}v7-drag-${vp.width}.png` });
 await page.click('#sheet-x');
 // calendar click → the day is selected everywhere, no sheet (14 Nov 2026); a double-click opens the summary
+await page.evaluate(() => document.querySelectorAll('.widget.pulse').forEach(n => n.classList.remove('pulse')));
 const calCell = d => page.evaluate(d => { const c = [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === d); return c ? {sel: c.classList.contains('sel')} : null; }, d);
 await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === '2026-11-02').click());
 await page.waitForTimeout(300);
@@ -153,7 +156,11 @@ const lk = await page.evaluate(() => ({sheet: !document.querySelector('#sheet').
   todayCell: !!document.querySelector('.widget[data-id=calendar] i.today'), body: document.querySelector('.widget[data-id=body]')?.innerText || '', plan: document.querySelector('.widget[data-id=plan]')?.innerText || '', log: document.querySelector('.widget[data-id=workouts]')?.innerText || '', wt: document.querySelector('.widget[data-id=weight]')?.innerText || ''}));
 await page.screenshot({ path: `${OUT}v8-selected-day-${vp.width}.png` });
 check('calendar click: no sheet, Today takes the date, cell marked, today still outlined', !lk.sheet && /2 Nov/.test(lk.title) && lk.back && (await calCell('2026-11-02')).sel && lk.todayCell, JSON.stringify({sheet: lk.sheet, title: lk.title, back: lk.back}));
-check('selected day shows in composition, plan, training log and weight', /As it stood on/.test(lk.body) && /(Trained on|No gym session on)/.test(lk.plan) && /2 Nov/.test(lk.log) && /2 Nov/.test(lk.wt), JSON.stringify({b: /As it stood/.test(lk.body), p: lk.plan.slice(0, 160), l: /2 Nov/.test(lk.log), w: /2 Nov/.test(lk.wt)}));
+const gym2 = (seed.days.find(d => d.date === '2026-11-02')?.workouts || []).some(w => w.kind === 'gym');   // from the seed: the page's functions aren't global
+check('selected day shows in composition, training log and weight; the plan only follows a day you trained', /As it stood on/.test(lk.body) && (gym2 ? /Trained on/.test(lk.plan) : !/Trained on|No gym session/.test(lk.plan)) && /2 Nov/.test(lk.log) && /2 Nov/.test(lk.wt), JSON.stringify({gym2, b: /As it stood/.test(lk.body), p: lk.plan.slice(0, 160), l: /2 Nov/.test(lk.log), w: /2 Nov/.test(lk.wt)}));
+// 14 Nov 2026: only widgets whose content changed pulse, and never the one clicked
+const pz = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.widget')].map(n => [n.dataset.id, n.classList.contains('pulse')])));
+check('pulse only where content changed: Today yes; the clicked Consistency, Coach and Daily thought no', pz.today && !pz.calendar && !pz.tips && !pz.quote && (gym2 || !pz.plan), JSON.stringify(pz));
 // an intake bar selects its day and the chart doesn't slide (the window still ends today)
 const ib = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=intake] [data-c=k] svg'), r = svg.getBoundingClientRect(); return {x: r.left + r.width * 0.5, y: r.top + r.height * 0.5}; });
 await page.mouse.click(ib.x, ib.y); await page.waitForTimeout(300);
@@ -186,7 +193,7 @@ check('composition expands scale details', /Visceral|Skeletal/.test(await page.l
 // workouts hover tooltip
 if (vp.width > 900) {
   const wb = await page.locator('.widget[data-id=workouts] .chart svg').boundingBox();
-  await page.mouse.move(wb.x + wb.width - 6, wb.y + wb.height / 2); await page.waitForTimeout(150);
+  await page.mouse.move(wb.x + wb.width - 30, wb.y + wb.height / 2); await page.waitForTimeout(150);
   check('training log hover lists the week', /Week of/.test(await page.locator('.widget[data-id=workouts] .tip').innerText().catch(() => '')));
   // top-left corner resize of the targets widget
   const before = await page.evaluate(() => JSON.stringify((window.__lay = null, null)));
@@ -267,11 +274,14 @@ const selAfter = await page.evaluate(() => ({lbl: document.querySelector('#d-lbl
 check('linked: clicking a day on the weight chart selects it everywhere', selAfter.lbl !== selBefore && selAfter.pulsed >= 3, JSON.stringify({selBefore, ...selAfter}));
 // Training log → Training plan: clicking a week opens its latest session with the sets that were hit
 await page.click('#d-lbl'); await page.waitForTimeout(200);
-const wkx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), n = 12, pw = r.width - 22, mon = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return x; };
-  const i = n - 1 - Math.round((mon(new Date().toISOString().slice(0, 10)) - mon('2026-11-01')) / 6048e5); return {x: r.left + 18 + pw / n * (i + .5), y: r.top + r.height / 2, i}; });
+const wkx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), n = 12, pw = r.width - 44, mon = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return x; };
+  const i = n - 1 - Math.round((mon(new Date().toISOString().slice(0, 10)) - mon('2026-11-01')) / 6048e5); return {x: r.left + 18 + pw / n * (i + .5), y: r.top + r.height / 2, i}; });   // 18 left, 26 right (the steps axis)
 await page.mouse.click(wkx.x, wkx.y); await page.waitForTimeout(400);
 const tl = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan]').innerText, title: document.querySelector('.widget[data-id=today] .w-title').textContent, demo: Fig3D.moveFor('Smith machine chest press')}));
 check('training log click: the session opens in the plan with its sets', /Trained on/.test(tl.plan) && /1 Nov/.test(tl.title), JSON.stringify({i: wkx.i, title: tl.title, plan: tl.plan.slice(0, 200)}));
+check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
+const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
+check('steps: Training log has a right-hand steps axis, legend and average', stp.legend && stp.axis && stp.stat, JSON.stringify(stp));
 check('Smith machine chest press has its own demo', tl.demo === 'smithpress' && (await page.evaluate(() => Fig3D.ready('smithpress'))), tl.demo);
 await page.click('#d-lbl'); await page.waitForTimeout(200);
 await page.evaluate(() => document.querySelector('#d-lbl').click()); await page.waitForTimeout(600);

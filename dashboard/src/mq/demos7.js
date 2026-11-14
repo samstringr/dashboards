@@ -168,35 +168,63 @@ rowBar('cablerowwide', 0.42, [0.34, 0.71, 0.62], [0.35, 0.97, 0.22], [0.8, -0.6,
   });
 }
 
-/* ---- Smith machine chest press, flat bench (14 Nov 2026: Sam swapped the machine chest press for it) ----
-   Footage cues: bench centred under the bar so it comes down to mid-chest. Shoulder blades pinned back and
-   down, feet planted. Grip a little wider than the shoulders, wrists stacked over the elbows. Lower for 2–3 s
-   until the bar is just off the chest, elbows about 45–60° from the sides; press to just short of lockout.
-   The bar runs on rails, so it can only travel straight up and down: the forearm is solved each frame so the
-   hands stay over the same line (on a free bar they would drift towards the shoulders at the top). */
-{
-  const P0 = [0, 0.47, 0], ZC = 0.12;   // bench top; how far towards the feet the bar's line sits from the shoulder joint
-  const poseAt = k => {
-    let p = {root: {p: [0, 0.56, 0.18], pitch: -90}, spine: [0, -3], neck: 4, head: 2, arm: {clav: [lerp1(0, 4, k), lerp1(-8, 2, k)]}};
-    const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]);
-    p.root.p = V.sub(p.root.p, [0, back[1] - P0[1] - 0.004, 0]);
-    const Cz = fAt(solve(p).chest, [0, 0, 0])[2], away = Math.sign(p.root.p[2] - Cz) || 1;   // which way the feet point: away from the head
-    p = legsTo(p, [0.25, 0.075, p.root.p[2] + away * 0.56], [0.3, 0.6, away], [0.25, 0, away]);
-    const e = ease(k), up = slerpV(V.norm([0.8, -0.22, 0.45]), V.norm([-0.05, 1, 0.2]), e);
-    const fz = clamp((ZC - up[2] * 0.283) / 0.245, -0.6, 0.6), fx = lerp1(0, -0.1, e), fore = [fx, Math.sqrt(Math.max(0.01, 1 - fz * fz - fx * fx)), fz];
-    return {...p, arm: pressArm(up, fore, V.norm([0, 0.1, 1]), V.norm([-1, 0.2, 0.3]), {clav: p.arm.clav})};
+/* ---- Smith machine chest press: flat and incline (14 Nov 2026) ----
+   Footage cues: bench centred under the bar so it comes down to mid-chest (flat) or the upper chest (incline).
+   Shoulder blades pinned back and down, feet planted. Grip a little wider than the shoulders, wrists stacked
+   over the elbows. Lower for 2–3 s until the bar is just off the chest, elbows about 45–60° from the sides;
+   press to just short of lockout.
+   The bar runs on vertical rails, so it can only go straight up and down, and the hands don't move on it.
+   14 Nov 2026, Sam: "the arms are moving a bit… the grip position is changing". The first version set the arm
+   directions and hung the bar off wherever the hands landed, so the hands slid along the bar and off its line.
+   Now the bar's path comes first: a fixed grip width and a fixed vertical line, and each frame the arms are
+   solved to put the grip points exactly on the bar (armsTo, then one correction pass for the fist's offset). */
+function smithDemo(key, o) {
+  const poseBody = () => {
+    if (!o.incline) {
+      let p = {root: {p: [0, 0.56, 0.18], pitch: -90}, spine: [0, -3], neck: 4, head: 2, arm: {clav: [0, -6]}};
+      const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]);
+      p.root.p = V.sub(p.root.p, [0, back[1] - 0.474, 0]);
+      return legsTo(p, [0.25, 0.075, p.root.p[2] + 0.56], [0.3, 0.6, 1], [0.25, 0, 1]);
+    }
+    // incline: seated exactly as the incline dumbbell press (pelvis on the seat, chest on a 30° pad)
+    let p = {root: {p: [0, 0.6, 0], pitch: -52}, spine: [-4, -6], neck: 14, head: 6, arm: {clav: [0, -6]}};
+    const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]), gap = V.dot(V.sub(back, INC_P0), INC_N);
+    p.root.p = V.sub(p.root.p, V.sc(INC_N, gap - 0.004));
+    return legsTo(p, [0.27, 0.075, 0.55], [0.3, 0.6, 1], [0.25, 0, 1]);
   };
-  const barAt = p => { const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'); return {m: V.lerp(a, b, 0.5), ax: V.sub(a, b)}; };
-  const RZ = barAt(poseAt(0)).m[2];
-  // the bench sits under the body wherever the pose puts it: from just past the hips to past the head
-  const P00 = poseAt(0), CZ = fAt(solve(P00).chest, [0, 0, 0])[2], HZ = P00.root.p[2], DIR = Math.sign(CZ - HZ) || -1, BZ = HZ + DIR * 0.34, bz = d => BZ + DIR * d;
-  demo('smithpress', {
-    cam: {yaw: 58, pitch: 14, dist: 4.3, target: [0, 0.85, 0.1]}, tempo: [1.0, 0.4, 2.4, 0.4],
-    props: [pad([0, 0.435, BZ], [0.15, 0.035, 0.6]), tube([0, 0.4, bz(-0.55)], [0, 0.4, bz(0.55)]), tube([0, 0.03, bz(-0.48)], [0, 0.4, bz(-0.48)]), tube([0, 0.03, bz(0.48)], [0, 0.4, bz(0.48)]),
-      tube([-0.2, 0.03, bz(-0.48)], [0.2, 0.03, bz(-0.48)]), tube([-0.2, 0.03, bz(0.48)], [0.2, 0.03, bz(0.48)]),
-      ...[-1, 1].flatMap(sx => [tube([sx * 0.74, 0, RZ], [sx * 0.74, 2.05, RZ], 0.03), tube([sx * 0.74, 0.02, RZ - 0.35], [sx * 0.74, 0.02, RZ + 0.35], 0.03)]), tube([-0.74, 2.05, RZ], [0.74, 2.05, RZ], 0.03),
-      ['bar', 'Y', [-0.8, 0, 0], [0.8, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.6, 0, 0], [0.635, 0, 0], 0.15, {mat: 'iron'}], ['bar', 'Q', [-0.6, 0, 0], [-0.635, 0, 0], 0.15, {mat: 'iron'}]],
-    frames: ['bar'], box: [[[0, 0.6, 0], 1.0]],
-    pose(t) { const p = poseAt(phaseK(t, this.tempo)), b = barAt(p); return {pose: p, frames: {bar: frameX([0, b.m[1], RZ], [1, 0, 0])}}; }
+  const P0 = poseBody(), B0 = solve(P0), S = B0.upperL.o, C = B0.chest;
+  // the bar's line: over mid-chest (flat) or the upper chest (incline), a hand's width outside each shoulder
+  const chestPt = o.incline ? V.add(fAt(C, [0, 0.13, 0.11]), [0, 0, 0]) : fAt(C, [0, 0.0, 0.12]);
+  const GW = S[0] + 0.1, RZ = o.incline ? chestPt[2] + 0.02 : chestPt[2];
+  const yBot = (o.incline ? chestPt[1] + 0.05 : chestPt[1] + 0.06), reach = (SK.upper + SK.fore + GRIP) * 0.955;
+  const yTop = S[1] + Math.sqrt(Math.max(0.01, reach * reach - (GW - S[0]) ** 2 - (RZ - S[2]) ** 2));
+  const pole = o.incline ? [1, -0.5, 0.55] : [1, -0.45, 0.6], palm = o.incline ? V.norm([0, 0.45, 1]) : V.norm([0, 0.1, 1]);
+  const at = y => {
+    const p = {...P0, arm: {...P0.arm, clav: [0, -6 + 8 * (y - yBot) / (yTop - yBot)]}};   // shoulder blades stay back; drift apart a little at the top
+    let tL = [GW, y, RZ], tR = [-GW, y, RZ], q;
+    for (let it = 0; it < 3; it++) {   // aim, measure where the fist's grip point landed, re-aim by the miss
+      q = armsTo(p, tL, tR, pole, V.mx(pole), {arm: {palm, crease: V.norm([-1, 0.2, 0.3])}, armR: {palm, crease: V.norm([1, 0.2, 0.3])}});
+      const B = solve(q), eL = V.sub([GW, y, RZ], gripOf(B, 'L')), eR = V.sub([-GW, y, RZ], gripOf(B, 'R'));
+      tL = V.add(tL, eL); tR = V.add(tR, eR);
+    }
+    return q;
+  };
+  const cam = o.incline ? {yaw: 60, pitch: 12, dist: 4.1, target: [0, 0.95, 0.05]} : {yaw: 58, pitch: 14, dist: 4.3, target: [0, 0.85, 0.1]};
+  const bench = o.incline ? [
+      ['world', 'B', V.add(V.add(INC_P0, V.sc(INC_U, 0.4)), V.sc(INC_N, -0.035)), [0.14, 0.4, 0.035], 0.025, {mat: 'pad', rot: [-60, 0, 0]}],
+      pad([0, 0.435, 0.2], [0.15, 0.035, 0.19], [-8, 0, 0]),
+      tube([0, 0.06, -0.55], [0, 0.4, -0.12]), tube([0, 0.4, -0.12], [0, 0.4, 0.3]), tube([0, 0.4, 0.3], [0, 0.04, 0.42]),
+      tube([-0.22, 0.03, -0.55], [0.22, 0.03, -0.55]), tube([-0.22, 0.03, 0.42], [0.22, 0.03, 0.42])]
+    : (() => { const HZ = P0.root.p[2], BZ = HZ - 0.34, bz = d => BZ - d; return [pad([0, 0.435, BZ], [0.15, 0.035, 0.6]), tube([0, 0.4, bz(-0.55)], [0, 0.4, bz(0.55)]), tube([0, 0.03, bz(-0.48)], [0, 0.4, bz(-0.48)]), tube([0, 0.03, bz(0.48)], [0, 0.4, bz(0.48)]),
+      tube([-0.2, 0.03, bz(-0.48)], [0.2, 0.03, bz(-0.48)]), tube([-0.2, 0.03, bz(0.48)], [0.2, 0.03, bz(0.48)])]; })();
+  demo(key, {
+    cam, tempo: [1.0, 0.4, 2.4, 0.4],
+    props: [...bench,
+      ...[-1, 1].flatMap(sx => [tube([sx * 0.7, 0, RZ], [sx * 0.7, 2.05, RZ], 0.03), tube([sx * 0.7, 0.02, RZ - 0.35], [sx * 0.7, 0.02, RZ + 0.35], 0.03)]), tube([-0.7, 2.05, RZ], [0.7, 2.05, RZ], 0.03),
+      ['bar', 'Y', [-0.82, 0, 0], [0.82, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.6, 0, 0], [0.635, 0, 0], 0.15, {mat: 'iron'}], ['bar', 'Q', [-0.6, 0, 0], [-0.635, 0, 0], 0.15, {mat: 'iron'}]],
+    frames: ['bar'], box: [[[0, 0.7, 0], 1.0]],
+    pose(t) { const y = lerp1(yBot, yTop, phaseK(t, this.tempo)); return {pose: at(y), frames: {bar: frameX([0, y, RZ], [1, 0, 0])}}; }
   });
 }
+smithDemo('smithpress', {});
+smithDemo('smithincline', {incline: true});

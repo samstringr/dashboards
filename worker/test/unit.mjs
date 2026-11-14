@@ -26,7 +26,7 @@ check('add load: no RPE logged', addLoadDue(pe10, { sets: [{ r: 15 }] }));
 // 7 Nov 2026: food helpers (repeats, presets, how much closes the day)
 import { normaliseItems, allKnown, presetEntry, howMuch } from '../src/food.js';
 import { targets } from '../src/model.js';
-import { today } from '../src/util.js';
+import { today, addDays as addDaysU } from '../src/util.js';
 const TDu = today();
 const fctx = { settings: { height: 172, dob: '2001-09-17', mult: 1.55, protFloor: 145, protPerKg: 2.15, sex: 'm', phase: 'recomp' }, config: {},
   library: [{ id: 'chick', n: 'Chicken breast, cooked', q: 100, u: 'g', m: [190, 31, 0, 6.4] }, { id: 'oats', n: 'Overnight oats', q: 1, u: 'serving', m: [766, 58.4, 108.7, 11.8], al: ['oats'] }],
@@ -95,5 +95,15 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
   const wk = { plan, settings: {}, days: [{ date: '2026-12-01', items: [{ kcal: 2000, p: 100 }], workouts: [{ kind: 'gym', planCode: 'A', ex: [{ n: 'Incline DB bench', sets: [{ kg: 32, r: 8 }] }] }] }, { date: '2026-12-03', items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }] }, ...cx.days] };
   const F = weeklyFacts(wk, '2026-12-06'), H = weeklyHtml(F);
   check('weekly: counts sessions, cardio, logged days and lifts up; picks sessions as the focus', F.gym === 1 && F.cardioMin === 25 && F.logged === 2 && F.ups.join() === 'Incline DB bench' && /Get to 5 sessions/.test(H.focus) && /1 lift up/.test(H.good), JSON.stringify({ g: F.gym, c: F.cardioMin, l: F.logged, u: F.ups, f: H.focus }));
+}
+// 14 Nov 2026: steps from the Shortcut (made-up counts)
+import { parseSteps } from '../src/index.js';
+{
+  const td = today(), y = addDaysU(td, -1), y2 = addDaysU(td, -2);
+  const a = parseSteps(`${td}=1,234;${y}=8,432;${y2} = 10234.0`, td);
+  check('steps: text pairs, commas and decimals', JSON.stringify(a) === JSON.stringify([[y2, 10234], [y, 8432], [td, 1234]]), JSON.stringify(a));
+  check('steps: a bare number is for the date', JSON.stringify(parseSteps('7,500', y)) === JSON.stringify([[y, 7500]]));
+  check('steps: object and list forms', parseSteps({ [y]: 9000 }, td)[0][1] === 9000 && parseSteps([{ date: y, steps: 9100 }], td)[0][1] === 9100);
+  check('steps: future, too old and nonsense dropped', parseSteps(`${addDaysU(td, 1)}=5;2020-01-01=5;hello`, td).length === 0);
 }
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED (with stubs)');

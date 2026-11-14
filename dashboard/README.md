@@ -82,3 +82,16 @@ Everything else here is how that file is built and checked.
 - **Plan, 14 Nov:** no upright row. S&A: cable upright row → DB lateral raise, reverse pec deck → face pull;
   B&B shrug 2 → 3 sets; C&T machine chest press → Smith machine chest press. Weekly sets: side delts 14.0,
   rear delts 10.5, traps 11.9 → 11.2, everything else unchanged (worked out with the page's own EXMAP).
+- **Pulse only on change** (14 Nov, evening). `selectDay` records `widgetKey(id)` for every widget before and
+  after; only widgets whose key changed pulse, and never the one clicked (`src`). The key is the rendered title
+  and body, unless the type defines `dayKey()` (Composition: the reading shown; Physique and Muscle
+  development: the best lifts and bodyweight), where a date label changes but the substance doesn't. The pulse
+  is a fading hairline and a 0.45 s fade-in of the content. WHY: Sam, "a little bit more subtle… only do it for
+  the widgets that are changing". The Training plan now only follows a day you trained; Lift progress marks the
+  selected day only if that lift was done on it.
+- **Steps** (`stepsOn(d)`): Training log right-hand axis (weekly average of complete days), tooltip, stats; a
+  Metric and Number option; the day sheet. Today's count is "so far" and never averaged.
+- **Smith machine chest press, flat and incline** (`smithDemo` in demos7.js). The bar's path comes first: fixed
+  grip width, fixed vertical line; the arms are solved to put the grip points on it every frame. WHY: the first
+  version hung the bar off wherever the hands landed, so the hands slid along it (Sam: "the grip position is
+  changing").

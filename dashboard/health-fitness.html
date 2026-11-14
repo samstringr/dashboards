@@ -146,7 +146,11 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .widget:hover .w-resize{opacity:1}
 .flash{position:absolute;top:34px;right:12px;font:500 13px/1 var(--mono);color:var(--ink);background:var(--s2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:5px 8px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:3}   /* top right of the widget, not across the middle of the chart (14 Nov 2026) */
 .exlink{all:unset;cursor:pointer}.exlink:hover{text-decoration:underline;text-underline-offset:3px}.exlink:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-@keyframes pulse{0%{box-shadow:0 0 0 1.5px var(--ink)}100%{box-shadow:0 0 0 1.5px transparent}}.widget.pulse{animation:pulse .9s ease-out}
+/* A widget that changed because of a click elsewhere (14 Nov 2026, Sam: "a little bit more subtle… more smooth"):
+   its content eases in from 60% and a hairline ring fades out. Was: a 1.5px ink ring over .9 s on every widget. */
+@keyframes pulse{0%{box-shadow:0 0 0 1px var(--line-2)}100%{box-shadow:0 0 0 1px transparent}}
+@keyframes wfade{0%{opacity:.6}100%{opacity:1}}
+.widget.pulse{animation:pulse 1.2s var(--ease)}.widget.pulse>.w-body{animation:wfade .45s var(--ease)}
 .flash.on{opacity:.9}
 @media (hover:none){.w-tools{opacity:1}.w-hint{display:none}}
 .stack-mode .widget{position:relative;flex:none}
@@ -1749,6 +1753,7 @@ const INFO = {
   legpress: {"muscles": {"quads": 1, "glutes": 0.7, "adductors": 0.5, "hams": 0.2}, "cues": ["Feet mid-platform, shoulder width", "Lower until your knees are about 90°", "Lower back stays flat on the pad", "Don’t lock the knees out"]},
   machlat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Shoulders level with the machine’s pivots", "Push out with your elbows, not your hands", "Up to shoulder height, lower slowly", "Chest stays on the pad"]},
   smithpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Bench centred so the bar comes down to mid-chest", "Shoulder blades back and down, feet planted", "Lower 2–3 s until the bar is just off the chest", "Press to just short of lockout"]},
+  smithincline: {"muscles": {"chest": 1, "fdelt": 0.65, "triceps": 0.5}, "cues": ["Bench at about 30°, set so the bar comes down to the upper chest", "Shoulder blades back and down, feet planted", "Lower 2–3 s until the bar is just off the chest", "Press to just short of lockout"]},
   machpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Seat so the handles line up with mid-chest", "Shoulder blades back against the pad", "Press forward, stop just short of locking out", "Let the handles come back for 2–3 s"]},
   ohp: {"muscles": {"fdelt": 1, "triceps": 0.6, "sdelt": 0.55, "traps": 0.3}, "cues": ["Back and head flat on the pad", "Start with the handles at chin height", "Press up without locking out hard; lower for 2 s"]},
   ohtri: {"muscles": {"triceps": 1, "abs": 0.2}, "cues": ["Elbows by your head, pointing forward", "Get a deep stretch behind your head", "Extend fully, return over 2–3 s"]},
@@ -1773,10 +1778,11 @@ const INFO = {
 const MATCH = [
   [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
   [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/smith.*incline|incline.*smith/, 'smithincline'], [/smith.*(press|bench)/, 'smithpress'],   // before the incline and chest-press patterns, which would claim these names
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
-  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/smith.*(press|bench)/, 'smithpress'], [/(machine|seated) chest press|chest press/, 'machpress'],
+  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
   [/shoulder press|overhead press|military|ohp/, 'ohp'], [/straight.?arm|pullover/, 'straightarm'], [/pull.?up|chin.?up/, 'pullup'], [/pull.?down/, 'pulldown'], [/chest.?supported/, 'chestrow'],
   [/upright row/, 'uprow'], [/shrug/, 'shrug'], [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
@@ -1795,7 +1801,8 @@ const VARIANTS = [
   ['Tricep pushdown', [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']]],
   ['Overhead triceps extension', [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']]],
   ['Seated cable row', [['cablerow', 'Close grip'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide grip']]],
-  ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]]];
+  ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]],
+  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]]];
 const groupOf = k => VARIANTS.find(g => g[1].some(([x]) => x === k));
 const variantsOf = k => ((groupOf(k) || [])[1] || []).map(([key, label]) => ({key, label}));
 const groupName = k => (groupOf(k) || [])[0] || null;
@@ -2866,38 +2873,66 @@ rowBar('cablerowwide', 0.42, [0.34, 0.71, 0.62], [0.35, 0.97, 0.22], [0.8, -0.6,
   });
 }
 
-/* ---- Smith machine chest press, flat bench (14 Nov 2026: Sam swapped the machine chest press for it) ----
-   Footage cues: bench centred under the bar so it comes down to mid-chest. Shoulder blades pinned back and
-   down, feet planted. Grip a little wider than the shoulders, wrists stacked over the elbows. Lower for 2–3 s
-   until the bar is just off the chest, elbows about 45–60° from the sides; press to just short of lockout.
-   The bar runs on rails, so it can only travel straight up and down: the forearm is solved each frame so the
-   hands stay over the same line (on a free bar they would drift towards the shoulders at the top). */
-{
-  const P0 = [0, 0.47, 0], ZC = 0.12;   // bench top; how far towards the feet the bar's line sits from the shoulder joint
-  const poseAt = k => {
-    let p = {root: {p: [0, 0.56, 0.18], pitch: -90}, spine: [0, -3], neck: 4, head: 2, arm: {clav: [lerp1(0, 4, k), lerp1(-8, 2, k)]}};
-    const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]);
-    p.root.p = V.sub(p.root.p, [0, back[1] - P0[1] - 0.004, 0]);
-    const Cz = fAt(solve(p).chest, [0, 0, 0])[2], away = Math.sign(p.root.p[2] - Cz) || 1;   // which way the feet point: away from the head
-    p = legsTo(p, [0.25, 0.075, p.root.p[2] + away * 0.56], [0.3, 0.6, away], [0.25, 0, away]);
-    const e = ease(k), up = slerpV(V.norm([0.8, -0.22, 0.45]), V.norm([-0.05, 1, 0.2]), e);
-    const fz = clamp((ZC - up[2] * 0.283) / 0.245, -0.6, 0.6), fx = lerp1(0, -0.1, e), fore = [fx, Math.sqrt(Math.max(0.01, 1 - fz * fz - fx * fx)), fz];
-    return {...p, arm: pressArm(up, fore, V.norm([0, 0.1, 1]), V.norm([-1, 0.2, 0.3]), {clav: p.arm.clav})};
+/* ---- Smith machine chest press: flat and incline (14 Nov 2026) ----
+   Footage cues: bench centred under the bar so it comes down to mid-chest (flat) or the upper chest (incline).
+   Shoulder blades pinned back and down, feet planted. Grip a little wider than the shoulders, wrists stacked
+   over the elbows. Lower for 2–3 s until the bar is just off the chest, elbows about 45–60° from the sides;
+   press to just short of lockout.
+   The bar runs on vertical rails, so it can only go straight up and down, and the hands don't move on it.
+   14 Nov 2026, Sam: "the arms are moving a bit… the grip position is changing". The first version set the arm
+   directions and hung the bar off wherever the hands landed, so the hands slid along the bar and off its line.
+   Now the bar's path comes first: a fixed grip width and a fixed vertical line, and each frame the arms are
+   solved to put the grip points exactly on the bar (armsTo, then one correction pass for the fist's offset). */
+function smithDemo(key, o) {
+  const poseBody = () => {
+    if (!o.incline) {
+      let p = {root: {p: [0, 0.56, 0.18], pitch: -90}, spine: [0, -3], neck: 4, head: 2, arm: {clav: [0, -6]}};
+      const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]);
+      p.root.p = V.sub(p.root.p, [0, back[1] - 0.474, 0]);
+      return legsTo(p, [0.25, 0.075, p.root.p[2] + 0.56], [0.3, 0.6, 1], [0.25, 0, 1]);
+    }
+    // incline: seated exactly as the incline dumbbell press (pelvis on the seat, chest on a 30° pad)
+    let p = {root: {p: [0, 0.6, 0], pitch: -52}, spine: [-4, -6], neck: 14, head: 6, arm: {clav: [0, -6]}};
+    const B0 = solve(p), back = fAt(B0.chest, [0, 0.1, -0.09]), gap = V.dot(V.sub(back, INC_P0), INC_N);
+    p.root.p = V.sub(p.root.p, V.sc(INC_N, gap - 0.004));
+    return legsTo(p, [0.27, 0.075, 0.55], [0.3, 0.6, 1], [0.25, 0, 1]);
   };
-  const barAt = p => { const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'); return {m: V.lerp(a, b, 0.5), ax: V.sub(a, b)}; };
-  const RZ = barAt(poseAt(0)).m[2];
-  // the bench sits under the body wherever the pose puts it: from just past the hips to past the head
-  const P00 = poseAt(0), CZ = fAt(solve(P00).chest, [0, 0, 0])[2], HZ = P00.root.p[2], DIR = Math.sign(CZ - HZ) || -1, BZ = HZ + DIR * 0.34, bz = d => BZ + DIR * d;
-  demo('smithpress', {
-    cam: {yaw: 58, pitch: 14, dist: 4.3, target: [0, 0.85, 0.1]}, tempo: [1.0, 0.4, 2.4, 0.4],
-    props: [pad([0, 0.435, BZ], [0.15, 0.035, 0.6]), tube([0, 0.4, bz(-0.55)], [0, 0.4, bz(0.55)]), tube([0, 0.03, bz(-0.48)], [0, 0.4, bz(-0.48)]), tube([0, 0.03, bz(0.48)], [0, 0.4, bz(0.48)]),
-      tube([-0.2, 0.03, bz(-0.48)], [0.2, 0.03, bz(-0.48)]), tube([-0.2, 0.03, bz(0.48)], [0.2, 0.03, bz(0.48)]),
-      ...[-1, 1].flatMap(sx => [tube([sx * 0.74, 0, RZ], [sx * 0.74, 2.05, RZ], 0.03), tube([sx * 0.74, 0.02, RZ - 0.35], [sx * 0.74, 0.02, RZ + 0.35], 0.03)]), tube([-0.74, 2.05, RZ], [0.74, 2.05, RZ], 0.03),
-      ['bar', 'Y', [-0.8, 0, 0], [0.8, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.6, 0, 0], [0.635, 0, 0], 0.15, {mat: 'iron'}], ['bar', 'Q', [-0.6, 0, 0], [-0.635, 0, 0], 0.15, {mat: 'iron'}]],
-    frames: ['bar'], box: [[[0, 0.6, 0], 1.0]],
-    pose(t) { const p = poseAt(phaseK(t, this.tempo)), b = barAt(p); return {pose: p, frames: {bar: frameX([0, b.m[1], RZ], [1, 0, 0])}}; }
+  const P0 = poseBody(), B0 = solve(P0), S = B0.upperL.o, C = B0.chest;
+  // the bar's line: over mid-chest (flat) or the upper chest (incline), a hand's width outside each shoulder
+  const chestPt = o.incline ? V.add(fAt(C, [0, 0.13, 0.11]), [0, 0, 0]) : fAt(C, [0, 0.0, 0.12]);
+  const GW = S[0] + 0.1, RZ = o.incline ? chestPt[2] + 0.02 : chestPt[2];
+  const yBot = (o.incline ? chestPt[1] + 0.05 : chestPt[1] + 0.06), reach = (SK.upper + SK.fore + GRIP) * 0.955;
+  const yTop = S[1] + Math.sqrt(Math.max(0.01, reach * reach - (GW - S[0]) ** 2 - (RZ - S[2]) ** 2));
+  const pole = o.incline ? [1, -0.5, 0.55] : [1, -0.45, 0.6], palm = o.incline ? V.norm([0, 0.45, 1]) : V.norm([0, 0.1, 1]);
+  const at = y => {
+    const p = {...P0, arm: {...P0.arm, clav: [0, -6 + 8 * (y - yBot) / (yTop - yBot)]}};   // shoulder blades stay back; drift apart a little at the top
+    let tL = [GW, y, RZ], tR = [-GW, y, RZ], q;
+    for (let it = 0; it < 3; it++) {   // aim, measure where the fist's grip point landed, re-aim by the miss
+      q = armsTo(p, tL, tR, pole, V.mx(pole), {arm: {palm, crease: V.norm([-1, 0.2, 0.3])}, armR: {palm, crease: V.norm([1, 0.2, 0.3])}});
+      const B = solve(q), eL = V.sub([GW, y, RZ], gripOf(B, 'L')), eR = V.sub([-GW, y, RZ], gripOf(B, 'R'));
+      tL = V.add(tL, eL); tR = V.add(tR, eR);
+    }
+    return q;
+  };
+  const cam = o.incline ? {yaw: 60, pitch: 12, dist: 4.1, target: [0, 0.95, 0.05]} : {yaw: 58, pitch: 14, dist: 4.3, target: [0, 0.85, 0.1]};
+  const bench = o.incline ? [
+      ['world', 'B', V.add(V.add(INC_P0, V.sc(INC_U, 0.4)), V.sc(INC_N, -0.035)), [0.14, 0.4, 0.035], 0.025, {mat: 'pad', rot: [-60, 0, 0]}],
+      pad([0, 0.435, 0.2], [0.15, 0.035, 0.19], [-8, 0, 0]),
+      tube([0, 0.06, -0.55], [0, 0.4, -0.12]), tube([0, 0.4, -0.12], [0, 0.4, 0.3]), tube([0, 0.4, 0.3], [0, 0.04, 0.42]),
+      tube([-0.22, 0.03, -0.55], [0.22, 0.03, -0.55]), tube([-0.22, 0.03, 0.42], [0.22, 0.03, 0.42])]
+    : (() => { const HZ = P0.root.p[2], BZ = HZ - 0.34, bz = d => BZ - d; return [pad([0, 0.435, BZ], [0.15, 0.035, 0.6]), tube([0, 0.4, bz(-0.55)], [0, 0.4, bz(0.55)]), tube([0, 0.03, bz(-0.48)], [0, 0.4, bz(-0.48)]), tube([0, 0.03, bz(0.48)], [0, 0.4, bz(0.48)]),
+      tube([-0.2, 0.03, bz(-0.48)], [0.2, 0.03, bz(-0.48)]), tube([-0.2, 0.03, bz(0.48)], [0.2, 0.03, bz(0.48)])]; })();
+  demo(key, {
+    cam, tempo: [1.0, 0.4, 2.4, 0.4],
+    props: [...bench,
+      ...[-1, 1].flatMap(sx => [tube([sx * 0.7, 0, RZ], [sx * 0.7, 2.05, RZ], 0.03), tube([sx * 0.7, 0.02, RZ - 0.35], [sx * 0.7, 0.02, RZ + 0.35], 0.03)]), tube([-0.7, 2.05, RZ], [0.7, 2.05, RZ], 0.03),
+      ['bar', 'Y', [-0.82, 0, 0], [0.82, 0, 0], 0.014, {mat: 'steel'}], ['bar', 'Q', [0.6, 0, 0], [0.635, 0, 0], 0.15, {mat: 'iron'}], ['bar', 'Q', [-0.6, 0, 0], [-0.635, 0, 0], 0.15, {mat: 'iron'}]],
+    frames: ['bar'], box: [[[0, 0.7, 0], 1.0]],
+    pose(t) { const y = lerp1(yBot, yTop, phaseK(t, this.tempo)); return {pose: at(y), frames: {bar: frameX([0, y, RZ], [1, 0, 0])}}; }
   });
 }
+smithDemo('smithpress', {});
+smithDemo('smithincline', {incline: true});
 
 /* ---------- MANNEQUIN: the form-demo figure ----------
    WHY rigid parts: one stretched skin (v7) smeared the chest and lats whenever an arm moved, which is
@@ -3235,6 +3270,10 @@ const r1 = n => Math.round(n * 10) / 10;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+/* Steps (14 Nov 2026): from Apple Health via the weigh-in Shortcut, one total per day. stepsAt is the date the
+   Shortcut sent it: sent on the day itself it's a running count, so it's shown as "so far" and left out of
+   averages until a later send replaces it. Blank is not zero: a day with no count stays out of the average. */
+const stepsOn = d => { const x = dayDoc(d); return x?.steps != null ? {n: +x.steps, partial: x.stepsAt === d} : null; };
 const pad2 = n => String(n).padStart(2, '0');
 const iso = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
@@ -3533,7 +3572,7 @@ function chart(host, o) {
   const hit = sv('rect', {x: padL, y: 0, width: Math.max(0, pw), height: H, style: 'fill:transparent'});
   svg.append(hit);
   host.replaceChildren(svg);
-  if (o.dates) { hit.style.cursor = 'pointer'; hit.addEventListener('click', e => { const r = svg.getBoundingClientRect(), i = clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / band), 0, n - 1), d = o.dates[i]; if (d && d <= today()) selectDay(d); }); }
+  if (o.dates) { hit.style.cursor = 'pointer'; hit.addEventListener('click', e => { const r = svg.getBoundingClientRect(), i = clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / band), 0, n - 1), d = o.dates[i]; if (d && d <= today()) selectDay(d, false, host.closest('.widget')?.dataset.id); }); }
   if (!o.tip) return;
   const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; host.append(tip);
   const move = e => {
@@ -3563,6 +3602,7 @@ const METRICS = {
   waist:   {label: 'Waist', unit: 'cm', color: 'var(--cat-body)', kind: 'body', key: 'waist', d: 1},
   lean:    {label: 'Lean mass', unit: 'kg', color: 'var(--cat-body)', kind: 'body', key: 'lean', d: 1},
   fatmass: {label: 'Fat mass', unit: 'kg', color: 'var(--cat-body)', kind: 'body', key: 'fatm', d: 1},
+  steps:   {label: 'Steps', unit: '', color: 'var(--ink)', kind: 'steps'},
   sessions:{label: 'Sessions per week', unit: '', color: 'var(--cat-train)', kind: 'train'}
 };
 function bodyVal(b, key) {
@@ -3575,6 +3615,7 @@ function metricDaily(metric, dates) {
   const M = METRICS[metric];
   if (M.kind === 'intake') return dates.map(d => { const t = dayTotals(d); return t && !t.void && t[M.key] != null ? +t[M.key] : null; });
   if (M.kind === 'body') return dates.map(d => bodyVal(dayDoc(d)?.body, M.key));
+  if (M.kind === 'steps') return dates.map(d => { const x = stepsOn(d); return x && !x.partial ? x.n : null; });
   return dates.map(() => null);
 }
 function weeklySessions(weeks, end) {
@@ -3594,6 +3635,11 @@ function statValue(metric, agg) {
     if (agg === 'today') { const t = dayTotals(end); return {v: t ? t[M.key] : null, sub: dLong(end)}; }
     const n = agg === 'avg30' ? 30 : 7; const ds = rangeDates(n, end).filter(d => countable(d, dayTotals(d)));
     return {v: mean(ds.map(d => dayTotals(d)[M.key])), sub: 'average of ' + ds.length + ' complete days, last ' + n};
+  }
+  if (M.kind === 'steps') {
+    if (agg === 'today') { const x = stepsOn(end); return {v: x ? x.n : null, sub: dLong(end) + (x?.partial ? ', so far' : '')}; }
+    const n = agg === 'avg30' ? 30 : 7, v = rangeDates(n, end).map(stepsOn).filter(x => x && !x.partial).map(x => x.n);
+    return {v: mean(v), sub: 'average of ' + v.length + ' days with a count, last ' + n};
   }
   const wl = weighins().filter(x => bodyVal(x, M.key) != null && x.date <= end);
   if (!wl.length) return {v: null, sub: 'no readings yet'};
@@ -3737,6 +3783,8 @@ function liftBests(days = 180, at = asOf()) {   // at: strength as it stood on t
    they start at your overall level (the mean of the muscles that do have one), move with it into 4 weeks and
    the goal, and shift up as your own ab lifts improve: every 25% better on your best logged ab set since your
    first one is one level (decline crunch by estimated 1RM, leg raises by reps). Up to two levels from progress. */
+// the best lifts as of the selected day, rounded to what moves a level: muscle levels only change when this does
+const liftKey = () => JSON.stringify(Object.entries(liftBests()).map(([k, x]) => [k, Math.round(x.e1)]).sort());
 function absProgress(days = 180, at = asOf()) {
   const to = at || today(), from = addDays(to, -days), first = {}, best = {};
   for (const w of allWorkouts().slice().reverse()) { if (w.date < from || w.date > to) continue; for (const e of (w.ex || [])) { const k = Fig3D.moveFor(e.n); if ((Fig3D.muscles(k).abs || 0) < 0.5) continue;
@@ -3940,7 +3988,10 @@ const WT = {
     }
   },
   body: {
-    title: 'Composition', cat: 'body', desc: 'Weight and body fat up top, lean and fat mass against your goal, the rest of the scale behind a click.', def: [10, 10], min: [7, 6],
+    title: 'Composition', cat: 'body',
+    // pulses on the reading it shows, not on the date label
+    dayKey: () => { const C = compNow(asOf()); return C ? [fmt(C.w, 1), fmt(C.bf, 1), C.date].join('|') : '-'; },
+    desc: 'Weight and body fat up top, lean and fat mass against your goal, the rest of the scale behind a click.', def: [10, 10], min: [7, 6],
     render(b, inst) {
       const st = S.settings, at = asOf(), C = compNow(at), G = compGoal();
       if (!G) { b.innerHTML = '<div class="empty">Set a goal weight and body fat in Settings.</div>'; return; }
@@ -3970,7 +4021,8 @@ const WT = {
     }
   },
   physique: {
-    title: 'Physique', cat: 'body', desc: 'Your body as a mannequin built from your lean and fat mass: now, in 4 weeks and at the goal. Each muscle is coloured by how strong its lifts are against other men your weight (darker = stronger); white means no lifts logged for it yet. At 4 weeks and the goal, every muscle your split trains is coloured, on the assumption you train it as planned. Pause the turn, pick Front, Side or Back, or drag.', def: [10, 18], min: [7, 11],
+    title: 'Physique', cat: 'body',
+    dayKey: inst => { const C = compNow(asOf()); return (C ? fmt(C.w, 1) + '|' + fmt(C.bf, 1) : '-') + '|' + liftKey() + '|' + (inst.cfg.view || 'now'); }, desc: 'Your body as a mannequin built from your lean and fat mass: now, in 4 weeks and at the goal. Each muscle is coloured by how strong its lifts are against other men your weight (darker = stronger); white means no lifts logged for it yet. At 4 weeks and the goal, every muscle your split trains is coloured, on the assumption you train it as planned. Pause the turn, pick Front, Side or Back, or drag.', def: [10, 18], min: [7, 11],
     render(b, inst) {
       const at = asOf(), C = compNow(at), G = compGoal();
       if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
@@ -4005,7 +4057,10 @@ const WT = {
     }
   },
   muscles: {
-    title: 'Muscle development', cat: 'body', desc: 'A front and back chart of every muscle, filled by how strong its lifts are against other men your weight: Beginner (palest) to Elite (darkest). Now, in 4 weeks and at the goal; tap a muscle for its level and the lifts behind it. The 4-week and goal views assume you train the split as planned.', def: [10, 13], min: [7, 9],
+    title: 'Muscle development', cat: 'body',
+    // levels move with the best lifts and bodyweight, nothing else
+    dayKey: inst => { const C = compNow(asOf()); return (C ? Math.round(C.w) : '-') + '|' + liftKey() + '|' + (inst.cfg.view || 'now'); },
+    desc: 'A front and back chart of every muscle, filled by how strong its lifts are against other men your weight: Beginner (palest) to Elite (darkest). Now, in 4 weeks and at the goal; tap a muscle for its level and the lifts behind it. The 4-week and goal views assume you train the split as planned.', def: [10, 13], min: [7, 9],
     render(b, inst) {
       const at = asOf(), C = compNow(at), G = compGoal();
       if (!C || !G) { b.innerHTML = '<div class="empty">Needs a weigh-in with body fat % and a goal in Settings.</div>'; return; }
@@ -4066,8 +4121,10 @@ const WT = {
       // a past day is selected: say what was trained that day and show that day's sets in place of "last" (selectDay
       // has already switched the tab to the session trained)
       // (today counts too once a session is logged: clicking it in the Training log opens its tab with what was hit)
-      const at = asOf(), dd = at || today(), dayGym = allWorkouts().filter(w => w.date === dd && kindGroup(w.kind) === 'gym'), tw = dayGym.find(w => w.planCode === code);
-      const dayRow = !at ? (tw ? `<div class="cap">Trained today: <b style="color:var(--ink)">${esc(code)}</b> · today’s sets on the right</div>` : '') : `<div class="row between"><span class="cap">${dayGym.length ? `Trained on ${dLong(at)}: <b style="color:var(--ink)">${dayGym.map(w => esc(w.planCode || w.label || 'gym')).join(', ')}</b>${tw ? ' · that day’s sets on the right' : ''}` : 'No gym session on ' + dLong(at)}</span>${backBtn()}</div>`;
+      // a selected day without a gym session leaves the plan as it is (14 Nov 2026: only widgets that change should change)
+      const sel = asOf(), gymOn = d => allWorkouts().filter(w => w.date === d && kindGroup(w.kind) === 'gym'), selGym = sel ? gymOn(sel) : [];
+      const at = selGym.length ? sel : null, dd = at || today(), dayGym = at ? selGym : gymOn(dd), tw = dayGym.find(w => w.planCode === code);
+      const dayRow = !at ? (tw ? `<div class="cap">Trained today: <b style="color:var(--ink)">${esc(code)}</b> · today’s sets on the right</div>` : '') : `<div class="row between"><span class="cap">Trained on ${dLong(at)}: <b style="color:var(--ink)">${dayGym.map(w => esc(w.planCode || w.label || 'gym')).join(', ')}</b>${tw ? ' · that day’s sets on the right' : ''}</span>${backBtn()}</div>`;
       b.innerHTML = `<div class="row between"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
         <div class="row between"><div class="tabs" role="tablist">${P.sessions.map(x => `<button role="tab" data-tab="${esc(x.code)}" class="${x.code === code ? 'on' : ''}${x.code === ps.next.code ? ' next' : ''}" title="${esc(x.name)}${x.code === ps.next.code ? ' · next' : ''}">${esc(x.code)}</button>`).join('')}</div>
           <span class="cap num">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
@@ -4079,10 +4136,10 @@ const WT = {
             <td class="r" title="${e.rpe ? 'RPE ' + e.rpe + ' = ' + (10 - e.rpe) + ' rep' + (10 - e.rpe === 1 ? '' : 's') + ' in reserve' + (e.rpe >= 10 ? ' (failure)' : '') : ''}">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}</td>
             <td class="r" title="${tw ? 'Logged ' + dShort(dd) : lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan'}"${tw && done ? ' style="color:var(--ink)"' : ''}>${lp ? esc(setsText(lp.sets)) : tw ? '<span class="dim">not logged</span>' : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
         }).join('')}</tbody></table></div>`;
-      b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { PLAN_TAB.set(inst.id, x.dataset.tab); renderWidget(inst.id); });
+      b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { PLAN_AUTO.delete(inst.id); PLAN_TAB.set(inst.id, x.dataset.tab); renderWidget(inst.id); });
       // linked widgets (14 Nov 2026): an exercise here opens in every Lift progress widget
       b.querySelectorAll('[data-lift]').forEach(x => x.onclick = () => { const ls = S.layout.filter(w => w.type === 'lift'); if (!ls.length) return toast('Add a Lift progress widget to see it there');
-        for (const w of ls) { w.cfg.ex = x.dataset.lift; renderWidget(w.id); const n = nodes.get(w.id); if (n) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } } saveLayout(true); });
+        for (const w of ls) { const was = w.cfg.ex; w.cfg.ex = x.dataset.lift; renderWidget(w.id); if (was !== w.cfg.ex) pulse(w.id); } saveLayout(true); });
       b.querySelector('[data-start]').onclick = () => openSession({kind: 'gym', planCode: s.code});
       b.querySelector('[data-edit]').onclick = () => openPlanEditor();
       const tgb = b.querySelector('[data-tg]');
@@ -4090,7 +4147,7 @@ const WT = {
     }
   },
   workouts: {
-    title: 'Training log', cat: 'train', desc: 'Sessions per week: gym, cardio and sport. Hover a week to see what you did; click it to show its latest session in every widget, with the sets you hit in the Training plan (click again for the one before). Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
+    title: 'Training log', cat: 'train', desc: 'Sessions per week: gym, cardio and sport, with average steps a day on the right-hand scale (from Apple Health, via the weigh-in Shortcut). Hover a week to see what you did; click it to show its latest session in every widget, with the sets you hit in the Training plan (click again for the one before). Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
     add: {label: '+ Cardio', title: 'Log cardio or sport', run: () => openCardio({})},
     note(inst) {
       const tg = cardioTarget(inst), mon = monday(S.sel), c = cardioWeek(mon), cur = mon === monday(today());
@@ -4102,23 +4159,34 @@ const WT = {
       const R = inst.cfg.range || 84, weeks = Math.round(R / 7), E = weekEnd(weeks), start = addDays(monday(E), -7 * (weeks - 1)), at = asOf();
       const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, list: []}));
       for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; c[kindGroup(w.kind)]++; c.list.push(w); if (kindGroup(w.kind) !== 'gym') c.cmin = (c.cmin || 0) + (+w.min || 0); }
+      for (const c of cols) { const v = []; for (let k = 0; k < 7; k++) { const x = stepsOn(addDays(c.mon, k)); if (x && !x.partial) v.push(x.n); } c.st = v.length ? {avg: mean(v), n: v.length} : null; }
+      const hasSteps = cols.some(c => c.st), st7 = (() => { const v = []; for (let k = 1; k <= 7; k++) { const x = stepsOn(addDays(at || today(), -k + (at ? 1 : 0))); if (x && !x.partial) v.push(x.n); } return mean(v); })(), stDay = stepsOn(at || today());
       const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= E).length, dayW = allWorkouts().filter(w => w.date === (at || today()));
-      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${at || dayW.length ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b></span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport</span></div><div class="chart" data-c="w"></div>`;
+      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${st7 != null ? `<span>Steps <b>${fmt(st7)}</b>/day</span>` : ''}${at || dayW.length || stDay ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b>${stDay ? ' · ' + fmt(stDay.n) + ' steps' + (stDay.partial ? ' so far' : '') : ''}</span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport${hasSteps ? ' <span class="sw" style="background:var(--ink);opacity:.55;height:2px"></span>steps/day (right)' : ''}</span></div><div class="chart" data-c="w"></div>`;
       const host = b.querySelector('[data-c=w]');
       if (!tot) { host.innerHTML = '<div class="empty">No sessions in the last ' + weeks + ' weeks.</div>'; return; }
-      const W = Math.max(80, host.clientWidth), H = Math.max(40, host.clientHeight), padL = 18, padB = 16, padT = 6, pw = W - padL - 4, ph = H - padB - padT, band = pw / weeks;
+      const W = Math.max(80, host.clientWidth), H = Math.max(40, host.clientHeight), padL = 18, padB = 16, padT = 6, padR = hasSteps ? 26 : 4, pw = W - padL - padR, ph = H - padB - padT, band = pw / weeks;
       const top = Math.max(6, ...cols.map(c => c.gym + c.cardio + c.sport)), Y = v => padT + ph - v / top * ph, bw = Math.max(3, Math.min(band * 0.62, 20));
       const svg = sv('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Sessions per week'});
       svg.append(sv('rect', {x: padL, width: pw, y: Y(5), height: Y(4) - Y(5), style: 'fill:var(--cat-train);fill-opacity:.07'}));
-      for (const t of [0, 2, 4, 6].filter(t => t <= top)) { svg.append(sv('line', {x1: padL, x2: W - 4, y1: Y(t), y2: Y(t), style: 'stroke:var(--line);stroke-width:1'})); const tx = sv('text', {x: padL - 5, y: Y(t) + 3, 'text-anchor': 'end'}); tx.textContent = t; svg.append(tx); }
+      for (const t of [0, 2, 4, 6].filter(t => t <= top)) { svg.append(sv('line', {x1: padL, x2: W - padR, y1: Y(t), y2: Y(t), style: 'stroke:var(--line);stroke-width:1'})); const tx = sv('text', {x: padL - 5, y: Y(t) + 3, 'text-anchor': 'end'}); tx.textContent = t; svg.append(tx); }
       cols.forEach((c, i) => {
         const x = padL + band * i + (band - bw) / 2; let y = Y(0);
         for (const [k, st] of [['gym', 'fill:var(--cat-train)'], ['cardio', 'fill:var(--cardio)'], ['sport', 'fill:none;stroke:var(--cardio);stroke-width:1']]) {
           if (!c[k]) continue; const h = c[k] / top * ph; y -= h; svg.append(sv('rect', {x: x + (k === 'sport' ? .5 : 0), y: y + .5, width: bw - (k === 'sport' ? 1 : 0), height: Math.max(1, h - 1), rx: 2, style: st}));
         }
       });
+      // steps: average per day across the week's complete days, as a line on its own scale at the right
+      if (hasSteps) {
+        const topS = Math.max(10000, Math.ceil(Math.max(...cols.map(c => c.st?.avg || 0)) / 2500) * 2500), YS = v => padT + ph - v / topS * ph, ks = v => v >= 1000 ? fmt(v / 1000, v % 1000 ? 1 : 0) + 'k' : String(v);
+        for (const v of [topS / 2, topS]) { const tx = sv('text', {x: W - 2, y: YS(v) + 3, 'text-anchor': 'end'}); tx.textContent = ks(v); svg.append(tx); }
+        let dpath = '', open = false;
+        cols.forEach((c, i) => { if (!c.st) { open = false; return; } const x = padL + band * (i + .5), y = YS(c.st.avg); dpath += (open ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); open = true; });
+        svg.append(sv('path', {d: dpath, style: 'fill:none;stroke:var(--ink);stroke-opacity:.45;stroke-width:1.5;stroke-linejoin:round'}));
+        cols.forEach((c, i) => { if (c.st) svg.append(sv('circle', {cx: padL + band * (i + .5), cy: YS(c.st.avg), r: 2.5, style: 'fill:var(--ink);fill-opacity:.7'})); });
+      }
       const idx = weeks <= 2 ? [0, weeks - 1] : [0, Math.floor((weeks - 1) / 2), weeks - 1];
-      idx.forEach((i, k) => { const t = sv('text', {x: k === 0 ? padL : k === idx.length - 1 ? W - 4 : padL + band * (i + .5), y: H - 3, 'text-anchor': k === 0 ? 'start' : k === idx.length - 1 ? 'end' : 'middle'}); t.textContent = dShort(cols[i].mon); svg.append(t); });
+      idx.forEach((i, k) => { const t = sv('text', {x: k === 0 ? padL : k === idx.length - 1 ? W - padR : padL + band * (i + .5), y: H - 3, 'text-anchor': k === 0 ? 'start' : k === idx.length - 1 ? 'end' : 'middle'}); t.textContent = dShort(cols[i].mon); svg.append(t); });
       const hl = sv('rect', {y: padT, height: ph, width: band, style: 'fill:var(--ink);fill-opacity:.04', visibility: 'hidden'}); svg.append(hl);
       // the selected day's week stays shaded; clicking a week selects its latest session day
       const sw = at ? Math.floor(diffDays(start, at) / 7) : -1; if (sw >= 0 && sw < weeks) svg.append(sv('rect', {x: padL + band * sw, y: padT, height: ph, width: band, style: 'fill:var(--ink);fill-opacity:.1'}));
@@ -4128,7 +4196,7 @@ const WT = {
       const move = e => {
         const r = svg.getBoundingClientRect(), i = clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / band), 0, weeks - 1), c = cols[i];
         hl.setAttribute('x', padL + band * i); hl.setAttribute('visibility', 'visible');
-        tip.innerHTML = `<b>Week of ${dShort(c.mon)}</b> <span class="t">· ${c.list.length} session${c.list.length === 1 ? '' : 's'}${c.cmin ? ' · ' + fmt(c.cmin) + ' min cardio' : ''}</span>` + (c.list.length ? '<br>' + c.list.slice().reverse().map(w => `<span class="t">${WD[parse(w.date).getDay()]}</span> ${esc(sessionLine(w))}`).join('<br>') : '<br><span class="t">nothing logged</span>');
+        tip.innerHTML = `<b>Week of ${dShort(c.mon)}</b> <span class="t">· ${c.list.length} session${c.list.length === 1 ? '' : 's'}${c.cmin ? ' · ' + fmt(c.cmin) + ' min cardio' : ''}${c.st ? ' · ' + fmt(c.st.avg) + ' steps/day' : ''}</span>` + (c.list.length ? '<br>' + c.list.slice().reverse().map(w => `<span class="t">${WD[parse(w.date).getDay()]}</span> ${esc(sessionLine(w))}`).join('<br>') : '<br><span class="t">nothing logged</span>');
         tip.hidden = false; const tw = tip.offsetWidth, cx = padL + band * (i + .5); let left = cx + 12; if (left + tw > W) left = cx - 12 - tw; tip.style.left = Math.max(0, left) + 'px';
       };
       hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
@@ -4140,7 +4208,7 @@ const WT = {
       hit.addEventListener('click', e => {
         const r = svg.getBoundingClientRect(), c = cols[clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / band), 0, weeks - 1)]; if (!c.list.length) return;
         const prev = LOG_PICK.get(inst.id), i = prev && prev.mon === c.mon ? (prev.i + 1) % c.list.length : 0, w = c.list[i]; LOG_PICK.set(inst.id, {mon: c.mon, i});
-        showSession(w);
+        showSession(w, inst.id);
       });
     }
   },
@@ -4198,7 +4266,7 @@ const WT = {
       }
       // a click selects the day in every widget; the summary sheet moved to a double-click (14 Nov 2026, Sam: "I don't want
       // it to pop up on the right, I just want to see it in the Today widget")
-      cal.onclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) selectDay(c.dataset.d); };
+      cal.onclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) selectDay(c.dataset.d, false, inst.id); };
       cal.ondblclick = e => { const c = e.target.closest('i[data-d]'); if (c && c.dataset.d <= td) openDay(c.dataset.d); };
       b.querySelector('[data-sum]').innerHTML = (asOf() ? `<b style="color:var(--accent)">${dShort(S.sel)}</b> selected ${backBtn()} · ` : '') + `<b style="color:var(--ink)">${logged}</b> of ${days} days logged · <b style="color:var(--ink)">${hit}</b> floor hit · <b style="color:var(--ink)">${sess}</b> gym · <b style="color:var(--ink)">${card}</b> cardio${away ? ` · ${away} away` : ''}`;
     }
@@ -4233,7 +4301,7 @@ const WT = {
       if (v && v.move !== mv) v.setMove(mv);
       const host = b.querySelector('[data-c=l]');
       if (!h.length) { host.innerHTML = '<div class="empty">No logged sets for this exercise yet.</div>'; return; }
-      chart(host, {n: R, series: [{type: 'line', vals: kv, color: 'var(--cat-train)', connect: true}, {type: 'dot', vals: kv, color: 'var(--cat-train)'}], dates, xl: i => dShort(dates[i]), label: ex + ' top set',
+      chart(host, {n: R, series: [{type: 'line', vals: kv, color: 'var(--cat-train)', connect: true}, {type: 'dot', vals: kv, color: 'var(--cat-train)'}], dates, si: by.has(S.sel) ? dates.indexOf(S.sel) : -1, xl: i => dShort(dates[i]), label: ex + ' top set',
         empty: 'No sets in this range. Scroll out.', tip: i => { const x = by.get(dates[i]); return x ? '<b>' + dLong(x.date) + '</b><br>' + esc(setsText(x.sets)) + '<br><span class="t">e1RM ' + fmt(x.e1rm, 1) + ' kg' + (best === x ? ' · best' : '') + '</span>' : ''; }});
     }
   },
@@ -4812,19 +4880,38 @@ function renderTop() {
   $('#d-lbl').innerHTML = d === t ? 'Today <small>· ' + dLong(d) + '</small>' : d === addDays(t, -1) ? 'Yesterday <small>· ' + dLong(d) + '</small>' : dLong(d) + ' <small>' + parse(d).getFullYear() + '</small>';
   $('#d-next').disabled = d >= t; $('#d-next').style.opacity = d >= t ? .3 : 1;
 }
-// select a day everywhere, and pulse the widgets that follow the selected day so the eye finds them
-function selectDay(d, quiet) {
-  if (d === S.sel) return; S.sel = d;
-  // Training plan: open the session trained that day; back on today, the next session again
+/* What a widget is showing, as a string: compared before and after a click so only widgets that actually
+   changed pulse (14 Nov 2026, Sam: "only do it for the widgets that are changing"). By default the rendered
+   title and body; a widget type can define dayKey() for what matters instead, where a date label changes but
+   the substance doesn't (Composition: the same last reading; muscle levels: no new lifts in between). */
+function widgetKey(id) {
+  const inst = S.layout.find(w => w.id === id), def = inst && WT[inst.type], n = nodes.get(id); if (!n) return '';
+  if (def?.dayKey) { try { return def.dayKey(inst); } catch (e) { console.error(e); } }
+  return (n.querySelector('.w-title')?.textContent || '') + '|' + (n.querySelector('.w-body')?.innerHTML || '');
+}
+function pulse(id) { const n = nodes.get(id); if (!n) return; n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); clearTimeout(n._pt); n._pt = setTimeout(() => n.classList.remove('pulse'), 1300); }
+const PLAN_AUTO = new Map();   // plan widgets whose tab a selected day opened: the tab to go back to afterwards
+// select a day everywhere; pulse the widgets whose content changed, except the one that was clicked (src)
+function selectDay(d, quiet, src) {
+  if (d === S.sel) return;
+  const before = quiet ? null : new Map([...nodes.keys()].map(id => [id, widgetKey(id)]));
+  S.sel = d;
+  // Training plan: open the session trained that day; on a day without one, back to whatever it showed before
   const tr = d === today() ? null : allWorkouts().find(w => w.date === d && w.planCode);
-  for (const w of S.layout) if (w.type === 'plan') { if (tr) PLAN_TAB.set(w.id, tr.planCode); else PLAN_TAB.delete(w.id); }
+  for (const w of S.layout) if (w.type === 'plan') {
+    if (tr) { if (!PLAN_AUTO.has(w.id)) PLAN_AUTO.set(w.id, PLAN_TAB.get(w.id) ?? null); PLAN_TAB.set(w.id, tr.planCode); }
+    else if (PLAN_AUTO.has(w.id)) { const p0 = PLAN_AUTO.get(w.id); PLAN_AUTO.delete(w.id); if (p0 == null) PLAN_TAB.delete(w.id); else PLAN_TAB.set(w.id, p0); }
+  }
   renderAll(); if (quiet) return;
-  for (const [id, n] of nodes) { const t = S.layout.find(w => w.id === id)?.type; if (['today', 'foodlog', 'supps', 'calendar', 'weight', 'intake', 'workouts', 'body', 'plan', 'physique', 'muscles', 'lift', 'metric', 'stat'].includes(t)) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } }
+  for (const [id, k] of before) if (id !== src && nodes.has(id) && widgetKey(id) !== k) pulse(id);
 }
 // show one logged session everywhere: select its day, open its tab in the Training plan, pulse what changed
-function showSession(w) {
-  const same = w.date === S.sel; if (!same) selectDay(w.date);
-  for (const x of S.layout) if (x.type === 'plan') { if (w.planCode) PLAN_TAB.set(x.id, w.planCode); if (same || w.planCode) renderWidget(x.id); const n = nodes.get(x.id); if (n && same) { n.classList.remove('pulse'); void n.offsetWidth; n.classList.add('pulse'); } }
+function showSession(w, src) {
+  const same = w.date === S.sel; if (!same) selectDay(w.date, false, src);
+  for (const x of S.layout) if (x.type === 'plan' && w.planCode && PLAN_TAB.get(x.id) !== w.planCode) {   // a second session the same day: its own tab
+    if (!PLAN_AUTO.has(x.id)) PLAN_AUTO.set(x.id, PLAN_TAB.get(x.id) ?? null);
+    PLAN_TAB.set(x.id, w.planCode); renderWidget(x.id); pulse(x.id);
+  }
   if (same) for (const x of S.layout) if (x.type === 'workouts') renderWidget(x.id);
 }
 function shiftDay(n) { const d = addDays(S.sel, n); if (d > today()) return; selectDay(d, true); }
@@ -5417,7 +5504,8 @@ function openDay(date) {
       h += d.items?.length ? foodRows(d.items.slice().sort((a, c) => (a.t || '') < (c.t || '') ? -1 : 1)).replace(/<button class="x"[\s\S]*?<\/button>/g, '<span></span>') : `<div class="cap">Imported day total, not itemised${d.legacy?.note ? ': ' + esc(d.legacy.note) : '.'}</div>`;
     } else h += '<div class="cap">Nothing logged.</div>';
     h += '</div><div class="sec"><h5>Body</h5>' + (body && (body.w || body.bf) ? `<div class="stats">${body.w ? `<span>Weight <b>${fmt(body.w, 2)} kg</b></span>` : ''}${body.bf ? `<span>Body fat <b>${fmt(body.bf, 1)}%</b></span>` : ''}${body.smm ? `<span>Skeletal muscle <b>${fmt(body.smm, 1)} kg</b></span>` : ''}${body.waist ? `<span>Waist <b>${fmt(body.waist, 1)} cm</b></span>` : ''}</div>${body.note ? `<div class="cap">${esc(body.note)}</div>` : ''}` : '<div class="cap">No weigh-in.</div>') + '</div>';
-    h += '<div class="sec"><h5>Training</h5>' + (ws.length ? ws.map(w => `<div class="exblock"><div class="row between"><b>${esc(w.label || w.kind)}</b><span class="cap">${esc([w.kind, w.site, w.km ? w.km + ' km' : '', w.min ? w.min + ' min' : ''].filter(Boolean).join(' · '))}</span></div>${w.ex?.length ? `<table class="extab"><tbody>${w.ex.map(e => `<tr><td>${esc(e.n)}</td><td class="r">${esc(setsText(e.sets))}</td></tr>`).join('')}</tbody></table>` : ''}${w.note ? `<div class="cap">${esc(w.note)}</div>` : ''}</div>`).join('') : '<div class="cap">Rest day.</div>') + '</div>';
+    const stp = stepsOn(date);
+    h += '<div class="sec"><h5>Training</h5>' + (stp ? `<div class="cap">${fmt(stp.n)} steps${stp.partial ? ' so far' : ''}</div>` : '') + (ws.length ? ws.map(w => `<div class="exblock"><div class="row between"><b>${esc(w.label || w.kind)}</b><span class="cap">${esc([w.kind, w.site, w.km ? w.km + ' km' : '', w.min ? w.min + ' min' : ''].filter(Boolean).join(' · '))}</span></div>${w.ex?.length ? `<table class="extab"><tbody>${w.ex.map(e => `<tr><td>${esc(e.n)}</td><td class="r">${esc(setsText(e.sets))}</td></tr>`).join('')}</tbody></table>` : ''}${w.note ? `<div class="cap">${esc(w.note)}</div>` : ''}</div>`).join('') : '<div class="cap">Rest day.</div>') + '</div>';
     const n = L.items.filter(s => tk[s.id]).length;
     h += `<div class="sec"><h5>Supplements · ${n} of ${L.items.length}</h5><div class="stats">${L.items.map(s => `<span class="${tk[s.id] ? '' : 'dim'}">${tk[s.id] ? '✓' : '·'} ${esc(s.n)}</span>`).join('')}</div></div>`;
     b.innerHTML = h;
@@ -5884,7 +5972,8 @@ function openHelp(tab = 'why') {
         <p>So: mostly easy cardio you could talk through (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
-        <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet.</p>
+        <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet. Only widgets whose content changed give a brief flicker of an outline, so you can see what moved.</p>
+        <p><b>Steps.</b> The weigh-in Shortcut also sends the last 7 days of steps from Apple Health. The Training log shows the average a day for each week on its right-hand scale; today’s count is “so far” until the next send and isn’t averaged.</p>
         <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset, and use the slider at its top right to slow a rep down or speed it up; the working muscles swell and deepen in colour as they shorten. Click an exercise in the Training plan to open it here, and click a day on any chart to see that day everywhere; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
         <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
         <p class="note">Body mesh: “Z-Anatomy — The libre 3D atlas of anatomy”, CC BY-SA 4.0, based on “BodyParts3D, © The Database Center for Life Science” (via the Svitylo 3D Anatomy Atlas data, v1.2.0). Changed here: skin remeshed and shrink-wrapped to the muscles, face and skin smoothed into a mannequin finish, arms rigged, scaled to 172 cm. This adapted mesh is shared under the same licence (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>). Mesh decoder: meshoptimizer reference decoder, MIT.</p></div>
