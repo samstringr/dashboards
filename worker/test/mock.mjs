@@ -10,6 +10,7 @@ const claudeReply = (body) => {
   const txt = parts.filter(p => p.type === 'text').map(p => p.text).join(' ');
   const hasImg = parts.some(p => p.type === 'image');
   let out;
+  if (/strength coach/.test(sys)) return { content: [{ type: 'text', text: /SKIPNOTE/.test(txt) ? '{"oops":1}' : 'Good work today. Keep the loads honest and add a rep next time.' }], stop_reason: 'end_turn' };
   const td = (sys.match(/Today is [^(]*\((\d{4}-\d{2}-\d{2})\)/) || [])[1] || '2026-11-02';
   const recent = re => { const sec = sys.slice(Math.max(0, sys.indexOf('RECENT, logged'))); const l = sec.split('\n').find(x => / \| /.test(x) && re.test(x)); return l ? l.split(' | ')[0].trim() : null; };
   const first = (() => { const c = body.messages[0].content; return Array.isArray(c) ? c.filter(p => p.type === 'text').map(p => p.text).join(' ') : String(c); })();
@@ -55,6 +56,7 @@ const claudeReply = (body) => {
   else if (/PENDING PROPOSAL/.test(txt) && /beef/i.test(txt)) out = { intent: 'food', food: { date: '2026-11-02', items: [{ name: "Shepherd's pie", qty: 380, unit: 'g', kcal: 450, p: 26, c: 46, f: 17, libId: null, estimated: true, research: true }, { name: 'Green beans', qty: 80, unit: 'g', kcal: 28, p: 1.5, c: 6.3, f: 0.2, libId: null, estimated: true, research: false }], assumptions: ['beef'] } };
   else if (/shepherd/i.test(txt)) out = { intent: 'food', food: { date: '2026-11-02', items: [{ name: "Shepherd's pie", qty: 400, unit: 'g', kcal: 480, p: 25, c: 48, f: 20, libId: null, estimated: true, research: true }, { name: 'Green beans', qty: 80, unit: 'g', kcal: 28, p: 1.5, c: 6.3, f: 0.2, libId: null, estimated: true, research: false }], assumptions: ['full plate'] } };
   else if (/tuna/i.test(txt)) out = { intent: 'food', food: { date: '2026-11-02', items: [{ name: 'Tuna', qty: 204, unit: 'g', kcal: 1, p: 1, c: 0, f: 0, libId: 'tuna', estimated: false, research: false }, { name: 'Heinz Light mayo', qty: 60, unit: 'g', kcal: 0, p: 0, c: 0, f: 0, libId: 'heinzlight', estimated: false, research: false }] } };
+  else if (/^WORKOUT SWAP/m.test(txt)) out = { intent: 'workout', workout: { date: '2026-11-02', kind: 'gym', label: 'Ps · Push', planCode: 'Ps', exercises: [{ name: 'Smith machine chest press', sets: [{ kg: 40, reps: 8 }, { kg: 40, reps: 7 }] }] } };
   else if (/^WORKOUT/m.test(txt)) out = { intent: 'workout', workout: { date: '2026-11-02', kind: 'gym', label: 'Ps · Push', planCode: 'Ps', exercises: [{ name: 'Flat DB press', sets: [{ kg: 30, reps: 12, rpe: 8 }, { kg: 30, reps: 10, rpe: 9 }] }, { name: 'Pec deck', sets: [{ kg: 45, reps: 13 }] }] } };
   else if (/kg/.test(txt) && /%/.test(txt)) out = { intent: 'weight', weight: { date: '2026-11-02', weight_kg: 72.4, bf_pct: 16.8 } };
   else if (/save/i.test(txt)) out = { intent: 'recipe', recipe: { name: "Mum's chilli", per100: { kcal: 128, p: 9.5, c: 9, f: 5.8 }, servingG: 400, assumptions: ['yield 90%'] } };

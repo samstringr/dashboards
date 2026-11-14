@@ -69,3 +69,16 @@ Everything else here is how that file is built and checked.
   3. an `EXMAP` row in `health-fitness.html` if the name doesn't already match one (weekly sets per muscle);
   4. render a contact sheet at the start, middle and end of the rep from two angles and look at it. A demo that
      parses is not a demo that looks right.
+- **One selected day drives every widget** (second pass, same day). `S.sel` is the only state; `selectDay(d)` is the
+  only way to change it. `winEnd(n)` / `weekEnd(weeks)` decide where a chart ends: today, unless the selected
+  day is older than the chart can show. WHY: charts used to end on the selected day, so the bar you clicked
+  jumped to the right edge. `asOf()` is null for today, else the day: `compNow(at)`, `liftBests(days, at)`
+  and the Training plan read history up to it, so composition, muscle levels and "last" loads are as they stood.
+  A Consistency click no longer opens the side sheet (Sam: "I just want to see it in the Today widget"); the
+  sheet is on double-click. `showSession(w)` (Training log click) also opens the session's tab in the plan.
+- **Smith machine chest press** (`smithpress`): flat bench, bar on rails, so the forearm is solved each frame to
+  keep the hands on one vertical line. No strength standard: Sam logs the plates, and a Smith bar's effective
+  weight varies by machine, so a level from it would be a guess.
+- **Plan, 14 Nov:** no upright row. S&A: cable upright row → DB lateral raise, reverse pec deck → face pull;
+  B&B shrug 2 → 3 sets; C&T machine chest press → Smith machine chest press. Weekly sets: side delts 14.0,
+  rear delts 10.5, traps 11.9 → 11.2, everything else unchanged (worked out with the page's own EXMAP).

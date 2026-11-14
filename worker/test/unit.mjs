@@ -74,4 +74,26 @@ check('welcome back after 8 empty days', /Welcome back/.test(sent[0]?.text) && /
 check('open away range closed at yesterday', cfg.away?.ranges[0]?.to === '2026-12-27');
 await welcomeBack(env, gctx, '2026-12-28');
 check('only once per gap', sent.length === 1);
+// 14 Nov 2026: the coach (made-up figures)
+import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep, weeklyFacts, weeklyHtml } from '../src/coach.js';
+{
+  const top = reviewExercise({ reps: '6-10' }, { n: 'Incline DB bench', sets: [{ kg: 30, r: 10 }, { kg: 30, r: 8 }] }, { date: '2026-10-01', sets: [{ kg: 30, r: 9 }] });
+  check('coach: top of range → next load, bottom of range', top.status === 'top' && /^32 kg, aim 6–8$/.test(top.next) && top.up === 1, JSON.stringify(top));
+  const mid = reviewExercise({ reps: '8-12' }, { n: 'Tricep pushdown', sets: [{ kg: 20, r: 9 }, { kg: 20, r: 9 }] }, null);
+  check('coach: in range → same load, one more rep', mid.status === 'in' && /^20 kg, aim 10–11 on the first set$/.test(mid.next) && /goes to 22.5 kg/.test(mid.why), JSON.stringify(mid));
+  const hv = reviewExercise({ reps: '8-12' }, { n: 'Pec deck', sets: [{ kg: 40, r: 6 }, { kg: 40, r: 5 }, { kg: 40, r: 3 }] }, { date: '2026-10-01', sets: [{ kg: 50, r: 10 }] });
+  check('coach: under the range → about 10% off, and the drop-off note', hv.status === 'heavy' && /^35 kg, aim 8–10$/.test(hv.next) && hv.rest === true && hv.up === -1, JSON.stringify(hv));
+  const bw = reviewExercise({ reps: '6-10' }, { n: 'Weighted dip (+kg)', sets: [{ kg: null, r: 10 }] }, null);
+  check('coach: bodyweight at the top → add load', /add 2.5 kg/.test(bw.next), bw.next);
+  check('coach: load steps', loadStep('Incline DB bench') === 2 && loadStep('Seated leg curl') === 5 && loadStep('Cable lateral raise') === 2.5 && loadStep('Smith machine chest press') === 5);
+  const plan = { start: '2026-12-01', length: 28, perWeek: 5.6, sessions: [{ code: 'A', name: 'Day A', ex: [{ n: 'Incline DB bench', sets: 2, reps: '6-10' }, { n: 'Machine chest press', sets: 2, reps: '6-10' }, { n: 'Pec deck', sets: 3, reps: '8-12' }] }, { code: 'B', name: 'Day B', ex: [] }] };
+  const cx = { plan, settings: {}, days: [{ date: '2026-11-20', workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
+  const R = reviewSession(cx, plan.sessions[0], [{ n: 'Incline DB bench', sets: [{ kg: 28, r: 8 }] }, { n: 'Smith machine chest press', sets: [{ kg: 40, r: 8 }] }]);
+  check('coach: a swap is spotted, the rest is listed as not logged, first rotation is calibration', R.swaps.length === 1 && R.swaps[0].from === 'Machine chest press' && R.swaps[0].to === 'Smith machine chest press' && R.skipped.join() === 'Pec deck' && R.calib, JSON.stringify({ s: R.swaps, k: R.skipped, c: R.calib }));
+  const msg = joinReview(sessionReviewHtml(R, 'A · Day A'), 'A note.');
+  check('coach: message has the note, calibration line and what was missed', /A note\./.test(msg) && /Calibration rotation/.test(msg) && /Not logged: Pec deck/.test(msg) && /1 down/.test(msg), msg.replace(/\n/g, ' | ').slice(0, 300));
+  const wk = { plan, settings: {}, days: [{ date: '2026-12-01', items: [{ kcal: 2000, p: 100 }], workouts: [{ kind: 'gym', planCode: 'A', ex: [{ n: 'Incline DB bench', sets: [{ kg: 32, r: 8 }] }] }] }, { date: '2026-12-03', items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }] }, ...cx.days] };
+  const F = weeklyFacts(wk, '2026-12-06'), H = weeklyHtml(F);
+  check('weekly: counts sessions, cardio, logged days and lifts up; picks sessions as the focus', F.gym === 1 && F.cardioMin === 25 && F.logged === 2 && F.ups.join() === 'Incline DB bench' && /Get to 5 sessions/.test(H.focus) && /1 lift up/.test(H.good), JSON.stringify({ g: F.gym, c: F.cardioMin, l: F.logged, u: F.ups, f: H.focus }));
+}
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED (with stubs)');

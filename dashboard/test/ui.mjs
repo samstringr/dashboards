@@ -145,11 +145,26 @@ const kb = await order();
 check('arrow keys reorder exercises', kb[1] === after[0] && kb[0] === after[1], kb.slice(0, 2).join(' > '));
 await page.screenshot({ path: `${OUT}v7-drag-${vp.width}.png` });
 await page.click('#sheet-x');
-// calendar click → day sheet
-await page.evaluate(() => { const c = [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].filter(i => i.dataset.d === '2026-11-02')[0]; c.click(); });
+// calendar click → the day is selected everywhere, no sheet (14 Nov 2026); a double-click opens the summary
+const calCell = d => page.evaluate(d => { const c = [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === d); return c ? {sel: c.classList.contains('sel')} : null; }, d);
+await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === '2026-11-02').click());
+await page.waitForTimeout(300);
+const lk = await page.evaluate(() => ({sheet: !document.querySelector('#sheet').hidden, title: document.querySelector('.widget[data-id=today] .w-title').textContent, back: !!document.querySelector('.widget[data-id=today] [data-today]'),
+  todayCell: !!document.querySelector('.widget[data-id=calendar] i.today'), body: document.querySelector('.widget[data-id=body]')?.innerText || '', plan: document.querySelector('.widget[data-id=plan]')?.innerText || '', log: document.querySelector('.widget[data-id=workouts]')?.innerText || '', wt: document.querySelector('.widget[data-id=weight]')?.innerText || ''}));
+await page.screenshot({ path: `${OUT}v8-selected-day-${vp.width}.png` });
+check('calendar click: no sheet, Today takes the date, cell marked, today still outlined', !lk.sheet && /2 Nov/.test(lk.title) && lk.back && (await calCell('2026-11-02')).sel && lk.todayCell, JSON.stringify({sheet: lk.sheet, title: lk.title, back: lk.back}));
+check('selected day shows in composition, plan, training log and weight', /As it stood on/.test(lk.body) && /(Trained on|No gym session on)/.test(lk.plan) && /2 Nov/.test(lk.log) && /2 Nov/.test(lk.wt), JSON.stringify({b: /As it stood/.test(lk.body), p: lk.plan.slice(0, 160), l: /2 Nov/.test(lk.log), w: /2 Nov/.test(lk.wt)}));
+// an intake bar selects its day and the chart doesn't slide (the window still ends today)
+const ib = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=intake] [data-c=k] svg'), r = svg.getBoundingClientRect(); return {x: r.left + r.width * 0.5, y: r.top + r.height * 0.5}; });
+await page.mouse.click(ib.x, ib.y); await page.waitForTimeout(300);
+const ia = await page.evaluate(() => ({title: document.querySelector('.widget[data-id=today] .w-title').textContent, supp: document.querySelector('.widget[data-id=supps] .lab')?.textContent || '', shade: !!document.querySelector('.widget[data-id=intake] [data-c=k] svg rect[style*="fill-opacity:.1"]')}));
+check('intake bar click: Today and supplements follow, the bar is shaded in place', ia.title !== 'Today' && !/2 Nov/.test(ia.title) && ia.supp !== 'Today' && ia.shade, JSON.stringify(ia));
+await page.click('.widget[data-id=today] [data-today]'); await page.waitForTimeout(300);
+check('↩ Today resets every widget', (await page.evaluate(() => document.querySelector('.widget[data-id=today] .w-title').textContent + '|' + document.querySelectorAll('[data-today]').length)) === 'Today|0');
+await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === '2026-11-02').dispatchEvent(new MouseEvent('dblclick', {bubbles: true})));
 await page.waitForTimeout(300);
 const ds = await page.locator('#sheet-b').innerText();
-check('day summary sheet', /Food/.test(ds) && /Body/.test(ds) && /Training/.test(ds) && /Supplements/.test(ds), (await page.locator('#sheet-t').innerText()));
+check('day summary sheet on double-click', /Food/.test(ds) && /Body/.test(ds) && /Training/.test(ds) && /Supplements/.test(ds), (await page.locator('#sheet-t').innerText()));
 await page.click('#sheet-x');
 check('month labels', (await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=calendar] .ml')].map(x => x.textContent).filter(Boolean))).length >= 4);
 // help
@@ -250,6 +265,15 @@ const selBefore = await page.evaluate(() => document.querySelector('#d-lbl').tex
 await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=weight] [data-c=w] svg'), hit = svg.querySelector('rect[style*="transparent"]'), r = svg.getBoundingClientRect(); hit.dispatchEvent(new MouseEvent('click', {bubbles: true, clientX: r.left + r.width * 0.6, clientY: r.top + 10})); }); await page.waitForTimeout(900);
 const selAfter = await page.evaluate(() => ({lbl: document.querySelector('#d-lbl').textContent.trim(), pulsed: document.querySelectorAll('.widget.pulse').length}));
 check('linked: clicking a day on the weight chart selects it everywhere', selAfter.lbl !== selBefore && selAfter.pulsed >= 3, JSON.stringify({selBefore, ...selAfter}));
+// Training log → Training plan: clicking a week opens its latest session with the sets that were hit
+await page.click('#d-lbl'); await page.waitForTimeout(200);
+const wkx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), n = 12, pw = r.width - 22, mon = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return x; };
+  const i = n - 1 - Math.round((mon(new Date().toISOString().slice(0, 10)) - mon('2026-11-01')) / 6048e5); return {x: r.left + 18 + pw / n * (i + .5), y: r.top + r.height / 2, i}; });
+await page.mouse.click(wkx.x, wkx.y); await page.waitForTimeout(400);
+const tl = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan]').innerText, title: document.querySelector('.widget[data-id=today] .w-title').textContent, demo: Fig3D.moveFor('Smith machine chest press')}));
+check('training log click: the session opens in the plan with its sets', /Trained on/.test(tl.plan) && /1 Nov/.test(tl.title), JSON.stringify({i: wkx.i, title: tl.title, plan: tl.plan.slice(0, 200)}));
+check('Smith machine chest press has its own demo', tl.demo === 'smithpress' && (await page.evaluate(() => Fig3D.ready('smithpress'))), tl.demo);
+await page.click('#d-lbl'); await page.waitForTimeout(200);
 await page.evaluate(() => document.querySelector('#d-lbl').click()); await page.waitForTimeout(600);
 check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Incline bench, bar ★|Standing, bar|Standing, rope' && vOn === 'Standing, bar' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
 const lctl = await page.locator('.widget[data-id=lift] .f3d-ctl button').count();
