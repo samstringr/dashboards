@@ -6,7 +6,7 @@ Sam's own backend for the Health & Fitness Dashboard. One database (Cloudflare D
 |---|---|---|
 | Telegram bot | `/telegram` | @health_n_fitness_bot: log food, weigh-ins, sessions; `/workout` sends the next session |
 | MCP connector | `/mcp` | The dashboard (connector name **Health DB**) and Claude chats |
-| Apple Health | `/health` | iOS Shortcut that posts the morning weigh-in |
+| Apple Health | `/health` | iOS Shortcut that posts the morning weigh-in, and the last 7 days of steps |
 
 An hourly cron sends weigh-in reminders (Mon/Wed/Fri 07:00 UK), a supplements check (14:00 and 21:00, only for what isn't ticked), an evening protein nudge (21:00) and writes a nightly backup (03:00) to `samstringr/dashboards-data/backup/` as JSON and CSV.
 
@@ -59,3 +59,5 @@ node test/unit.mjs            # away/quiet logic, food maths
 ```
 
 **The coach (14 Nov 2026).** `src/coach.js`. After a gym session is saved the bot sends a second message: each lift, how it compares with last time, what to aim for next time and why, then one focus. Every figure comes from the plan's own rule applied to the FIRST set (top of the rep range → one step more load and back to the bottom of the range; inside it → same load, one more rep; under it → about 10% off), so the advice can be re-derived by hand. Claude writes only a two-sentence opening from those lines and is told to add no numbers; if that call fails the review goes without it. The first rotation of a plan is labelled calibration. `/workout` shows the same "today" target beside each lift. If a session contains a lift that isn't in the plan in the slot of one that was skipped, the bot offers to make the swap permanent (buttons; nothing changes without a tap). On Sunday at 19:00 (and on `/review`) it sends the week: training, food, weight, what went well, what to improve, one focus. WHY deterministic: a target Sam can't re-derive is a target he can't correct. `settings.usualCardio` (free text) tells the parser what an unspecified cardio session usually is; a number Sam gives always wins.
+
+**Steps (14 Nov 2026).** The weigh-in Shortcut also sends `steps`: one total per day for the last 7 days, as text (`2026-11-14=8432;2026-11-13=10234`); a `{date: count}` object or a bare number also works. Steps can come on their own (saved quietly, no Telegram message) or with a weigh-in. Each day stores `steps` and `stepsAt` (the date it was sent); a count sent on its own day is still running, so the dashboard shows it as "so far" and keeps it out of averages until a later send replaces it. Steps don't count as "data" for away/quiet detection (`hasData`), because the phone counts them whether or not Sam is logging. WHY in the weigh-in Shortcut: Sam asked for it there, and seven days per send means a missed morning loses nothing. The weekly review includes the average.

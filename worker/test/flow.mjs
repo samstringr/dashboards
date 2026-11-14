@@ -131,6 +131,15 @@ check('library has chilli', lib.some(x => x.n === "Mum's chilli" && x.m[0] === 1
 const h = await (await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ weight_kg: '72.30', bf_pct: 0.169, lean_kg: 60.1, date: '2026-11-01' }) })).json();
 check('health ingest (bf fraction → %)', h.ok && h.body.w === 72.3 && h.body.bf === 16.9, JSON.stringify(h));
 check('health rejects missing key', (await fetch(W + '/health', { method: 'POST', body: '{}' })).status === 401);
+// 14 Nov 2026: steps through the same Shortcut, on their own (saved quietly) and with a weigh-in
+{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
+  await reset();
+  const hs = await (await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ steps: `${td}=1,200;${dd(1)}=8,400;${dd(2)}=10100` }) })).json();
+  const d1 = (await tool('get_day', { date: dd(1) })).day, d0 = (await tool('get_day', { date: td })).day, sent = (await calls()).filter(x => x.api === 'tg' && x.method === 'sendMessage').length;
+  check('steps alone: three days saved, no Telegram message', hs.ok && hs.steps.updated === 3 && d1.steps === 8400 && d1.stepsAt === td && d0.steps === 1200 && sent === 0, JSON.stringify({ hs, d1s: d1.steps, sent }));
+  const again = await (await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ steps: `${dd(1)}=8,400`, weight_kg: 72.4, bf_pct: 16.8, date: dd(5) }) })).json();
+  check('steps with a weigh-in: unchanged days skipped, weigh-in still acknowledged', again.ok && again.steps.updated === 0 && again.body.w === 72.4, JSON.stringify(again));
+}
 
 // --- MCP: conflict-safe put_day, incremental snapshot, send_workout
 const cur = (await tool('get_day', { date: '2026-11-02' })).day;

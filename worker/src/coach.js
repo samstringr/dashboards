@@ -109,6 +109,7 @@ export function weeklyFacts(ctx, end) {
   const want = ctx.plan?.perWeek ? Math.floor(ctx.plan.perWeek) : null;
   return { from, end, T, logged: tots.length, hit: T.ok ? tots.filter(t => t.p >= T.protein - 0.5).length : null, kcal: mean(tots.map(t => t.kcal)), prot: mean(tots.map(t => t.p)),
     gym: gym.length, want, codes: gym.map(w => w.planCode || w.label || 'gym').reverse(), cardioMin: other.reduce((a, w) => a + (+w.min || 0), 0), cardioN: other.length,
+    steps: mean(days.filter(d => d.steps != null && d.stepsAt !== d.date).map(d => +d.steps)), stepDays: days.filter(d => d.steps != null && d.stepsAt !== d.date).length,
     wNow, wPrev: wNow != null ? wPrev : null, weighed: wl.filter(x => inWk(x.date)).length, ups, downs, lifts: seen.size, prevFrom };
 }
 export function weeklyHtml(F) {
@@ -124,6 +125,7 @@ export function weeklyHtml(F) {
     : F.logged < 6 ? 'Log every day, even roughly.' : F.ups.length ? 'Same again: one more rep or the next load on every first set.' : 'One more rep on the first set of each lift.';
   const stats = [`Training: <b>${F.gym}</b> gym${F.codes.length ? ' (' + F.codes.map(esc).join(', ') + ')' : ''}${F.cardioN ? ` · ${F.cardioN} cardio or sport${F.cardioMin ? ', ' + fmt(F.cardioMin) + ' min' : ''}` : ''}`,
     F.logged ? `Food: avg <b>${fmt(F.kcal)}</b> kcal · <b>${fmt(F.prot)}</b> g protein${F.T.ok ? ` (targets ${fmt(F.T.kcal)} / ${F.T.protein})` : ''}` : 'Food: nothing complete logged',
+    F.steps != null ? `Steps: avg <b>${fmt(F.steps)}</b> a day (${F.stepDays} day${F.stepDays === 1 ? '' : 's'} counted)` : '',
     F.wNow != null ? `Weight: <b>${fmt(F.wNow, 2)} kg</b> 7-day avg${F.wPrev != null ? ` (${F.wNow - F.wPrev >= 0 ? '+' : '−'}${fmt(Math.abs(F.wNow - F.wPrev), 2)} kg on the week before)` : ''}` : ''].filter(Boolean);
   return { head: `📊 <b>Your week</b> · ${dLong(F.from)} – ${dLong(F.end)}`, stats: stats.join('\n'), good: good.length ? '<b>Went well</b>\n' + good.map(x => '• ' + x).join('\n') : '', fix: fix.length ? '<b>To improve</b>\n' + fix.map(x => '• ' + x).join('\n') : '', focus: '<b>Focus for next week</b>\n' + focus };
 }

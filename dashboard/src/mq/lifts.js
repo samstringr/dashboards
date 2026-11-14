@@ -40,6 +40,7 @@ const INFO = {
   legpress: {"muscles": {"quads": 1, "glutes": 0.7, "adductors": 0.5, "hams": 0.2}, "cues": ["Feet mid-platform, shoulder width", "Lower until your knees are about 90°", "Lower back stays flat on the pad", "Don’t lock the knees out"]},
   machlat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Shoulders level with the machine’s pivots", "Push out with your elbows, not your hands", "Up to shoulder height, lower slowly", "Chest stays on the pad"]},
   smithpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Bench centred so the bar comes down to mid-chest", "Shoulder blades back and down, feet planted", "Lower 2–3 s until the bar is just off the chest", "Press to just short of lockout"]},
+  smithincline: {"muscles": {"chest": 1, "fdelt": 0.65, "triceps": 0.5}, "cues": ["Bench at about 30°, set so the bar comes down to the upper chest", "Shoulder blades back and down, feet planted", "Lower 2–3 s until the bar is just off the chest", "Press to just short of lockout"]},
   machpress: {"muscles": {"chest": 1, "fdelt": 0.55, "triceps": 0.5}, "cues": ["Seat so the handles line up with mid-chest", "Shoulder blades back against the pad", "Press forward, stop just short of locking out", "Let the handles come back for 2–3 s"]},
   ohp: {"muscles": {"fdelt": 1, "triceps": 0.6, "sdelt": 0.55, "traps": 0.3}, "cues": ["Back and head flat on the pad", "Start with the handles at chin height", "Press up without locking out hard; lower for 2 s"]},
   ohtri: {"muscles": {"triceps": 1, "abs": 0.2}, "cues": ["Elbows by your head, pointing forward", "Get a deep stretch behind your head", "Extend fully, return over 2–3 s"]},
@@ -64,10 +65,11 @@ const INFO = {
 const MATCH = [
   [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
   [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/smith.*incline|incline.*smith/, 'smithincline'], [/smith.*(press|bench)/, 'smithpress'],   // before the incline and chest-press patterns, which would claim these names
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
   [/overhead.*(tri|ext)|french press/, 'ohtri'], [/push.?down/, 'pushdown'], [/dip/, 'dip'], [/reverse pec|rear delt|reverse fl/, 'revpec'], [/face.?pull/, 'facepull'],
-  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/smith.*(press|bench)/, 'smithpress'], [/(machine|seated) chest press|chest press/, 'machpress'],
+  [/pec deck|fly|flye/, 'pecdeck'], [/machine lat/, 'machlat'], [/cable lat/, 'cablelat'], [/lateral|side raise/, 'lateral'], [/(machine|seated) chest press|chest press/, 'machpress'],
   [/shoulder press|overhead press|military|ohp/, 'ohp'], [/straight.?arm|pullover/, 'straightarm'], [/pull.?up|chin.?up/, 'pullup'], [/pull.?down/, 'pulldown'], [/chest.?supported/, 'chestrow'],
   [/upright row/, 'uprow'], [/shrug/, 'shrug'], [/single.?arm|one.?arm|(db|dumbbell) row/, 'dbrow'], [/row/, 'cablerow'], [/leg curl|hamstring curl|lying curl|seated curl/, 'legcurl'], [/leg ext/, 'legext'], [/curl/, 'curl'],
   [/leg press/, 'legpress'], [/split squat|bulgarian/, 'splitsquat'], [/squat/, 'squat'], [/rdl|romanian|stiff/, 'rdl'], [/seated calf/, 'seatedcalf'], [/calf/, 'calf'],
@@ -86,7 +88,8 @@ const VARIANTS = [
   ['Tricep pushdown', [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']]],
   ['Overhead triceps extension', [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']]],
   ['Seated cable row', [['cablerow', 'Close grip'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide grip']]],
-  ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]]];
+  ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]],
+  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]]];
 const groupOf = k => VARIANTS.find(g => g[1].some(([x]) => x === k));
 const variantsOf = k => ((groupOf(k) || [])[1] || []).map(([key, label]) => ({key, label}));
 const groupName = k => (groupOf(k) || [])[0] || null;
