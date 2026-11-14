@@ -65,11 +65,20 @@ export async function photoDue(env, td = today()) {
   return { last, next, due: next <= td };
 }
 
-/* ---------- the bot side ---------- */
+/* ---------- the bot side ----------
+   14 Nov 2026, Sam: he takes all the photos first and sends them together, with no caption and no /done. So:
+   • when a set is due (the first one, or 4 weeks since the last): on the day the bot asked, any photo without a
+     caption is a progress photo; on other days an album of them is (a single photo is still read as food);
+   • a caption that says progress (or a pose) on any photo of an album covers the whole album;
+   • /photos still opens a 30-minute window for an off-cycle set, and it closes itself once front, side and back
+     are in (/done still works, but nothing needs it);
+   • "progress photos" typed within 15 minutes of photos that went elsewhere moves them across;
+   • one reply per album, edited as each photo lands, instead of one message per photo.
+   Food photos and weigh-in screenshots while a set is due: the reply has a single "Not progress photos" button. */
 const NEED = ['front', 'side', 'back'];
-export async function openPhotoSession(env, send, buttons) {
+export async function openPhotoSession(env, send) {
   await setKV(env, 'photoset', { date: today(), until: Date.now() + 30 * 60e3 });
-  return send(env, '📸 <b>Progress photos.</b> Send them one at a time or all together: <b>front</b>, <b>side</b> (arms out in front), <b>back</b>, relaxed. Flexed front and back are optional. A caption like “side” sets the pose; otherwise they go in that order.\n\n<i>Same spot, light in front, phone at chest height about 2 m away, timer on. They aren’t sent to Claude; they go straight to your dashboard → Photos. Weigh-in screenshot? Send it before you start, or tap “Not a progress photo” after it.</i>', buttons([[['Done', 'phd:x']]]));
+  return send(env, '📸 <b>Progress photos.</b> Send them all together, no caption needed: <b>front</b>, <b>side</b> (arms out in front), <b>back</b>, relaxed, in that order. Flexed front and back are optional extras. A caption like “side” on a photo sets its pose.\n\n<i>Same spot, light in front, phone at chest height about 2 m away, timer on. They go straight to your dashboard → Photos and are never sent to Claude.</i>');
 }
 export async function photoSessionOpen(env) {
   const s = await getKV(env, 'photoset');
@@ -77,23 +86,77 @@ export async function photoSessionOpen(env) {
 }
 export async function closePhotoSession(env, send) {
   await delKV(env, 'photoset');
-  const sets = await photoSets(env), s = sets.find(x => x.date === today());
-  if (!s) return send(env, 'Photo session closed. Nothing saved today.');
-  const got = POSES.filter(p => s.shots[p]);
-  return send(env, `📸 Saved for ${dLong(s.date)}: ${got.map(p => POSE_NAME[p].toLowerCase()).join(', ')}. See them in the dashboard → Photos. Next set due ${dLong(addDays(s.date, CADENCE_DAYS))}.`);
+  const s = (await photoSets(env)).find(x => x.date === today());
+  if (!s) return send(env, 'Photo window closed. Nothing saved today.');
+  return send(env, `📸 Saved for ${dLong(s.date)}: ${POSES.filter(p => s.shots[p]).map(p => POSE_NAME[p].toLowerCase()).join(', ')}. Next set due ${dLong(addDays(s.date, CADENCE_DAYS))}.`);
 }
-/* A progress photo from Telegram: the biggest size as the photo, a ~320 px size as the thumbnail. */
-export async function savePhotoFromTelegram(env, msg, tgFile, send, buttons) {
+/* Is this photo a progress photo? */
+export async function photoRoute(env, msg) {
+  const gid = msg.media_group_id || null;
+  if (isPhotoCaption(msg.caption)) { if (gid) await setKV(env, 'phalbum', { gid, until: Date.now() + 5 * 60e3 }); return 'caption'; }
+  if (gid) { const a = await getKV(env, 'phalbum'); if (a && a.gid === gid && a.until > Date.now()) return 'album'; }
+  if (msg.caption) return null;                     // a caption about something else: food, a label, a screenshot
+  if (await photoSessionOpen(env)) return 'session';
+  // due: on the day the bot asked, any photo; any other day only an album (food comes one photo at a time)
+  if ((await photoDue(env)).due) { const ask = await getKV(env, 'photoask'); if ((ask && Date.now() - ask.t < 24 * 3600e3) || gid) return 'due'; }
+  return null;
+}
+/* Photos that went to the food reader, kept 15 minutes in case "progress photos" follows. */
+export async function rememberImages(env, msg) {
+  const big = msg.document?.file_id || msg.photo?.[msg.photo.length - 1]?.file_id; if (!big) return;
+  const prev = await getKV(env, 'lastimgs'), gid = msg.media_group_id || null, keep = prev && gid && prev.gid === gid ? prev.msgs : [];   // an album, or just the last photo
+  await setKV(env, 'lastimgs', { t: Date.now(), gid, msgs: [...keep, { photo: msg.photo || null, document: msg.document || null }].slice(-6) });
+}
+export const isProgressNote = t => /^\s*(?:(?:these|those|they)(?: are|'re)?|that(?: was|'s)?)?\s*(?:my\s+)?progress\s+(?:photos?|pics?|pictures?|shots?)\b/i.test(t || '');
+export async function moveRemembered(env, tgFile, send) {
+  const m = await getKV(env, 'lastimgs'); await delKV(env, 'lastimgs');
+  if (!m || Date.now() - m.t > 15 * 60e3 || !m.msgs.length) return send(env, 'I don’t have any photos from the last 15 minutes. Send them again; no caption needed while a set is due, or start with /photos.');
+  await setKV(env, 'photoset', { date: today(), until: Date.now() + 30 * 60e3 });
+  const out = [];
+  for (const x of m.msgs) { const r = await storeOne(env, x, tgFile); if (r?.pose) out.push(r.pose); }
+  return send(env, `📸 Moved to progress photos: ${out.map(p => POSE_NAME[p].toLowerCase()).join(', ') || 'nothing (all five poses were already in)'}.${await nextNote(env)}`);
+}
+async function storeOne(env, msg, tgFile) {
   const sizes = msg.photo || [], big = msg.document?.file_id || sizes[sizes.length - 1]?.file_id, small = sizes.find(s => (s.width || 0) >= 240 && (s.width || 0) <= 480) || sizes[Math.max(0, sizes.length - 2)];
   if (!big) return null;
   const full = await tgFile(env, big), thumb = small && small.file_id !== big ? await tgFile(env, small.file_id) : null;
   // D1 keeps rows under 2 MB. A photo is ~0.3 MB; an uncompressed file from the camera can be 4 MB, so it is refused, not cut.
-  if (full.data.length + (thumb?.data.length || 0) > 1.9e6) return send(env, 'That one is too big to keep (sent as a file?). Send it as a photo instead.');
-  const pose = poseFromText(msg.caption);
-  const r = await putPhoto(env, { date: today(), pose, full: full.data, thumb: thumb?.data || null, mime: full.media_type, src: 'telegram' });
-  if (!r.pose) return send(env, 'All five poses are already saved for today. Caption a photo with its pose (“front”, “back flexed”) to replace one.');
-  await setKV(env, 'photoset', { date: today(), until: Date.now() + 30 * 60e3 });
-  const sets = await photoSets(env), s = sets.find(x => x.date === r.date), have = POSES.filter(p => s?.shots[p]), left = NEED.filter(p => !have.includes(p));
-  return send(env, `📸 ${esc(POSE_NAME[r.pose])} saved.${left.length ? ` Next: <b>${left.map(p => POSE_NAME[p].toLowerCase()).join(', ')}</b>.` : ' Front, side and back are in. Flexed ones are optional; tap Done when you’re finished.'}`,
-    buttons([[['Done', 'phd:x'], ['Not a progress photo', 'phx:' + r.id]]]));
+  if (full.data.length + (thumb?.data.length || 0) > 1.9e6) return { tooBig: true };
+  return putPhoto(env, { date: today(), pose: poseFromText(msg.caption), full: full.data, thumb: thumb?.data || null, mime: full.media_type, src: 'telegram' });
+}
+async function nextNote(env) {
+  const s = (await photoSets(env)).find(x => x.date === today()), have = POSES.filter(p => s?.shots[p]), left = NEED.filter(p => !have.includes(p));
+  if (left.length) return ` Still to come: <b>${left.map(p => POSE_NAME[p].toLowerCase()).join(', ')}</b>.`;
+  await delKV(env, 'photoset');   // front, side and back are in: the window closes itself
+  return ` That’s the set. Next one due ${dLong(addDays(today(), CADENCE_DAYS))}.`;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* Save one photo; reply once per album. Every photo of an album arrives as its own update, often at the same
+   moment, so the first one to claim the album's key sends the reply and the rest edit it. Each waits a beat
+   first so the reply lists everything that landed. */
+export async function savePhotoFromTelegram(env, msg, tgFile, tg, chat, buttons) {
+  const r = await storeOne(env, msg, tgFile);
+  if (r?.tooBig) return tg(env, 'sendMessage', { chat_id: chat, text: 'That one is too big to keep (sent as a file?). Send it as a photo instead.' });
+  if (r && !r.pose) return tg(env, 'sendMessage', { chat_id: chat, text: 'All five poses are already saved for today. Caption a photo with its pose (“front”, “back flexed”) to replace one.' });
+  const gid = msg.media_group_id || ('one-' + r.id), key = 'phmsg:' + gid;
+  await setKV(env, `phid:${gid}:${r.id}`, 1);   // one key per photo: parallel album updates can't overwrite each other
+  if (msg.media_group_id) await sleep(1500);
+  const claim = await env.DB.prepare('INSERT OR IGNORE INTO kv (k, v, updated) VALUES (?, ?, ?)').bind(key, JSON.stringify({ mid: null }), Date.now()).run();
+  const s = (await photoSets(env)).find(x => x.date === r.date), got = POSES.filter(p => s?.shots[p]);
+  const text = `📸 <b>Progress photos, ${dLong(r.date)}</b>: ${got.map(p => POSE_NAME[p].toLowerCase()).join(', ')} saved.${await nextNote(env)}\n<i>In your dashboard → Photos.</i>`;
+  const kb = buttons([[['Not progress photos', 'phx:' + gid]]]);
+  if (claim.meta?.changes) {
+    const sent = await tg(env, 'sendMessage', { chat_id: chat, text, parse_mode: 'HTML', ...kb });
+    await setKV(env, key, { mid: sent?.result?.message_id || null }); return sent;
+  }
+  let mid = null; for (let i = 0; i < 15 && !mid; i++) { mid = (await getKV(env, key))?.mid; if (!mid) await sleep(250); }
+  if (mid) return tg(env, 'editMessageText', { chat_id: chat, message_id: mid, text, parse_mode: 'HTML', ...kb }).catch(() => null);
+}
+/* "Not progress photos": take the batch back out. One photo is read as usual; several, he resends with a caption. */
+export async function undoBatch(env, gid) {
+  const { results } = await env.DB.prepare('SELECT k FROM kv WHERE k LIKE ?').bind(`phid:${gid}:%`).all(), ids = results.map(x => x.k.split(':').pop());
+  const one = ids.length === 1 ? await getPhoto(env, ids[0], 'full') : null;
+  for (const id of ids) await deletePhotos(env, { id });
+  await env.DB.prepare('DELETE FROM kv WHERE k LIKE ?').bind(`phid:${gid}:%`).run(); await delKV(env, 'photoset'); await delKV(env, 'phalbum');
+  return { n: ids.length, one };
 }

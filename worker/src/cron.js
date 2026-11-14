@@ -5,7 +5,6 @@ import { dayTotals, targets, loadCtx } from './model.js';
 import { send, qtyTxt, proteinTip } from './bot.js';
 import { quietState, quietNote, suppReminder } from './extras.js';
 import { photoDue } from './photos.js';
-import { buttons } from './bot.js';
 
 /* ============================================================ cron */
 export async function hourly(env, now) {
@@ -19,7 +18,7 @@ export async function hourly(env, now) {
       if (hour === 7 && ['Mon', 'Wed', 'Fri'].includes(wd)) {
         // progress photos every 4 weeks, on a weigh-in morning; asked again on the next one until a set arrives
         const pd = await photoDue(env, td);
-        if (pd.due) await once('photos', () => send(env, `📸 <b>Progress photos are due</b>${pd.last ? ' (last set ' + pd.last.slice(8) + '/' + pd.last.slice(5, 7) + ')' : ' (your first set: the baseline)'}. After the weigh-in: front, side and back, relaxed, same spot and light as last time.`, buttons([[['📸 Start', 'phs:x']]])));
+        if (pd.due) await once('photos', () => setKV(env, 'photoask', { t: Date.now() }).then(() => send(env, `📸 <b>Progress photos are due</b>${pd.last ? ' (last set ' + pd.last.slice(8) + '/' + pd.last.slice(5, 7) + ')' : ' (your first set: the baseline)'}. After the weigh-in: front, side and back, relaxed, same spot and light as last time. Send them all together whenever you're ready; no caption or /done needed.`)));
         const d = ctx.days.find(x => x.date === td);
         if (!d?.body?.w) await once('weigh', () => send(env, '⚖️ <b>Weigh-in morning.</b> On waking, after the toilet, before food or water. Step on the scale; Apple Health syncs it, or send me the Fit Profile screenshot.'));
       }

@@ -57,7 +57,7 @@ export function parseJSON(t) {
   return null;
 }
 export function libraryBlock(ctx) {
-  return ctx.library.map(x => `${x.id} | ${x.n}${aliasesOf(x).length ? ' (also: ' + aliasesOf(x).join('; ') + ')' : ''} | per ${x.q} ${x.u} | ${x.m.map(v => r1(v)).join(' ')}${Array.isArray(x.parts) && x.parts.length ? ' | parts: ' + x.parts.map(p => `${r1(p.q)} ${p.u === 'serving' ? '×' : p.u} ${p.n}${p.lib ? ' [' + p.lib + ']' : ''}`).join(' + ') : ''}`).join('\n') || '(empty)';
+  return ctx.library.map(x => `${x.id} | ${x.n}${aliasesOf(x).length ? ' (also: ' + aliasesOf(x).join('; ') + ')' : ''} | per ${x.q} ${x.u} | ${x.m.map(v => r1(v)).join(' ')}${Array.isArray(x.parts) && x.parts.length ? ' | parts: ' + x.parts.map(p => `${r1(p.q)} ${p.u === 'serving' ? '×' : p.u} ${p.n}${p.lib ? ' [' + p.lib + ']' : ''}`).join(' + ') : x.note ? ' | note: ' + String(x.note).slice(0, 160) : ''}`).join('\n') || '(empty)';   // the note carries a recipe (14 Nov 2026: "what are my standard overnight oats?")
 }
 export function exerciseNames(ctx) {
   const m = new Map();
