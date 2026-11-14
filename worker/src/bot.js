@@ -69,10 +69,10 @@ export async function onMessage(env, msg) {
   if (msg.photo?.length) image = await tgImage(env, msg.photo[msg.photo.length - 1].file_id, 'image/jpeg');
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) image = await tgImage(env, msg.document.file_id, msg.document.mime_type);
   if (image) await rememberImages(env, msg);
-  return readMessage(env, raw, image);
+  return readMessage(env, raw, image, msg);
 }
 /* Food, weigh-ins and workouts: what Claude reads. */
-async function readMessage(env, raw, image) {
+async function readMessage(env, raw, image, msg) {
   await welcomeBack(env, await loadCtx(env), today());
   const pending = await getKV(env, 'pending');
   if (pending && !image && YES.test(raw)) return commitPending(env, pending);
@@ -82,6 +82,8 @@ async function readMessage(env, raw, image) {
   const ctx = await loadCtx(env);
   try {
     const parsed = await parseMessage(env, ctx, raw, image, pending);
+    // a physique photo: saved as a progress photo, never logged (14 Nov 2026)
+    if (parsed.intent === 'photo' && image) return msg ? savePhotoFromTelegram(env, msg, (e, id) => tgImage(e, id, 'image/jpeg'), tg, chatId(env), buttons, parsed.photo?.pose) : send(env, 'That looks like a progress photo. Send it again and I’ll file it.');
     return await handleParsed(env, ctx, parsed, pending);
   } catch (e) { if (raw && !image) e.raw = raw; throw e; }
 }

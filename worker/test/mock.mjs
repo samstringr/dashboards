@@ -50,6 +50,7 @@ const claudeReply = (body) => {
   }
   if (/took .*creatine/i.test(txt)) out = { intent: 'supps', supps: { taken: ['creatine', 'zinc'] } };
   else if (/holiday/i.test(txt)) out = { intent: 'away', away: { from: null, to: '2026-11-20', note: 'Holiday', back: false } };
+  else if (parts.some(p => p.type === 'image' && /^\/9j\/4AkJ/.test(p.source?.data || ''))) out = { intent: 'photo', photo: { pose: null } };
   else if (hasImg) out = { intent: 'weight', weight: { date: '2026-11-02', weight_kg: 72.5, bf_pct: 16.9, smm_pct: 53.7, smm_kg: null, waist_cm: null, extra: { muscle_kg: 57.3, visceral: 7 } } };
   else if (/PENDING PROPOSAL/.test(txt) && /beef/i.test(txt)) out = { intent: 'food', food: { date: '2026-11-02', items: [{ name: "Shepherd's pie", qty: 380, unit: 'g', kcal: 450, p: 26, c: 46, f: 17, libId: null, estimated: true, research: true }, { name: 'Green beans', qty: 80, unit: 'g', kcal: 28, p: 1.5, c: 6.3, f: 0.2, libId: null, estimated: true, research: false }], assumptions: ['beef'] } };
   else if (/shepherd/i.test(txt)) out = { intent: 'food', food: { date: '2026-11-02', items: [{ name: "Shepherd's pie", qty: 400, unit: 'g', kcal: 480, p: 25, c: 48, f: 20, libId: null, estimated: true, research: true }, { name: 'Green beans', qty: 80, unit: 'g', kcal: 28, p: 1.5, c: 6.3, f: 0.2, libId: null, estimated: true, research: false }], assumptions: ['full plate'] } };
@@ -74,12 +75,12 @@ http.createServer((req, res) => {
     }
     if (req.url.startsWith('/ai/')) { calls.push({ api: 'ai', model: req.url.slice(4), body }); if (process.env.AI_FAIL || /large-v3-turbo/.test(req.url) && mockState.turboFail) return J(res, { error: 'bad audio' }, 400); return J(res, { text: ' 2 tins of tuna and 60g hines light mayo ', word_count: 9 }); }
     if (req.url === '/turbo-fail') { mockState.turboFail = true; return J(res, { ok: true }); }
-    if (req.url.startsWith('/file/')) { res.writeHead(200, { 'content-type': 'image/jpeg' }); return res.end(Buffer.from([255, 216, 255, 224, 1, 2, 3, 4])); }
+    if (req.url.startsWith('/file/')) { res.writeHead(200, { 'content-type': 'image/jpeg' }); return res.end(Buffer.from(/phys/.test(req.url) ? [255, 216, 255, 224, 9, 9, 9, 9] : [255, 216, 255, 224, 1, 2, 3, 4])); }
     if (req.url.startsWith('/repos/')) { calls.push({ api: 'github', method: req.method, url: req.url, len: b.length }); return req.method === 'GET' ? J(res, { message: 'Not Found' }, 404) : J(res, { content: {} }, 201); }
     const m = req.url.match(/^\/bot[^/]+\/(\w+)/);
     if (m) {
       calls.push({ api: 'tg', method: m[1], body });
-      if (m[1] === 'getFile') return J(res, { ok: true, result: { file_path: /^voice/.test(body.file_id) ? 'voice/file_2.oga' : 'photos/file_1.jpg' } });
+      if (m[1] === 'getFile') return J(res, { ok: true, result: { file_path: /^voice/.test(body.file_id) ? 'voice/file_2.oga' : /^phys/.test(body.file_id) ? 'photos/phys_1.jpg' : 'photos/file_1.jpg' } });
       if (m[1] === 'sendMessage') return J(res, { ok: true, result: { message_id: ++mid } });
       return J(res, { ok: true, result: true });
     }

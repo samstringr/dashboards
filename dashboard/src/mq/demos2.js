@@ -70,7 +70,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
       tube([-0.3, 1.88, ZB], [0.3, 1.88, ZB], 0.04), ...deckHousing(PIVL, ZB), vHandle('handleL'), vHandle('handleR')],
     frames: ['handleL', 'handleR'],
     pose(t) {
-      const k = phaseK(t, this.tempo), th = lerp1(-14, 104, k);
+      const k = phaseK(t, this.tempo), th = lerp1(-14, 99, k);   // 99°, not 104°: the fists stop a hand's width apart instead of passing into each other (14 Nov 2026)
       let p = SIT_FEET({...base, arm: {clav: [0, lerp1(-10, 6, k)]}});
       const B1 = solve(p), C = B1.chest, gL = hand(C, B1.upperL.o, th), c = Math.cos(th * D2R), s = Math.sin(th * D2R);
       const pole = V.norm(fDir(C, [s, -0.35, -c])), palm = fDir(C, [-s, 0, c]);

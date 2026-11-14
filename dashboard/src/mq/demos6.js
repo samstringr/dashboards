@@ -23,22 +23,29 @@ demo('lateral', {
 /* ---- Cable curls ----
    One shape for three variants: the upper arms stay still and the forearms turn about the elbow, a straight bar
    between the hands and a cable to a low pulley. curl: facing the pulley, palms up. revcurl: the same with an
-   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the pulley, the
-   cable running up between the feet, upper arms a little behind the body: the biceps are stretched at the
-   bottom, which is the point of it (Sam's choice for back & biceps day). */
+   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the machine, upper
+   arms behind the body: the biceps are stretched at the bottom, which is the point of it (Sam's choice for
+   back & biceps day). 14 Nov 2026, Sam: "the cable clips and the bar moves in the hands". A bar can't be used
+   facing away: its one cable has to pass through the legs and hips. So facecurl (o.dual) is how it is done in
+   a gym: a handle in each hand, each on its own low pulley set wider than the hips, the cables running up
+   outside the legs. With no bar in front of the thighs the elbows can sit properly behind the body. */
 function cableCurl(key, o) {
   const LOW = o.low, col = [0, 0, LOW[2] + Math.sign(LOW[2]) * 0.2];
   demo(key, {
     cam: o.cam, tempo: [0.9, 0.5, 2.2, 0.3],
-    props: [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
+    props: o.dual ? [-1, 1].flatMap(sx => [tube([sx * LOW[0], 0, col[2]], [sx * LOW[0], 2.1, col[2]], 0.045), tube([sx * LOW[0], LOW[1], col[2]], [sx * LOW[0], LOW[1], LOW[2]], 0.03),
+      ['world', 'Q', [sx * LOW[0] - 0.015, LOW[1], LOW[2]], [sx * LOW[0] + 0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}], ['world', 'B', [sx * LOW[0], 0.45, col[2] - 0.04], [0.1, 0.3, 0.05], 0.01, {mat: 'iron'}]])
+      : [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
       ['world', 'B', [0, 0.45, col[2] + Math.sign(LOW[2]) * 0.04], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.24, 0, 0], [0.24, 0, 0], 0.014, {mat: 'steel'}]],
-    frames: ['bar'],
+    frames: o.dual ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo), th = lerp1(o.th0, o.th1, ease(k)) * D2R;
       let p = legsTo({root: {p: [0, 0.89, -0.02], pitch: o.lean}, spine: [0, -1], neck: -4, arm: {clav: [0, -4]}}, [o.foot, 0.067, 0.02], [0.08, 0, 1], [0.15, 0, 1]);
       const C = solve(p).chest, up = fDir(C, o.up), fore = V.norm(fDir(C, [0.04, -Math.cos(th), Math.sin(th)])), sup = V.norm(fDir(C, [0, Math.sin(th), Math.cos(th)]));
       p = {...p, arm: {up, fore, palm: o.over ? V.sc(sup, -1) : sup, grip: 0.9, thumb: 0.8, clav: [0, -4], crease: fDir(C, [0, 0.2, 1])}};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      if (o.dual) { const ax = V.norm(V.sub(a, b)), h = V.sc(ax, 0.06);   // each handle lies across its palm, on the line between the hands
+        return {pose: p, segs: [[LOW, V.add(a, h), 0.006], [V.mx(LOW), V.sub(b, h), 0.006], [V.sub(a, V.sc(h, 0.9)), V.add(a, h), 0.013], [V.add(b, V.sc(h, 0.9)), V.sub(b, h), 0.013]]}; }
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[LOW, m, 0.006]]};
     }
   });
@@ -47,7 +54,7 @@ function cableCurl(key, o) {
 // instead of through them (14 Nov 2026, Sam: all three clipped at full extension)
 cableCurl('curl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.08], th0: 17, th1: 128});
 cableCurl('revcurl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.1], th0: 26, th1: 118, over: true});   // overhand: the grip sits behind the knuckles, so a little more forearm angle
-cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, 0.0]}, lean: 7, foot: 0.24, up: [0.07, -1, -0.06], th0: 27, th1: 122});   // a bar can't pass the thighs, so the elbows sit only just behind the body
+cableCurl('facecurl', {dual: true, low: [0.36, 0.12, -0.5], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, -0.05]}, lean: 6, foot: 0.12, up: [0.09, -1, -0.3], th0: 8, th1: 118});
 
 /* ---- Preacher curl (straight bar) ----
    Cues: sit with the armpits snug over the top of the pad, the backs of the upper arms flat on it. Lower until

@@ -1721,7 +1721,7 @@ const INFO = {
   closegrip: {"muscles": {"triceps": 1, "chest": 0.7, "fdelt": 0.5}, "cues": ["Grip just inside shoulder width", "Elbows tucked; touch the lower chest", "Press with the triceps, wrists stacked"]},
   crunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Plate on the chest, feet hooked", "Curl the ribs towards the hips, don’t yank the neck", "Lower under control; no rest at the bottom"]},
   curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Face the low pulley, straight bar, palms up", "Elbows pinned to your sides", "Curl without swinging; lower all the way over 2–3 s"]},
-  facecurl: {"muscles": {"biceps": 1, "forearms": 0.45}, "cues": ["Face away from a low pulley; the cable runs up between your feet", "Elbows a little behind your body and kept there: that’s the stretch", "Curl without the elbows coming forward; lower over 2–3 s"]},
+  facecurl: {"muscles": {"biceps": 1, "forearms": 0.45}, "cues": ["Face away from two low pulleys, a handle in each hand, cables outside your legs", "Elbows a little behind your body and kept there: that’s the stretch", "Curl without the elbows coming forward; lower over 2–3 s"]},
   revcurl: {"muscles": {"forearms": 1, "biceps": 0.75}, "cues": ["Overhand grip on the bar, palms down", "Elbows pinned, wrists straight", "Curl without swinging; lower over 2 s"]},
   cablecrunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Kneel facing a high pulley, rope beside your head", "Curl the ribs down towards the hips; the hips stay put", "Pause, then let the spine lengthen over 2 s"]},
   shrugseat: {"muscles": {"traps": 1, "forearms": 0.4, "upperback": 0.3}, "cues": ["Sit at the end of a bench, tall, dumbbells hanging beside it", "Shoulders straight up towards your ears, no rolling", "Pause 1 s at the top, lower over 2 s"]},
@@ -2025,7 +2025,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
       tube([-0.3, 1.88, ZB], [0.3, 1.88, ZB], 0.04), ...deckHousing(PIVL, ZB), vHandle('handleL'), vHandle('handleR')],
     frames: ['handleL', 'handleR'],
     pose(t) {
-      const k = phaseK(t, this.tempo), th = lerp1(-14, 104, k);
+      const k = phaseK(t, this.tempo), th = lerp1(-14, 99, k);   // 99°, not 104°: the fists stop a hand's width apart instead of passing into each other (14 Nov 2026)
       let p = SIT_FEET({...base, arm: {clav: [0, lerp1(-10, 6, k)]}});
       const B1 = solve(p), C = B1.chest, gL = hand(C, B1.upperL.o, th), c = Math.cos(th * D2R), s = Math.sin(th * D2R);
       const pole = V.norm(fDir(C, [s, -0.35, -c])), palm = fDir(C, [-s, 0, c]);
@@ -2563,22 +2563,29 @@ demo('lateral', {
 /* ---- Cable curls ----
    One shape for three variants: the upper arms stay still and the forearms turn about the elbow, a straight bar
    between the hands and a cable to a low pulley. curl: facing the pulley, palms up. revcurl: the same with an
-   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the pulley, the
-   cable running up between the feet, upper arms a little behind the body: the biceps are stretched at the
-   bottom, which is the point of it (Sam's choice for back & biceps day). */
+   overhand grip, palms down (forearms and the brachialis do more). facecurl: facing away from the machine, upper
+   arms behind the body: the biceps are stretched at the bottom, which is the point of it (Sam's choice for
+   back & biceps day). 14 Nov 2026, Sam: "the cable clips and the bar moves in the hands". A bar can't be used
+   facing away: its one cable has to pass through the legs and hips. So facecurl (o.dual) is how it is done in
+   a gym: a handle in each hand, each on its own low pulley set wider than the hips, the cables running up
+   outside the legs. With no bar in front of the thighs the elbows can sit properly behind the body. */
 function cableCurl(key, o) {
   const LOW = o.low, col = [0, 0, LOW[2] + Math.sign(LOW[2]) * 0.2];
   demo(key, {
     cam: o.cam, tempo: [0.9, 0.5, 2.2, 0.3],
-    props: [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
+    props: o.dual ? [-1, 1].flatMap(sx => [tube([sx * LOW[0], 0, col[2]], [sx * LOW[0], 2.1, col[2]], 0.045), tube([sx * LOW[0], LOW[1], col[2]], [sx * LOW[0], LOW[1], LOW[2]], 0.03),
+      ['world', 'Q', [sx * LOW[0] - 0.015, LOW[1], LOW[2]], [sx * LOW[0] + 0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}], ['world', 'B', [sx * LOW[0], 0.45, col[2] - 0.04], [0.1, 0.3, 0.05], 0.01, {mat: 'iron'}]])
+      : [tube(col, [0, 2.1, col[2]], 0.045), tube([0, LOW[1], col[2]], LOW, 0.03), ['world', 'Q', [-0.015, LOW[1], LOW[2]], [0.015, LOW[1], LOW[2]], 0.05, {mat: 'steel'}],
       ['world', 'B', [0, 0.45, col[2] + Math.sign(LOW[2]) * 0.04], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}], ['bar', 'Y', [-0.24, 0, 0], [0.24, 0, 0], 0.014, {mat: 'steel'}]],
-    frames: ['bar'],
+    frames: o.dual ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo), th = lerp1(o.th0, o.th1, ease(k)) * D2R;
       let p = legsTo({root: {p: [0, 0.89, -0.02], pitch: o.lean}, spine: [0, -1], neck: -4, arm: {clav: [0, -4]}}, [o.foot, 0.067, 0.02], [0.08, 0, 1], [0.15, 0, 1]);
       const C = solve(p).chest, up = fDir(C, o.up), fore = V.norm(fDir(C, [0.04, -Math.cos(th), Math.sin(th)])), sup = V.norm(fDir(C, [0, Math.sin(th), Math.cos(th)]));
       p = {...p, arm: {up, fore, palm: o.over ? V.sc(sup, -1) : sup, grip: 0.9, thumb: 0.8, clav: [0, -4], crease: fDir(C, [0, 0.2, 1])}};
       const B = solve(p), a = gripOf(B, 'L'), b = gripOf(B, 'R'), m = V.lerp(a, b, 0.5);
+      if (o.dual) { const ax = V.norm(V.sub(a, b)), h = V.sc(ax, 0.06);   // each handle lies across its palm, on the line between the hands
+        return {pose: p, segs: [[LOW, V.add(a, h), 0.006], [V.mx(LOW), V.sub(b, h), 0.006], [V.sub(a, V.sc(h, 0.9)), V.add(a, h), 0.013], [V.add(b, V.sc(h, 0.9)), V.sub(b, h), 0.013]]}; }
       return {pose: p, frames: {bar: frameX(m, V.sub(a, b))}, segs: [[LOW, m, 0.006]]};
     }
   });
@@ -2587,7 +2594,7 @@ function cableCurl(key, o) {
 // instead of through them (14 Nov 2026, Sam: all three clipped at full extension)
 cableCurl('curl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.08], th0: 17, th1: 128});
 cableCurl('revcurl', {low: [0, 0.12, 0.5], cam: {yaw: 58, pitch: 8, dist: 3.9, target: [0, 1.0, 0.15]}, lean: 3, foot: 0.12, up: [0.07, -1, 0.1], th0: 26, th1: 118, over: true});   // overhand: the grip sits behind the knuckles, so a little more forearm angle
-cableCurl('facecurl', {low: [0, 0.04, -0.28], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, 0.0]}, lean: 7, foot: 0.24, up: [0.07, -1, -0.06], th0: 27, th1: 122});   // a bar can't pass the thighs, so the elbows sit only just behind the body
+cableCurl('facecurl', {dual: true, low: [0.36, 0.12, -0.5], cam: {yaw: 64, pitch: 8, dist: 4.0, target: [0, 1.0, -0.05]}, lean: 6, foot: 0.12, up: [0.09, -1, -0.3], th0: 8, th1: 118});
 
 /* ---- Preacher curl (straight bar) ----
    Cues: sit with the armpits snug over the top of the pad, the backs of the upper arms flat on it. Lower until
@@ -4146,7 +4153,7 @@ const WT = {
       const mv = vars.some(x => x.key === pickV) ? pickV : base, cues = Fig3D.cues(mv), work = Object.entries(Fig3D.muscles(mv)).sort((a, c) => c[1] - a[1]).slice(0, 4);
       const varSeg = vars.length > 1 ? `<div class="seg seg-sm" data-vars aria-label="Variation">${vars.map((x, i) => `<button data-v="${x.key}" class="${x.key === mv ? 'on' : ''}" title="${i ? '' : 'The set-up I’d pick first'}">${esc(x.label)}${i ? '' : ' ★'}</button>`).join('')}</div>` : '';
       b.innerHTML = `<div class="row between" style="gap:8px"><select class="pick" data-ex aria-label="Exercise">${picker}</select><span class="cap num" style="white-space:nowrap">${last ? 'last ' + esc(setsText(last.sets)) : ''}</span></div>
-        <div class="liftrow"><div class="fig" data-fig></div><div class="figcol">${varSeg}${work.length ? `<div class="mlg">${work.map(([m, l]) => `<span><i style="background:${l >= 0.85 ? '#f2301f' : l >= 0.55 ? '#ff7f1d' : '#ffc533'}"></i>${MUSCLE_NAMES[m] || m}</span>`).join('')}</div>` : ''}${cues.length ? `<ul class="cues">${cues.slice(0, 3).map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}${Fig3D.ready(mv) ? '' : '<div class="demo-note">Form demo for this one is being rebuilt; the working muscles are shown.</div>'}<div class="chart" data-c="l"></div></div></div>`;
+        <div class="liftrow"><div class="fig" data-fig></div><div class="figcol">${varSeg}${work.length ? `<div class="mlg">${work.map(([m, l]) => `<span><i style="background:${l >= 0.85 ? '#f2301f' : l >= 0.55 ? '#ff7f1d' : '#ffc533'}"></i>${MUSCLE_NAMES[m] || m}</span>`).join('')}</div>` : ''}${cues.length ? `<ul class="cues">${cues.slice(0, 3).map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}${mv === 'stand' ? '<div class="demo-note">No form demo for this exercise yet. Ask Claude to add one: every exercise in the plan gets a model, cues and a chart.</div>' : Fig3D.ready(mv) ? '' : '<div class="demo-note">Form demo for this one is being rebuilt; the working muscles are shown.</div>'}<div class="chart" data-c="l"></div></div></div>`;
       b.querySelector('[data-ex]').onchange = e => { inst.cfg.ex = e.target.value; renderWidget(inst.id); saveLayout(true); };
       b.querySelectorAll('[data-v]').forEach(x => x.onclick = () => { inst.cfg.vars = {...(inst.cfg.vars || {}), [normName(ex)]: x.dataset.v}; renderWidget(inst.id); saveLayout(true); });
       const v = mount3D(b.querySelector('[data-fig]'), inst, () => ({mode: 'lift', comp: compGoal() || compNow(), move: mv}));
@@ -5662,12 +5669,12 @@ function openPhotos(view = 'sets') {
     await loadPhotos();
     const how = `<button class="disc${PHOTO.how ? ' open' : ''}" data-how>How and when to take them</button>${PHOTO.how ? `<ol class="rank">
       <li><b>Every 4 weeks, on a weigh-in morning.</b> After the toilet, before food or water, same as the scale. Weekly photos mostly show lighting, water and pump; 4 weeks matches the trend check and roughly one mesocycle. The bot tells you on the morning one is due.</li>
-      <li><b>Send them to the bot, all at once.</b> Front, side, back (and flexed, if you like), in that order, no caption and nothing to tap. That day, any photo you send counts; on another day send /photos first, or caption one “progress”. They land here straight away. Or add them below.</li>
+      <li><b>Send them to the bot.</b> Front, side, back (and flexed, if you like), together or one by one, no caption and nothing to tap: the bot tells a progress photo from a food photo and works out the pose. They land here straight away. Or add them below.</li>
       <li><b>Same everything.</b> Same room, same light (overhead or a window in front of you, never behind), same shorts, same distance. Phone at chest height on a shelf or tripod, about 2 m away, timer on, rear camera, whole body in frame. Mark the spot on the floor.</li>
       <li><b>Relaxed poses.</b> Front, side (arms out in front so the waist shows) and back, standing naturally, not sucking in. These are the ones to compare.</li>
       <li><b>Flexed, if you like.</b> Front and back double biceps. Good for seeing arms, lats and abs, but harder to repeat exactly.</li>
       <li><b>Compare months, not weeks.</b> First set against the latest, side by side, same pose. The scale and tape measure what the eye can’t.</li></ol>
-      <p class="cap">Kept in Health DB in a table of their own: never sent to Claude, never in the GitHub backup or the snapshot. Photos added here are shrunk on your device first, which also drops the phone’s location data; Telegram drops it from photos itself.</p>` : ''}`;
+      <p class="cap">Kept in Health DB in a table of their own, never in the GitHub backup or the snapshot. A photo sent to the bot with no caption is looked at by Claude once, only to tell it from a food photo; caption it “progress”, or send /photos first, and it goes straight to storage unseen. Photos added here are shrunk on your device first, which also drops the phone’s location data; Telegram drops it from photos itself.</p>` : ''}`;
     const blurSw = `<label class="ph-sw"><input type="checkbox" data-blur ${PHOTO.blur ? 'checked' : ''}> Blur until tapped</label>`;
     const tabs = `<div class="seg" data-pv2>${[['sets', 'Sets'], ['cmp', 'Compare'], ['add', 'Add today’s']].map(([k, l]) => `<button data-pt="${k}" class="${view === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
     const bar = `<div class="ph-bar">${tabs}${blurSw}</div>`;

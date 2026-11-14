@@ -299,15 +299,18 @@ await reset();
 await fetch(W + '/__test/hourly?t=2026-11-16T07:05:00Z');
 m = (await calls()).filter(c => c.method === 'sendMessage').find(c => /Progress photos are due/.test(c.body.text))?.body;
 check('photos: due prompt on a weigh-in morning, says no caption needed', !!m && /no caption/.test(m.text), m?.text?.slice(0, 160));
+// a meal photo while a set is due is still read as usual (14 Nov: the reader tells physique from food)
+await reset(); await tgSend({ photo: [{ file_id: 'meal1', width: 320 }, { file_id: 'meal2', width: 1280 }], media_group_id: 'meals' });
+check('photos: other photos sent while a set is due are read, not filed', (await tool('list_photos', {})).sets.length === 0 && (await calls()).some(c => c.api === 'claude'));
 const ph3 = n => ({ photo: [{ file_id: n + 's', width: 90 }, { file_id: n + 'm', width: 320 }, { file_id: n + 'b', width: 1280 }] });
 // the whole set at once, no caption: three updates arriving together
 await reset();
-await Promise.all(['a1', 'a2', 'a3'].map(n => tgSend({ ...ph3(n), media_group_id: 'alb1' })));
+await Promise.all(['physa1', 'physa2', 'physa3'].map(n => tgSend({ ...ph3(n), media_group_id: 'alb1' })));
 cs = await calls();
 const sends = cs.filter(c => c.method === 'sendMessage'), edits = cs.filter(c => c.method === 'editMessageText');
 const finalTxt = (edits.length ? edits[edits.length - 1] : sends[sends.length - 1])?.body?.text || '';
-check('photos: an album with no caption on the day asked → one reply, edited, never sent to Claude', sends.length === 1 && cs.filter(c => c.api === 'claude').length === 0 && /front, side, back saved/.test(finalTxt) && /That’s the set/.test(finalTxt), `${sends.length} sent, ${edits.length} edits: ${finalTxt}`);
-check('photos: full size and a ~320 px thumbnail downloaded', ['a1b', 'a1m'].every(f => cs.some(c => c.method === 'getFile' && c.body.file_id === f)) && !cs.some(c => c.method === 'getFile' && c.body.file_id === 'a1s'));
+check('photos: an album of physique photos, no caption → recognised, one reply, edited, nothing logged', sends.length === 1 && cs.filter(c => c.api === 'claude').length === 3 && /front, side, back saved/.test(finalTxt) && /That’s the set/.test(finalTxt), `${sends.length} sent, ${edits.length} edits: ${finalTxt}`);
+check('photos: full size and a ~320 px thumbnail downloaded', ['physa1b', 'physa1m'].every(f => cs.some(c => c.method === 'getFile' && c.body.file_id === f)) && !cs.some(c => c.method === 'getFile' && c.body.file_id === 'physa1s'));
 let ps = await tool('list_photos', {});
 const set0 = ps.sets[0];
 check('photos: list_photos shows the set with ids, weight attached', set0?.date === TD && set0.shots.front && set0.shots.back && set0.shots.side && ps.due.due === false, JSON.stringify(ps).slice(0, 220));

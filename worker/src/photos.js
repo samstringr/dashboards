@@ -3,7 +3,8 @@
    bot and see them in the dashboard, and the bot can only write to Health DB. Kept private on purpose:
    • they live in their own table, outside the day documents, so get_snapshot, the nightly GitHub backup and the
      CSV never carry them;
-   • a progress photo is never sent to Claude (no parsing, no estimating): the bot only saves it;
+   • a progress photo sent with a caption ("progress", a pose) or after /photos is never sent to Claude; one sent
+     with nothing at all is looked at once, only to tell it from food (see the bot side below), then saved;
    • the dashboard reads them through the Health DB connector and blurs them until tapped.
    A set is one date with up to five poses. Front, side and back are the ones to compare; the flexed two are optional.
    Cadence: every 4 weeks, on a weigh-in morning (the bot asks on Mon/Wed/Fri at 07:00 when one is due). */
@@ -67,8 +68,12 @@ export async function photoDue(env, td = today()) {
 
 /* ---------- the bot side ----------
    14 Nov 2026, Sam: he takes all the photos first and sends them together, with no caption and no /done. So:
-   • when a set is due (the first one, or 4 weeks since the last): on the day the bot asked, any photo without a
-     caption is a progress photo; on other days an album of them is (a single photo is still read as food);
+   • a photo with no caption is looked at by the reader (the same Claude call that reads food photos), which says
+     whether it is a physique photo and which pose; if so it is saved, not logged. WHY (14 Nov, second pass):
+     guessing from "a set is due" or "it came as an album" got it wrong both ways, since Sam also sends several
+     meals at once. He asked for photo-only sending to just work and said the photos needn't be locked away.
+     The trade: an uncaptioned progress photo passes through Claude once to be recognised. One captioned
+     "progress", or sent after /photos, still goes straight to storage and is never looked at;
    • a caption that says progress (or a pose) on any photo of an album covers the whole album;
    • /photos still opens a 30-minute window for an off-cycle set, and it closes itself once front, side and back
      are in (/done still works, but nothing needs it);
@@ -97,9 +102,7 @@ export async function photoRoute(env, msg) {
   if (gid) { const a = await getKV(env, 'phalbum'); if (a && a.gid === gid && a.until > Date.now()) return 'album'; }
   if (msg.caption) return null;                     // a caption about something else: food, a label, a screenshot
   if (await photoSessionOpen(env)) return 'session';
-  // due: on the day the bot asked, any photo; any other day only an album (food comes one photo at a time)
-  if ((await photoDue(env)).due) { const ask = await getKV(env, 'photoask'); if ((ask && Date.now() - ask.t < 24 * 3600e3) || gid) return 'due'; }
-  return null;
+  return null;   // everything else is looked at: the reader tells a physique photo from food (bot.js, intent photo)
 }
 /* Photos that went to the food reader, kept 15 minutes in case "progress photos" follows. */
 export async function rememberImages(env, msg) {
@@ -116,13 +119,13 @@ export async function moveRemembered(env, tgFile, send) {
   for (const x of m.msgs) { const r = await storeOne(env, x, tgFile); if (r?.pose) out.push(r.pose); }
   return send(env, `📸 Moved to progress photos: ${out.map(p => POSE_NAME[p].toLowerCase()).join(', ') || 'nothing (all five poses were already in)'}.${await nextNote(env)}`);
 }
-async function storeOne(env, msg, tgFile) {
+async function storeOne(env, msg, tgFile, pose) {
   const sizes = msg.photo || [], big = msg.document?.file_id || sizes[sizes.length - 1]?.file_id, small = sizes.find(s => (s.width || 0) >= 240 && (s.width || 0) <= 480) || sizes[Math.max(0, sizes.length - 2)];
   if (!big) return null;
   const full = await tgFile(env, big), thumb = small && small.file_id !== big ? await tgFile(env, small.file_id) : null;
   // D1 keeps rows under 2 MB. A photo is ~0.3 MB; an uncompressed file from the camera can be 4 MB, so it is refused, not cut.
   if (full.data.length + (thumb?.data.length || 0) > 1.9e6) return { tooBig: true };
-  return putPhoto(env, { date: today(), pose: poseFromText(msg.caption), full: full.data, thumb: thumb?.data || null, mime: full.media_type, src: 'telegram' });
+  return putPhoto(env, { date: today(), pose: poseFromText(msg.caption) || (POSES.includes(pose) ? pose : null), full: full.data, thumb: thumb?.data || null, mime: full.media_type, src: 'telegram' });
 }
 async function nextNote(env) {
   const s = (await photoSets(env)).find(x => x.date === today()), have = POSES.filter(p => s?.shots[p]), left = NEED.filter(p => !have.includes(p));
@@ -134,8 +137,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* Save one photo; reply once per album. Every photo of an album arrives as its own update, often at the same
    moment, so the first one to claim the album's key sends the reply and the rest edit it. Each waits a beat
    first so the reply lists everything that landed. */
-export async function savePhotoFromTelegram(env, msg, tgFile, tg, chat, buttons) {
-  const r = await storeOne(env, msg, tgFile);
+export async function savePhotoFromTelegram(env, msg, tgFile, tg, chat, buttons, pose) {
+  const r = await storeOne(env, msg, tgFile, pose);
   if (r?.tooBig) return tg(env, 'sendMessage', { chat_id: chat, text: 'That one is too big to keep (sent as a file?). Send it as a photo instead.' });
   if (r && !r.pose) return tg(env, 'sendMessage', { chat_id: chat, text: 'All five poses are already saved for today. Caption a photo with its pose (“front”, “back flexed”) to replace one.' });
   const gid = msg.media_group_id || ('one-' + r.id), key = 'phmsg:' + gid;
