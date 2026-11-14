@@ -64,7 +64,8 @@ const cardio0 = +((cn.match(/^Cardio (\d+)/) || [])[1] || 0);
 const cal = await page.evaluate(() => { const c = d => document.querySelector(`.widget[data-id=calendar] i[data-d="${d}"]`); return {fb: c('2026-10-31')?.className, gym: c('2026-11-01')?.className, leg: document.querySelector('.widget[data-id=calendar] .pl')?.innerText}; });
 // 14 Nov 2026: the grid fills its widget, whatever the size (no gap at the bottom)
 const fill = async () => page.evaluate(() => { const w = document.querySelector('.widget[data-id=calendar]'), b = w.querySelector('.wbody') || w.querySelector('[data-cal]').parentElement, cal = b.querySelector('[data-cal]'), leg = cal.nextElementSibling;
-  const bb = b.getBoundingClientRect(), lb = leg.getBoundingClientRect(), cs = getComputedStyle(b); return {gap: Math.round(bb.bottom - parseFloat(cs.paddingBottom) - lb.bottom), calW: Math.round(cal.getBoundingClientRect().width), bodyW: Math.round(bb.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))}; });
+  const bb = b.getBoundingClientRect(), lb = leg.getBoundingClientRect(), cs = getComputedStyle(b), k = bb.width / b.offsetWidth;   // the canvas may be zoomed: rects are scaled, styles aren't
+  return {gap: Math.round((bb.bottom - lb.bottom) / k - parseFloat(cs.paddingBottom)), calW: Math.round(cal.getBoundingClientRect().width / k), bodyW: Math.round(b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))}; });
 const f1 = await fill();
 check('consistency: the grid fills the widget (no gap under it, full width)', f1.gap <= 14 && f1.gap >= -2 && Math.abs(f1.calW - f1.bodyW) <= 2, JSON.stringify(f1));
 check('consistency: cardio has its own dot', /\bcd\b/.test(cal.fb) && !/\btr\b/.test(cal.fb) && /\btr\b/.test(cal.gym) && !/\bcd\b/.test(cal.gym) && /cardio/.test(cal.leg) && /gym/.test(cal.leg), JSON.stringify(cal));
@@ -234,7 +235,7 @@ await page.evaluate(() => document.querySelector('.widget[data-id=lift] [data-v=
 const vOn = await page.locator('.widget[data-id=lift] [data-vars] .on').innerText().catch(() => ''), vSaved = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'lift')?.cfg?.vars;
 await page.evaluate(() => { const s = document.querySelector('.widget[data-id=lift] [data-ex]'); if (![...s.options].some(o => o.value === 'Cable curl (facing away)')) s.add(new Option('Cable curl (facing away)')); s.value = 'Cable curl (facing away)'; s.dispatchEvent(new Event('change')); }); await page.waitForTimeout(1500);
 await page.locator('.widget[data-id=lift]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=lift]').screenshot({ path: `${OUT}lift-variants-${vp.width}.png` });
-const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 } : null; });
+const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 && g.getBoundingClientRect().height > 12 } : null; });
 check('lift variants: three curls offered and the toggle fits the widget', vw?.n === 3 && vw.fits, JSON.stringify(vw));
 check('lift variants: toggle shows both, switches, saved per exercise', vb.join('|') === 'Incline bench, bar|Standing, rope' && vOn === 'Standing, rope' && vSaved?.cablepulloverbench === 'straightarm', JSON.stringify({vb, vOn, vSaved}));
 const lctl = await page.locator('.widget[data-id=lift] .f3d-ctl button').count();
