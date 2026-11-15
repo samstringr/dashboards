@@ -195,6 +195,13 @@ if (vp.width > 900) {
   const wb = await page.locator('.widget[data-id=workouts] .chart svg').boundingBox();
   await page.mouse.move(wb.x + wb.width - 30, wb.y + wb.height / 2); await page.waitForTimeout(150);
   check('training log hover lists the week', /Week of/.test(await page.locator('.widget[data-id=workouts] .tip').innerText().catch(() => '')));
+  // 15 Nov 2026: widgets stay put outside edit mode; corners only show while editing
+  const lockd = await page.evaluate(() => { const n = document.querySelector('.widget[data-id=muscles]'); return {corner: getComputedStyle(n.querySelector('.corner')).display, sel: getComputedStyle(document.querySelector('#viewport')).userSelect}; });
+  const hb = await page.locator('.widget[data-id=muscles] .w-head').boundingBox(), m0 = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'muscles');
+  await page.mouse.move(hb.x + 60, hb.y + 15); await page.mouse.down(); await page.mouse.move(hb.x + 260, hb.y + 115, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(1200);
+  const m1 = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'muscles');
+  check('outside edit mode: no corners, no text selection, and a drag doesn\'t move a widget', lockd.corner === 'none' && lockd.sel === 'none' && m0.x === m1.x && m0.y === m1.y, JSON.stringify({lockd, m0: [m0.x, m0.y], m1: [m1.x, m1.y]}));
+  await page.click('#z-edit'); await page.waitForTimeout(200); await page.screenshot({ path: `${OUT}v11-editing-${vp.width}.png` });
   // top-left corner resize of the targets widget
   const before = await page.evaluate(() => JSON.stringify((window.__lay = null, null)));
   const n = await page.locator('.widget[data-id=muscles]').boundingBox();
@@ -203,6 +210,28 @@ if (vp.width > 900) {
   await page.waitForTimeout(1500);
   const ph = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'muscles');
   check('top-left corner resize moves x/y and grows', ph.x < 24 && ph.y < 10 && ph.w > 10 && ph.h > 15, JSON.stringify(ph));
+  // Fill screen stretches the layout to the visible canvas at this zoom; Undo puts it back
+  const bbox = () => page.evaluate(() => { const ws = [...document.querySelectorAll('#world .widget')].map(n => n.getBoundingClientRect()), v = document.querySelector('#viewport').getBoundingClientRect();
+    return {w: Math.max(...ws.map(r => r.right)) - Math.min(...ws.map(r => r.left)), h: Math.max(...ws.map(r => r.bottom)) - Math.min(...ws.map(r => r.top)), vw: v.width, vh: v.height}; });
+  const lay = async () => JSON.stringify((await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.map(w => [w.id, w.x, w.y, w.w, w.h]));
+  await page.click('#z-out'); await page.click('#z-out'); await page.waitForTimeout(300);   // zoomed out, the screen holds more than the layout
+  const L0 = await lay(); await page.click('#eb-fill'); await page.waitForTimeout(1500);
+  const fb = await bbox(), L1 = await lay();
+  check('Fill screen: the layout spans the visible canvas', L1 !== L0 && fb.w > fb.vw - 64 - 60 && fb.w <= fb.vw && fb.h > fb.vh - 96 - 60 && fb.h <= fb.vh, JSON.stringify(fb));
+  await page.click('#eb-undo'); await page.waitForTimeout(1500);
+  const L2 = await lay();
+  check('Undo puts the layout back', L2 === L0);
+  // presets: the first layout became Default; save one, change, load Default back
+  const pre = () => mcpNode('get_snapshot', {}).then(r => r.structuredContent.config.layout.presets || []);
+  const p0 = await pre();
+  await page.click('#eb-presets'); await page.waitForTimeout(300); await page.fill('#pr-name', 'Test screen'); await page.click('#pr-save'); await page.waitForTimeout(1200);
+  const p1 = await pre(); await page.click('#sheet-x');
+  await page.click('#eb-fill'); await page.waitForTimeout(800);
+  await page.click('#eb-presets'); await page.waitForTimeout(300);
+  await page.evaluate(() => [...document.querySelectorAll('#sheet-b .preset-row')].find(r => /Test screen/.test(r.innerText)).querySelector('[data-load]').click()); await page.waitForTimeout(1500);
+  check('presets: Default saved from the first layout; Save current, then Load restores it', p0.some(p => p.name === 'Default' && p.widgets.length) && p1.some(p => p.name === 'Test screen') && (await lay()) === L0, JSON.stringify({p0: p0.map(p => p.name), p1: p1.map(p => p.name)}));
+  await page.click('#eb-done'); await page.waitForTimeout(200);
+  check('Done leaves edit mode', await page.evaluate(() => !document.body.classList.contains('editing') && document.querySelector('#edit-bar').hidden));
   await page.screenshot({ path: `${OUT}v5-resized.png` });
 }
 // calendar fits its widget

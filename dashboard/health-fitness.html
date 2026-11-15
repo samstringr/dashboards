@@ -163,6 +163,23 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .widget .scroll{scrollbar-width:none}.widget .scroll::-webkit-scrollbar{width:0;height:0}
 .widget:hover .scroll{scrollbar-width:thin}.widget:hover .scroll::-webkit-scrollbar{width:6px}
 .fit-more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
+/* Edit layout (15 Nov 2026, Sam: "an edit button… which then allows you to move and resize everything… sometimes
+   when I click and drag, it highlights the text"). Outside edit mode widgets stay put and nothing on the canvas
+   selects as text; in edit mode a widget moves by dragging anywhere on it and resizes from its corners, and its
+   contents are inert so a drag can't click a button or a chart. */
+#viewport{-webkit-user-select:none;user-select:none}
+#viewport input,#viewport textarea,#viewport select,#viewport [contenteditable]{-webkit-user-select:text;user-select:text}
+body:not(.editing) .corner,body:not(.editing) .dim-tag{display:none}
+body:not(.editing) .w-head{cursor:default}
+.editing .widget{cursor:grab;outline:1px dashed color-mix(in srgb,var(--cat) 40%,transparent);outline-offset:3px}
+.editing .widget .w-body{pointer-events:none}
+.editing .widget .corner{opacity:.85}
+#edit-bar{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom,0px));translate:-50% 0;z-index:6;display:flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;background:var(--s1);border:1px solid var(--line-2);border-radius:var(--r-sm)}
+#edit-bar .cap{margin-right:6px;white-space:nowrap}
+@media (max-width:1100px){#edit-bar .cap{display:none}}
+#z-edit.on{background:var(--s3);color:var(--ink)}
+.zsep{width:1px;height:16px;background:var(--line-2);margin:0 3px}
+.preset-row{padding:8px 0;border-bottom:1px solid var(--line)}
 .widget.pulse{animation:pulse 1.2s var(--ease)}.widget.pulse>.w-body{animation:wfade .45s var(--ease)}
 .flash.on{opacity:.9}
 @media (hover:none){.w-tools{opacity:1}.w-hint{display:none}}
@@ -245,7 +262,7 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
    tall as its content (at least 360px, so a form doesn't jump as search results appear), never more than 86% of
    the screen; .wide (split builder) is a large fixed window, .full (photos) nearly the whole screen. On a phone
    it stays a sheet from the bottom, where a thumb reaches it. Was: a 460px panel down the right-hand side. */
-#sheet{position:fixed;z-index:40;top:50%;left:50%;translate:-50% -50%;width:min(600px,calc(100% - 32px));min-height:min(360px,80vh);max-height:86vh;display:flex;flex-direction:column;background:var(--s1);border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;animation:sheetin .18s var(--ease)}
+#sheet{position:fixed;z-index:40;top:50%;left:50%;translate:-50% -50%;width:min(720px,calc(100% - 32px));min-height:min(360px,80vh);max-height:86vh;display:flex;flex-direction:column;background:var(--s1);border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;animation:sheetin .18s var(--ease)}
 @keyframes sheetin{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#sheet{animation:none}}
 @media (max-width:640px){#sheet{top:auto;left:0;right:0;bottom:0;translate:none;height:92%;max-height:none;min-height:0;width:100%;border-width:1px 0 0;border-radius:var(--r) var(--r) 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}}
@@ -431,7 +448,8 @@ select.inp{padding-right:6px}
 .tprog i{display:block;height:100%;width:100%;background:var(--dim);transform-origin:left;animation:tp linear forwards}
 .widget:hover .tprog i{animation-play-state:paused}
 @keyframes tp{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-#sheet.wide{width:min(1000px,calc(100% - 48px));height:86vh}
+/* wide (split builder, widget palette, Help): nearly the photos window (15 Nov 2026, Sam: "wider… similar to the progress photos") */
+#sheet.wide{top:4vh;bottom:4vh;left:max(20px,6vw);right:max(20px,6vw);translate:none;width:auto;max-height:none}
 /* full: a window over the dashboard rather than a side panel (photos, 14 Nov 2026: "use the screen") */
 #sheet.full{top:3vh;bottom:3vh;left:max(16px,4vw);right:max(16px,4vw);translate:none;width:auto;max-height:none}
 @media (max-width:640px){#sheet.wide{width:100%;height:92%}#sheet.full{top:auto;left:0;right:0;bottom:0;height:96%;border-radius:var(--r) var(--r) 0 0}}
@@ -540,7 +558,16 @@ select.inp{padding-right:6px}
     <div id="viewport"><div id="world"></div></div>
     <div id="stack" hidden></div>
     <div id="hud"><div id="scalebar"><span id="sb-l">1 cm</span><i id="sb-bar" style="width:38px"></i></div><span id="hud-z">100%</span><span id="hud-xy"></span><span class="legend"><span><i style="background:var(--cat-food)"></i>Nutrition</span><span><i style="background:var(--cat-body)"></i>Body</span><span><i style="background:var(--cat-train)"></i>Training</span></span></div>
+    <div id="edit-bar" hidden role="toolbar" aria-label="Edit layout">
+      <span class="cap">Drag a widget to move it, a corner to resize it</span>
+      <button class="btn sm" id="eb-fill" title="Stretch the layout to fill the screen at this zoom">Fill screen</button>
+      <button class="btn sm" id="eb-presets" title="Save this layout, or load a saved one">Presets</button>
+      <button class="btn sm ghost" id="eb-undo" disabled title="Undo (Ctrl/⌘ Z)">Undo</button>
+      <button class="btn sm primary" id="eb-done">Done</button>
+    </div>
     <div id="zoomctl">
+      <button class="icon-btn" id="z-edit" aria-label="Edit layout" aria-pressed="false" title="Edit layout (E)"><svg class="i" viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/></svg></button>
+      <i class="zsep"></i>
       <button class="icon-btn" id="z-out" aria-label="Zoom out"><svg class="i" viewBox="0 0 16 16"><path d="M3.5 8h9"/></svg></button>
       <button class="z" id="z-lbl" title="Reset to 100%">100%</button>
       <button class="icon-btn" id="z-in" aria-label="Zoom in"><svg class="i" viewBox="0 0 16 16"><path d="M3.5 8h9M8 3.5v9"/></svg></button>
@@ -4472,6 +4499,65 @@ function zoomAt(cx, cy, z2) {
   S.view.x = mx - (mx - S.view.x) * k; S.view.y = my - (my - S.view.y) * k; S.view.z = z2; applyView(); saveView();
 }
 function zoomCentre(f) { const r = viewport.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, S.view.z * f); }
+/* ---------- edit layout: undo, fill the screen, presets (15 Nov 2026) ---------- */
+const UNDO = [];   // the canvas before each change made while editing, newest last
+const snapLayout = () => ({widgets: clone(S.layout), view: {...S.view}});
+function pushUndo(prev = snapLayout()) { if (!S.editing) return; UNDO.push(prev); if (UNDO.length > 40) UNDO.shift(); $('#eb-undo').disabled = false; }
+function setEditing(on) {
+  S.editing = !!on && S.layoutMode === 'canvas'; document.body.classList.toggle('editing', S.editing);
+  $('#edit-bar').hidden = !S.editing; $('#z-edit').classList.toggle('on', S.editing); $('#z-edit').setAttribute('aria-pressed', String(S.editing));
+  if (!S.editing) { UNDO.length = 0; $('#eb-undo').disabled = true; }
+}
+function undoLayout() {
+  const p = UNDO.pop(); if (!p) return;
+  world.classList.add('anim'); S.layout = clone(p.widgets); if (p.view) { S.view = {...p.view}; applyView(); saveView(); }
+  renderAll(); saveLayout(false); $('#eb-undo').disabled = !UNDO.length; setTimeout(() => world.classList.remove('anim'), 350);
+}
+/* Fill the screen (Sam: "resize all the widgets to make use of the most space on the screen… of the aspect ratio").
+   The whole layout is stretched to fill what's visible at the current zoom, widths and heights scaled separately
+   so it takes the screen's shape. Every edge goes through the same scale and is rounded to the grid, so widgets
+   that touched still touch and none overlap. If the screen is smaller than the layout and a widget would go below
+   its minimum size, nothing changes: zoom out first. */
+function fillScreen() {
+  if (!S.layout.length) return;
+  const r = viewport.getBoundingClientRect(), z = S.view.z, x0 = Math.min(...S.layout.map(w => w.x)), y0 = Math.min(...S.layout.map(w => w.y));
+  const x1 = Math.max(...S.layout.map(w => w.x + w.w)), y1 = Math.max(...S.layout.map(w => w.y + w.h));
+  const vw = Math.floor((r.width - 64) / (CELL * z)), vh = Math.floor((r.height - 96) / (CELL * z));
+  const fx = e => x0 + Math.round((e - x0) * vw / (x1 - x0)), fy = e => y0 + Math.round((e - y0) * vh / (y1 - y0));
+  const next = S.layout.map(w => ({...w, x: fx(w.x), y: fy(w.y), w: fx(w.x + w.w) - fx(w.x), h: fy(w.y + w.h) - fy(w.y)}));
+  const small = next.find(w => { const m = WT[w.type]?.min || [2, 2]; return w.w < m[0] || w.h < m[1]; });
+  if (small) { toast(`At this zoom the screen is smaller than the layout (${WT[small.type]?.title || 'a widget'} would go below its minimum). Zoom out, then Fill screen.`, {err: true}); return; }
+  pushUndo(); world.classList.add('anim'); S.layout = next;
+  S.view = {z, x: (r.width - vw * CELL * z) / 2 - x0 * CELL * z, y: 28 - y0 * CELL * z}; applyView(); saveView();
+  renderAll(); saveLayout(false); setTimeout(() => world.classList.remove('anim'), 350);
+  toast('Filled the screen', {action: 'Undo', onAction: undoLayout});
+}
+function loadPreset(p) {
+  pushUndo(); world.classList.add('anim'); S.layout = clone(p.widgets);
+  renderAll(); if (p.view && S.layoutMode === 'canvas') { S.view = {...p.view}; applyView(); saveView(); } else fit();
+  saveLayout(false); setTimeout(() => world.classList.remove('anim'), 350);
+  toast('Loaded ' + p.name, {action: 'Undo', onAction: undoLayout});
+}
+function openPresets() {
+  openSheet('Layout presets', b => {
+    const draw = () => {
+      const P = S.layoutPresets || [];
+      b.innerHTML = `<div class="cap">A preset is the whole canvas: where every widget sits, its size, and the zoom. Save one per screen (laptop, desk monitor). Loading one can be undone.</div>
+        <div>${P.length ? P.map((p, i) => `<div class="row between preset-row"><span><b>${esc(p.name)}</b> <span class="dim">· ${p.widgets.length} widgets${p.at ? ' · saved ' + dShort(p.at) : ''}</span></span>
+          <span class="row" style="gap:6px"><button class="btn sm primary" data-load="${i}">Load</button><button class="btn sm ghost" data-over="${i}" title="Replace it with the canvas as it is now">Update</button><button class="btn sm ghost" data-del="${i}">Delete</button></span></div>`).join('') : '<div class="empty">No presets yet.</div>'}</div>
+        <div class="row" style="gap:8px"><input class="inp" id="pr-name" maxlength="40" placeholder="Name this layout, e.g. Desk monitor"><button class="btn" id="pr-save">Save current</button></div>`;
+      const P2 = () => (S.layoutPresets ||= []);
+      b.querySelectorAll('[data-load]').forEach(x => x.onclick = () => { closeSheet(); loadPreset(P[+x.dataset.load]); });
+      b.querySelectorAll('[data-over]').forEach(x => x.onclick = () => { const p = P[+x.dataset.over]; Object.assign(p, {widgets: clone(S.layout), view: {...S.view}, at: today()}); saveLayout(false); toast('Updated ' + p.name); draw(); });
+      b.querySelectorAll('[data-del]').forEach(x => x.onclick = () => { const i = +x.dataset.del, p = P2().splice(i, 1)[0]; saveLayout(false); draw(); toast('Deleted ' + p.name, {action: 'Undo', onAction: () => { P2().splice(i, 0, p); saveLayout(false); }}); });
+      const nm = b.querySelector('#pr-name'), save = () => { const name = nm.value.trim(); if (!name) { nm.focus(); return; }
+        const ex = P2().find(p => p.name.toLowerCase() === name.toLowerCase()), rec = {name, widgets: clone(S.layout), view: {...S.view}, at: today()};
+        if (ex) Object.assign(ex, rec); else P2().push(rec); saveLayout(false); toast((ex ? 'Updated ' : 'Saved ') + name); draw(); };
+      b.querySelector('#pr-save').onclick = save; nm.onkeydown = e => { if (e.key === 'Enter') save(); };
+    };
+    draw();
+  });
+}
 function fit() {
   if (!S.layout.length) return;
   const r = viewport.getBoundingClientRect();
@@ -4615,8 +4701,9 @@ viewport.addEventListener('pointerdown', e => {
     const base = S.layout.map(o => ({id: o.id, x: o.x, y: o.y, w: o.w, h: o.h}));
     const common = {inst, node: w, sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, vx0: S.view.x, vy0: S.view.y, base};
     const cn = e.target.closest('.corner');
+    if (!S.editing) return;   // outside edit mode widgets stay put (15 Nov 2026)
     if (cn) drag = {type: 'resize', ...common, h: cn.dataset.h, ox: inst.x, oy: inst.y, ow: inst.w, oh: inst.h};
-    else if (e.target.closest('.w-head') && !e.target.closest('button,input,select,textarea')) drag = {type: 'move', ...common, ox: inst.x, oy: inst.y, tx: inst.x, ty: inst.y};
+    else if (!e.target.closest('button,input,select,textarea')) drag = {type: 'move', ...common, ox: inst.x, oy: inst.y, tx: inst.x, ty: inst.y};
     if (drag) {
       world.classList.add('anim'); w.classList.add('lifted'); ghost.dataset.cat = w.dataset.cat || 'misc'; showGhost(inst.x, inst.y, inst.w, inst.h);
       viewport.setPointerCapture(e.pointerId); S.dragging = true; e.preventDefault(); requestAnimationFrame(autoPan);
@@ -4728,7 +4815,7 @@ function finishDrag(cancel) {
   S.layout.forEach(o => { const n = nodes.get(o.id); if (n) placeWidget(n, o); });
   S.dragging = false;
   setTimeout(() => { node.classList.remove('settle'); if (!drag) world.classList.remove('anim'); if (d.type === 'resize' && d.moved) renderBody(node, inst); }, 320);
-  if (!cancel && d.moved) saveLayout(true);
+  if (!cancel && d.moved) { pushUndo({widgets: clone(S.layout).map(o => ({...o, ...(d.base.find(b => b.id === o.id) || {})})), view: {...S.view}}); saveLayout(true); }
 }
 function endPtr(e) {
   ptrs.delete(e.pointerId);
@@ -4760,8 +4847,10 @@ viewport.addEventListener('wheel', e => {
 }, {passive: false});
 document.addEventListener('keydown', e => {
   const typing = e.target.closest('input,textarea,select,[contenteditable]');
-  if (e.key === 'Escape') { if (drag && drag.type !== 'pan') { finishDrag(true); drag = null; } else if (!$('#pop').hidden) hidePop(); else if (!$('#sheet').hidden) closeSheet(); return; }
+  if (e.key === 'Escape') { if (drag && drag.type !== 'pan') { finishDrag(true); drag = null; } else if (!$('#pop').hidden) hidePop(); else if (!$('#sheet').hidden) closeSheet(); else if (S.editing) setEditing(false); return; }
   if (typing) return;
+  if (S.editing && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && $('#sheet').hidden) { e.preventDefault(); undoLayout(); return; }
+  if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey && S.layoutMode === 'canvas' && $('#sheet').hidden) { setEditing(!S.editing); return; }
   if (e.key === '/') { e.preventDefault(); $('#cmd-in').focus(); }
   else if (e.key === '?') openHelp();
   else if (e.code === 'Space' && S.layoutMode === 'canvas') { spaceDown = true; viewport.style.cursor = 'grab'; e.preventDefault(); }
@@ -4776,6 +4865,11 @@ $('#z-in').onclick = () => zoomCentre(1.2);
 $('#z-out').onclick = () => zoomCentre(1 / 1.2);
 $('#z-lbl').onclick = () => zoomCentre(1 / S.view.z);
 $('#z-fit').onclick = fit;
+$('#z-edit').onclick = () => setEditing(!S.editing);
+$('#eb-done').onclick = () => setEditing(false);
+$('#eb-undo').onclick = undoLayout;
+$('#eb-fill').onclick = fillScreen;
+$('#eb-presets').onclick = openPresets;
 window.addEventListener('resize', () => { clearTimeout(window._rt); window._rt = setTimeout(() => { if (S.layoutMode === 'stack') renderAll(); }, 200); });
 
 /* ============================================================
@@ -4832,7 +4926,8 @@ async function writeConfig(id, data) {
 let layoutTmr;
 function saveLayout(debounced) {
   clearTimeout(layoutTmr);
-  const go = () => writeConfig('layout', {widgets: clone(S.layout)}).catch(() => {});
+  // presets ride in the same document; until they've loaded from Health DB they're left out, never written as empty
+  const go = () => writeConfig('layout', S.layoutPresets ? {widgets: clone(S.layout), presets: clone(S.layoutPresets)} : {widgets: clone(S.layout)}).catch(() => {});
   if (debounced) layoutTmr = setTimeout(go, 700); else go();
 }
 function applyConfigDoc(id, data) {
@@ -4843,6 +4938,7 @@ function applyConfigDoc(id, data) {
   else if (id === 'supplements') S.supps = Array.isArray(data.items) ? data : null;
   else if (id === 'away') S.away = Array.isArray(data.ranges) ? data : {ranges: []};
   else if (id === 'layout' && Array.isArray(data.widgets) && !S.dragging) {
+    if (Array.isArray(data.presets)) S.layoutPresets = data.presets; else if (!S.layoutPresets?.length) S.needDefaultPreset = true;
     const incoming = JSON.stringify(data.widgets);
     if (incoming !== JSON.stringify(S.layout)) { S.layout = clone(data.widgets); S.layoutFromStore = true; return 'layout'; }
     S.layoutFromStore = true;
@@ -4896,6 +4992,9 @@ function applySnapshot(p, full) {
   let layoutChanged = false;
   for (const [id, v] of Object.entries(p.config || {})) if (v && applyConfigDoc(id, v) === 'layout') layoutChanged = true;
   S.rev = Math.max(S.rev, +p.rev || 0);
+  // the layout as it was the first time this version opened is saved as the "Default" preset (15 Nov 2026, Sam:
+  // "this view as it is now is a good default… have it saved as a preset")
+  if (S.needDefaultPreset && S.layout.length) { S.needDefaultPreset = false; S.layoutPresets = [{name: 'Default', widgets: clone(S.layout), view: S.layoutMode === 'canvas' ? {...S.view} : null, at: today()}]; saveLayout(false); }
   return layoutChanged;
 }
 let pulling = false;
@@ -6094,6 +6193,7 @@ function openHelp(tab = 'why') {
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
         <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet. Only widgets whose content changed give a brief flicker of an outline, so you can see what moved.</p>
+        <p><b>Editing the layout.</b> Widgets stay put until you press the pencil at the bottom right (or E). Then drag a widget anywhere to move it and a corner to resize it. <b>Fill screen</b> stretches the whole layout to fill what you can see at the current zoom, so zoom to taste first. <b>Presets</b> saves the canvas, zoom included, under a name (the layout you had when this arrived is saved as Default) and loads it back. <b>Undo</b> (Ctrl/⌘ Z) steps back through everything you changed; Done or Esc finishes.</p>
         <p><b>Targets and streaks.</b> A day is on target when protein reaches its floor and calories land within 10% of the calorie target, each judged against the targets you had that day. Intake outlines each bar that hit in green; the Streaks widget (add it from the widget palette, under Overview) counts days in a row on target, plus protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak, today can only add to one, and a day not logged ends it.</p>
         <p><b>Steps.</b> The weigh-in Shortcut also sends the last 7 days of steps from Apple Health. The Training log shows the average a day for each week on its right-hand scale; today’s count is “so far” until the next send and isn’t averaged.</p>
         <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset, and use the slider at its top right to slow a rep down or speed it up; the working muscles swell and deepen in colour as they shorten. Click an exercise in the Training plan to open it here, and click a day on any chart to see that day everywhere; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
