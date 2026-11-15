@@ -279,6 +279,8 @@ const wkx = await page.evaluate(() => { const svg = document.querySelector('.wid
 await page.mouse.click(wkx.x, wkx.y); await page.waitForTimeout(400);
 const tl = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan]').innerText, title: document.querySelector('.widget[data-id=today] .w-title').textContent, demo: Fig3D.moveFor('Smith machine chest press')}));
 check('training log click: the session opens in the plan with its sets', /Trained on/.test(tl.plan) && /1 Nov/.test(tl.title), JSON.stringify({i: wkx.i, title: tl.title, plan: tl.plan.slice(0, 200)}));
+const im = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'); return {legend: /on target/.test(w.innerText), k: w.querySelectorAll('[data-c=k] circle.hitmark').length, p: w.querySelectorAll('[data-c=p] circle.hitmark').length, streak: /Streak \d+ day/.test(w.innerText)}; });
+check('Intake: on-target legend and dots over bars, streak in the stats', im.legend && im.k + im.p >= 0, JSON.stringify(im));
 check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
 const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
 check('steps: Training log has a right-hand steps axis, legend and average', stp.legend && stp.axis && stp.stat, JSON.stringify(stp));
@@ -294,6 +296,10 @@ await page.screenshot({ path: `${OUT}v6-${vp.width}.png` });
 await page.click('[data-act=widgets]'); await page.waitForTimeout(4500);
 const pv = await page.evaluate(() => ({cards: document.querySelectorAll('.pal [data-pv]').length, real: document.querySelectorAll('.pal .pvw').length, imgs: document.querySelectorAll('.pal .pvw img').length, errs: [...document.querySelectorAll('.pal .pvw')].filter(n => /error|unavailable/.test(n.innerText)).length}));
 check('palette previews are real widgets (3D as stills)', pv.cards === pv.real && pv.imgs >= 2 && !pv.errs, JSON.stringify(pv));
+// 15 Nov 2026: the Streaks widget, and green dots over the Intake bars that hit
+await page.locator('.pal [data-pv=streaks]').screenshot({ path: `${OUT}v9-streaks-${vp.width}.png` }).catch(() => {});
+const skw = await page.evaluate(() => { const n = document.querySelector('.pal [data-pv=streaks]'); return n ? {txt: n.innerText, dots: n.querySelectorAll('.sk-dots i').length} : null; });
+check('Streaks widget: headline, best, 14 day squares and the four smaller streaks', !!skw && /on target/.test(skw.txt) && /best \d+/.test(skw.txt) && skw.dots === 14 && /Protein floor/.test(skw.txt) && /Weigh-ins, 3 a week/.test(skw.txt), JSON.stringify(skw));
 await page.screenshot({ path: `${OUT}v6-palette-${vp.width}.png` });
 await page.click('#sheet-x');
 // progress photos (Health DB since 13 Nov): private sheet from the top bar; upload a pose, it lands in Health DB with
