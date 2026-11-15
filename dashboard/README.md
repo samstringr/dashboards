@@ -95,3 +95,14 @@ Everything else here is how that file is built and checked.
   grip width, fixed vertical line; the arms are solved to put the grip points on it every frame. WHY: the first
   version hung the bar off wherever the hands landed, so the hands slid along it (Sam: "the grip position is
   changing").
+- **Targets and streaks** (15 Nov). `dayHit(d)` is the one rule: protein at its floor (−0.5 g rounding) and
+  calories within ±10% (`KCAL_BAND`), each against `targetsOn(d)`, the targets that applied that day (memoised
+  per render). Used by the Intake dots (calories: complete days only; protein: today too, since a floor reached
+  can't be undone), the Consistency grid (was judged against today's floor) and the Streaks widget. `runOf`:
+  true counts, false breaks, null skips (away, void, today unfinished). WHY ±10%: logged calories are only about
+  that accurate, and a recomp target is a band. Weekly streaks: gym (plan's sessions a week, rounded down) and
+  weigh-ins (3 a week), current week pending until met.
+- **Plan, 15 Nov:** DB lateral raise off S&A; cable lateral raise 3 sets on C&T. Side delts 3 + 3 + 3 (+ press)
+  across C&T, L and S&A instead of 6 on S&A: same 14.0 a week. Sessions 17 / 19 / 19 / 19 sets. Largest
+  per-session load: chest 8.5 on C&T, under the ~11 fractional sets where hypertrophy per session levels off
+  (Remmert, Zourdos et al. 2025, SportRxiv preprint).

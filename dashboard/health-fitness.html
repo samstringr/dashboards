@@ -150,6 +150,14 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
    its content eases in from 60% and a hairline ring fades out. Was: a 1.5px ink ring over .9 s on every widget. */
 @keyframes pulse{0%{box-shadow:0 0 0 1px var(--line-2)}100%{box-shadow:0 0 0 1px transparent}}
 @keyframes wfade{0%{opacity:.6}100%{opacity:1}}
+.sk{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0}
+.sk-dots{display:grid;grid-template-columns:repeat(14,minmax(0,14px));justify-content:space-between;gap:3px}
+.sk-dots i{aspect-ratio:1;border-radius:3px;background:var(--s3)}
+.sk-dots i.sk-hit{background:var(--good)}.sk-dots i.sk-part{background:var(--good-dim);box-shadow:inset 0 0 0 1px var(--good)}
+.sk-dots i.sk-skip{background:none;box-shadow:inset 0 0 0 1px var(--line-2)}.sk-dots i.sk-open{background:none;box-shadow:inset 0 0 0 1px var(--muted)}
+.sk-dots i.td{outline:1px solid var(--ink);outline-offset:1px}
+.sk-rows{display:grid;gap:2px;font-size:12px;overflow:auto;min-height:0;font-variant-numeric:tabular-nums}
+.sk-row{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:3px}
 .widget.pulse{animation:pulse 1.2s var(--ease)}.widget.pulse>.w-body{animation:wfade .45s var(--ease)}
 .flash.on{opacity:.9}
 @media (hover:none){.w-tools{opacity:1}.w-hint{display:none}}
@@ -3343,6 +3351,41 @@ function dayTotals(date) {
   }
   return null;
 }
+/* Target hits and streaks (15 Nov 2026, Sam: "a small indicator above those bars, and then a streak somewhere").
+   One rule everywhere (Intake marks, Consistency, Streaks), judged against the targets that applied ON that day
+   (targets(d)), not today's: a day earns its mark against the target it was aiming at.
+   - protein: at or above the floor, allowing half a gram of rounding (as the Consistency grid always did);
+   - calories: within ±10% of the calorie target. WHY ±10%: calorie estimates on a logged day are only about
+     that good, and a recomp target is a band, not a line; tighter would mark good days as misses.
+   Only a complete log is judged (not partial, not void). */
+const KCAL_BAND = 0.10, TG_MEMO = new Map();   // TG_MEMO: targets by date, cleared on every render
+const targetsOn = d => { if (!TG_MEMO.has(d)) TG_MEMO.set(d, targets(d)); return TG_MEMO.get(d); };
+function dayHit(d, t = dayTotals(d)) {
+  if (!t || t.void || t.partial || t.kcal == null) return null;
+  const T = targetsOn(d); if (!T.ok) return null;
+  const p = t.p >= T.protein - 0.5, k = Math.abs(t.kcal - T.kcal) <= T.kcal * KCAL_BAND;
+  return {p, k, both: p && k};
+}
+/* Streaks. count(d) says what a day does to a run: true counts, false breaks it, null skips it (away, a void
+   day, or today before it's done: today can add to a streak but never break one). Weekly streaks work the same
+   on Monday-to-Sunday weeks; the current week counts once it's met and is pending until then. */
+function runOf(keys, count) { let run = 0, best = 0; for (const k of keys) { const r = count(k); if (r === true) best = Math.max(best, ++run); else if (r === false) run = 0; } return {cur: run, best}; }
+function streaks() {
+  const td = today(), logged = [...S.days.keys()].filter(d => d <= td && dayTotals(d)?.kcal != null).sort();
+  if (!logged.length) return null;
+  const days = []; for (let d = logged[0]; d <= td; d = addDays(d, 1)) days.push(d);
+  const judge = d => { const t = dayTotals(d); if (awayOn(d) || t?.void) return 'skip'; const h = dayHit(d, t); return h ? (h.both ? 'hit' : h.p || h.k ? 'part' : 'miss') : (t?.kcal != null && !t.partial ? 'skip' : 'miss'); };
+  const day = f => d => { const j = judge(d); if (j === 'skip') return null; const ok = f(d, j); return d === td && !ok ? null : ok; };
+  const both = runOf(days, day((d, j) => j === 'hit')), prot = runOf(days, day(d => !!dayHit(d)?.p));
+  const log = runOf(days, d => { const t = dayTotals(d); if (awayOn(d) || t?.void) return null; const ok = !!t && t.kcal != null && !t.partial; return d === td && !ok ? null : ok; });
+  const weeks = []; for (let m = monday(logged[0]); m <= td; m = addDays(m, 7)) weeks.push(m);
+  const wk = (need, n) => m => { const away = [0, 1, 2, 3, 4, 5, 6].filter(k => awayOn(addDays(m, k))).length; const c = n(m); return c >= need ? true : m === monday(td) || away >= 4 ? null : false; };
+  const inWk = (m, d) => d >= m && d <= addDays(m, 6), want = S.plan?.perWeek ? Math.floor(S.plan.perWeek) : 0;
+  const gym = want ? runOf(weeks, wk(want, m => allWorkouts().filter(w => kindGroup(w.kind) === 'gym' && inWk(m, w.date)).length)) : null;
+  const wt = runOf(weeks, wk(3, m => weighins().filter(x => x.w && inWk(m, x.date)).length));
+  const recent = rangeDates(14, td).map(d => ({d, j: d < logged[0] ? 'skip' : d === td && judge(d) !== 'hit' ? 'open' : judge(d)}));
+  return {both, prot, log, gym, want, wt, recent};
+}
 function countable(date, t) { return !!t && !t.partial && !t.void && t.kcal != null && date < today(); }
 function weighins() {
   const out = [];
@@ -3532,6 +3575,7 @@ function chart(host, o) {
         const d = `M${x0},${y0}V${y + r}Q${x0},${y} ${x0 + r},${y}H${x1 - r}Q${x1},${y} ${x1},${y + r}V${y0}Z`;
         const hatched = s.hatch && s.hatch[i];
         svg.append(sv('path', {d, style: hatched ? `fill:url(#${hid});stroke:${col};stroke-width:1` : `fill:${col}` + (s.dim && s.dim[i] ? ';fill-opacity:.45' : '')}));
+        if (s.marks && s.marks[i]) svg.append(sv('circle', {class: 'hitmark', cx: X(i), cy: Math.max(3, y - 5), r: 2.2, style: 'fill:var(--good)'}));   // target hit that day
       });
     } else if (s.type === 'line') {
       let d = '', pen = false;
@@ -3938,17 +3982,18 @@ const WT = {
     }
   },
   intake: {
-    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
+    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. A green dot over a bar means that day hit: calories within 10% of target, protein at its floor, each against the target that day. The streak counts days that hit both. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
     render(b, inst) {
       const R = inst.cfg.range || 14, T = targets(), dates = rangeDates(R, winEnd(R)), weekly = R >= 90;
       const tots = dates.map(d => dayTotals(d));
-      const cnt = dates.map((d, i) => countable(d, tots[i]) ? tots[i] : null).filter(Boolean);
-      const hit = T.ok ? cnt.filter(t => t.p >= T.protein - 0.5).length : null;
+      const cntD = dates.filter((d, i) => countable(d, tots[i])), cnt = cntD.map(d => tots[dates.indexOf(d)]);
+      const hit = T.ok ? cntD.filter(d => dayHit(d)?.p).length : null, stk = streaks();
       b.innerHTML = `<div class="stats">
           <span>Avg <b>${fmt(mean(cnt.map(t => t.kcal)))}</b> kcal</span><span><b>${fmt(mean(cnt.map(t => t.p)))}</b> g protein</span>
           ${hit != null && cnt.length ? `<span>Floor hit <b>${Math.round(hit / cnt.length * 100)}%</b></span>` : ''}
+          ${stk && stk.both.best ? `<span title="Days in a row with protein at its floor and calories within 10% of target. Best: ${stk.both.best}">Streak <b>${stk.both.cur}</b> day${stk.both.cur === 1 ? '' : 's'}</span>` : ''}
           <span class="dim">${cnt.length} complete day${cnt.length === 1 ? '' : 's'} of ${R}</span></div>
-        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories</div><div class="chart" data-c="k"></div>
+        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories${weekly ? '' : ' <span class="dim" style="margin-left:8px"><svg width="6" height="6" style="vertical-align:1px"><circle cx="3" cy="3" r="2.2" fill="var(--good)"/></svg> on target</span>'}</div><div class="chart" data-c="k"></div>
         <div class="pl"><span class="sw" style="background:var(--p)"></span>Protein, g</div><div class="chart" data-c="p"></div>`;
       let n, kv, pv, hatch, xl, tip, si = null;   // si: weekly bars mark the selected day's week
       if (weekly) {
@@ -3959,11 +4004,14 @@ const WT = {
         tip = i => { const c = map.get(weeks[i]); return '<b>Week of ' + dShort(weeks[i]) + '</b><br>' + (c.length ? 'avg ' + fmt(kv[i]) + ' kcal · ' + fmt(pv[i]) + ' g P<br><span class="t">' + c.length + ' complete day' + (c.length > 1 ? 's' : '') + '</span>' : '<span class="t">no complete days</span>'); };
       } else {
         n = R; kv = tots.map(t => t && !t.void ? t.kcal : null); pv = tots.map(t => t && !t.void ? t.p : null);
+        // a dot over each bar that hit: calories within 10% (complete days only, so never today), protein at its floor (today too: once reached it can't be undone)
+        const hits = dates.map((d, i) => d === today() && tots[i] && !tots[i].void ? {p: tots[i].p >= (targetsOn(d).protein || Infinity) - 0.5, k: false} : dayHit(d, tots[i]));
+        var km = hits.map(h => !!h?.k), pm = hits.map(h => !!h?.p);
         hatch = dates.map((d, i) => !!tots[i] && (tots[i].partial || d === today()));
         xl = i => dShort(dates[i]); tip = i => tipDay(dates[i], tots[i]);
       }
-      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch}], target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day', dates: weekly ? null : dates, si});
-      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch}], target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day', dates: weekly ? null : dates, si});
+      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch, marks: weekly ? null : km}], target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day', dates: weekly ? null : dates, si});
+      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch, marks: weekly ? null : pm}], target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day', dates: weekly ? null : dates, si});
     }
   },
   weight: {
@@ -4250,7 +4298,7 @@ const WT = {
             days++;
             if (t && !t.void && t.kcal != null) {
               if (t.partial) c.classList.add('l1');
-              else if (T.ok && t.p >= T.protein - 0.5) { c.classList.add('l3'); hit++; logged++; }
+              else if (dayHit(d, t)?.p) { c.classList.add('l3'); hit++; logged++; }   // against that day's floor (was today's)
               else { c.classList.add('l2'); logged++; }
             } else if (awayOn(d)) { c.classList.add('away'); away++; }
             if (gymD.has(d)) { c.classList.add('tr'); sess++; }
@@ -4354,6 +4402,20 @@ const WT = {
       b.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px"><div class="row"><span class="big" style="font-size:30px">${r.v == null ? '–' : (r.signed && r.v > 0 ? '+' : '') + fmt(r.v, r.d || 0)}</span><span class="muted">${esc(M.unit)}</span></div><div class="cap">${esc(M.label)} · ${esc(r.sub || '')}</div></div>`;
     }
   },
+  streaks: {
+    title: 'Streaks', cat: 'misc', desc: 'Days in a row on target (protein at its floor and calories within 10% of target), with your best run; the last 14 days as squares; then protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak and today can only add to one; a day not logged breaks it.', def: [10, 8], min: [6, 4],
+    render(b, inst) {
+      const st = streaks(), T = targets();
+      if (!st) { b.innerHTML = '<div class="empty">Log a day of food and a weigh-in to start a streak.</div>'; return; }
+      const u = (n, w) => w + (n === 1 ? '' : 's'), lab = {hit: 'on target', part: 'one of the two', miss: 'missed', skip: 'not counted', open: 'today, still open'};
+      const rows = [['Protein floor', st.prot, 'day'], ['Food logged', st.log, 'day'], st.gym && ['Gym, ' + st.want + '+ a week', st.gym, 'week'], ['Weigh-ins, 3 a week', st.wt, 'week']].filter(Boolean);
+      b.innerHTML = `<div class="sk">
+        <div class="row between" style="align-items:baseline"><span><span class="big" style="font-size:32px">${st.both.cur}</span> <span class="muted">${u(st.both.cur, 'day')} on target</span></span><span class="cap">best <b style="color:var(--ink)">${st.both.best}</b></span></div>
+        ${T.ok ? `<div class="cap">Protein ${fmt(T.protein)} g+ and ${fmt(Math.round(T.kcal * (1 - KCAL_BAND) / 10) * 10)}–${fmt(Math.round(T.kcal * (1 + KCAL_BAND) / 10) * 10)} kcal</div>` : ''}
+        <div class="sk-dots">${st.recent.map(x => `<i class="sk-${x.j}${x.d === today() ? ' td' : ''}" title="${esc(dLong(x.d))}: ${lab[x.j]}"></i>`).join('')}</div>
+        <div class="sk-rows">${rows.map(([l, r, w]) => `<div class="sk-row"><span class="muted">${l}</span><span><b>${r.cur}</b> ${u(r.cur, w)} <span class="dim">· best ${r.best}</span></span></div>`).join('')}</div></div>`;
+    }
+  },
   note: {
     title: 'Note', cat: 'misc', desc: 'A sticky note on the canvas. Saved as you type.', def: [8, 5], min: [4, 3],
     render(b, inst) {
@@ -4453,6 +4515,7 @@ function renderBody(node, inst) {
 }
 function renderWidget(id) { const inst = S.layout.find(w => w.id === id), node = nodes.get(id); if (inst && node) { placeWidget(node, inst); renderBody(node, inst); } }
 function renderAll() {
+  TG_MEMO.clear();
   renderTop();
   const host = S.layoutMode === 'canvas' ? world : stack;
   const list = S.layoutMode === 'canvas' ? S.layout : stackOrder(S.layout);   // phone: one column at a time, left to right
@@ -5674,12 +5737,12 @@ const PRESETS = [{
   id: 'ct-bb-l-sa', label: '4-day: Chest & triceps · Back & biceps · Legs · Shoulders & arms, then rest',
   priority: {abs: 'grow', traps: 'grow'},
   plan: {name: 'Mesocycle 05 — Chest & triceps · Back & biceps · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.6, length: 28, deloadEvery: 28,
-    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a second lateral raise and a face pull on shoulders day, and a third set of shrugs on back day, keep side delts, rear delts and traps in band.',
+    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a face pull on shoulders day and a third set of shrugs on back day keep rear delts and traps in band. Lateral raises 3 sets on chest, legs and shoulders days (15 Nov 2026): side delts get the same 14 sets a week, in three sessions instead of six sets in one.',
     sessions: [
-      {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Machine chest press', 2, '6-10', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
+      {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Smith machine chest press', 2, '6-10', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
       {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Seated cable row (close grip)', 2, '6-10', 10], ['Cable pullover (bench)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Cable curl (facing away)', 2, '8-12', 10], ['Preacher curl', 2, '8-12', 10]]},
       {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '8-12', 10], ['Seated calf raise', 3, '8-12', 10], ['Adductor machine', 2, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Decline weighted crunch', 3, '8-12', 10]]},
-      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB lateral raise', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Face pull', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
+      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Face pull', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
     ]}
 }];
 function applyPreset(P, id) {
@@ -5973,6 +6036,7 @@ function openHelp(tab = 'why') {
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
         <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet. Only widgets whose content changed give a brief flicker of an outline, so you can see what moved.</p>
+        <p><b>Targets and streaks.</b> A day is on target when protein reaches its floor and calories land within 10% of the calorie target, each judged against the targets you had that day. Intake puts a green dot over each bar that hit; the Streaks widget (add it from the widget palette, under Overview) counts days in a row on target, plus protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak, today can only add to one, and a day not logged ends it.</p>
         <p><b>Steps.</b> The weigh-in Shortcut also sends the last 7 days of steps from Apple Health. The Training log shows the average a day for each week on its right-hand scale; today’s count is “so far” until the next send and isn’t averaged.</p>
         <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset, and use the slider at its top right to slow a rep down or speed it up; the working muscles swell and deepen in colour as they shorten. Click an exercise in the Training plan to open it here, and click a day on any chart to see that day everywhere; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
         <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
