@@ -75,7 +75,7 @@ check('open away range closed at yesterday', cfg.away?.ranges[0]?.to === '2026-1
 await welcomeBack(env, gctx, '2026-12-28');
 check('only once per gap', sent.length === 1);
 // 14 Nov 2026: the coach (made-up figures)
-import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep, weeklyFacts, weeklyHtml } from '../src/coach.js';
+import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep, weeklyFacts, weeklyHtml, setsShort } from '../src/coach.js';
 {
   const top = reviewExercise({ reps: '6-10' }, { n: 'Incline DB bench', sets: [{ kg: 30, r: 10 }, { kg: 30, r: 8 }] }, { date: '2026-10-01', sets: [{ kg: 30, r: 9 }] });
   check('coach: top of range → next load, bottom of range', top.status === 'top' && /^32 kg, aim 6–8$/.test(top.next) && top.up === 1, JSON.stringify(top));
@@ -90,11 +90,20 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
   const cx = { plan, settings: {}, days: [{ date: '2026-11-20', workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
   const R = reviewSession(cx, plan.sessions[0], [{ n: 'Incline DB bench', sets: [{ kg: 28, r: 8 }] }, { n: 'Smith machine chest press', sets: [{ kg: 40, r: 8 }] }]);
   check('coach: a swap is spotted, the rest is listed as not logged, first rotation is calibration', R.swaps.length === 1 && R.swaps[0].from === 'Machine chest press' && R.swaps[0].to === 'Smith machine chest press' && R.skipped.join() === 'Pec deck' && R.calib, JSON.stringify({ s: R.swaps, k: R.skipped, c: R.calib }));
-  const msg = joinReview(sessionReviewHtml(R, 'A · Day A'), 'A note.');
-  check('coach: message has the note, calibration line and what was missed', /A note\./.test(msg) && /Calibration rotation/.test(msg) && /Not logged: Pec deck/.test(msg) && /1 down/.test(msg), msg.replace(/\n/g, ' | ').slice(0, 300));
-  const wk = { plan, settings: {}, days: [{ date: '2026-12-01', items: [{ kcal: 2000, p: 100 }], workouts: [{ kind: 'gym', planCode: 'A', ex: [{ n: 'Incline DB bench', sets: [{ kg: 32, r: 8 }] }] }] }, { date: '2026-12-03', items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }] }, ...cx.days] };
-  const F = weeklyFacts(wk, '2026-12-06'), H = weeklyHtml(F);
-  check('weekly: counts sessions, cardio, logged days and lifts up; picks sessions as the focus', F.gym === 1 && F.cardioMin === 25 && F.logged === 2 && F.ups.join() === 'Incline DB bench' && /Get to 5 sessions/.test(H.focus) && /1 lift up/.test(H.good), JSON.stringify({ g: F.gym, c: F.cardioMin, l: F.logged, u: F.ups, f: H.focus }));
+  // 15 Nov 2026 layout: a line per lift with a dot and a shorthand next target; the coach's note and focus in a quote at the bottom
+  const H0 = sessionReviewHtml(R, 'A · Day A', '2026-11-21'), msg = joinReview(H0, 'A note.', '⏭ Next: <b>B · Day B</b>');
+  check('coach: one line per lift, dot and shorthand next, note and focus at the bottom, calibration in the facts', /🔴 <b>Incline DB bench<\/b>  28×8  →  <code>28×9<\/code>/.test(msg) && /⚪ <b>Smith machine chest press<\/b>  40×8  →  <code>40×9<\/code>/.test(msg)
+    && /<blockquote>🧭 <b>Coach<\/b>\nA note\.\n🎯 <b>Next time:<\/b>/.test(msg) && /Not logged: Pec deck/.test(msg) && msg.indexOf('blockquote') > msg.indexOf('Smith') && /calibration/.test(H0.facts) && /⏭ Next/.test(msg), msg.replace(/\n/g, ' | ').slice(0, 500));
+  check('coach: shorthand next targets', top.nextShort === '↑ 32×6–8' && mid.nextShort === '20×10' && hv.nextShort === '↓ 35×8–10' && bw.nextShort === '↑ +2.5×6–8', [top.nextShort, mid.nextShort, hv.nextShort, bw.nextShort].join(' | '));
+  check('coach: sets in shorthand', setsShort([{ kg: 42.5, r: 9 }, { kg: 42.5, r: 8 }]) === '42.5×9,8' && setsShort([{ kg: null, r: 8 }, { kg: null, r: 6 }]) === 'BW×8,6' && setsShort([{ kg: 40, r: 10 }, { kg: 42.5, r: 8 }]) === '40×10, 42.5×8');
+  // the week ending today (made-up figures): today and away days don't count towards food (15 Nov 2026)
+  const T0 = today(), D = n => addDaysU(T0, -n);
+  const wk = { plan, settings: {}, config: { away: { ranges: [{ from: D(5), to: D(4) }] } }, days: [
+    { date: D(6), items: [{ kcal: 2000, p: 100 }], workouts: [{ kind: 'gym', planCode: 'A', ex: [{ n: 'Incline DB bench', sets: [{ kg: 32, r: 8 }] }] }] },
+    { date: D(5), items: [{ kcal: 900, p: 40 }] }, { date: D(3), items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }] },
+    { date: T0, items: [{ kcal: 600, p: 30 }] }, { date: D(20), workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
+  const F = weeklyFacts(wk, T0), H = weeklyHtml(F);
+  check('weekly: away days and today left out of food; sessions planned scale with the days away', F.logged === 2 && F.open === 4 && F.away === 2 && Math.round(F.kcal) === 2100 && F.want === 4 && F.gym === 1 && F.cardioMin === 25 && F.ups.join() === 'Incline DB bench' && /Get to 4 sessions/.test(H.focus) && /Away/.test(H.stats), JSON.stringify({ l: F.logged, o: F.open, a: F.away, k: F.kcal, w: F.want, f: H.focus }));
 }
 // 14 Nov 2026: steps from the Shortcut (made-up counts)
 import { parseSteps } from '../src/index.js';

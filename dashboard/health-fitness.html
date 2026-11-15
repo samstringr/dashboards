@@ -1773,7 +1773,11 @@ const INFO = {
   cablelat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Cable crosses in front of your body", "Raise out to the side in an arc, elbow leading", "Keep tension at the bottom: don’t rest the stack"]},
   cablerow: {"muscles": {"upperback": 1, "lats": 0.8, "rdelt": 0.5, "biceps": 0.5, "erectors": 0.3, "forearms": 0.3}, "cues": ["Chest tall; a small forward reach at the start", "Pull to your belly button, elbows close", "Squeeze the shoulder blades, return over 2 s"]},
   calf: {"muscles": {"calves": 1}, "cues": ["Full stretch at the bottom, pause for 1 s", "Rise as high as you can", "Knees straight, not locked"]},
-  chestrow: {"muscles": {"upperback": 1, "rdelt": 0.6, "lats": 0.5, "traps": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Chest on the pad, wide overhand grip", "Elbows back and out, about 60° from your sides", "Squeeze the shoulder blades, pause, then 2 s out", "Don’t lift the chest off the pad"]},
+  chestrow: {"muscles": {"upperback": 1, "rdelt": 0.6, "lats": 0.5, "traps": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Seat high enough that the handles meet the bottom of your chest", "Chest stays on the pad; top handles, overhand", "Elbows back and out, about 60° from your sides", "Squeeze the shoulder blades, then return over 2 s, arms long"]},
+  chestrowclose: {"muscles": {"lats": 1, "upperback": 0.7, "rdelt": 0.35, "biceps": 0.5, "traps": 0.3, "forearms": 0.3}, "cues": ["Same machine, the upright handles: palms facing in", "Elbows tucked by your sides", "Pull to the bottom of the ribs, elbows past the torso", "Return over 2 s until the arms are long"]},
+  latrow1: {"muscles": {"lats": 1, "upperback": 0.45, "biceps": 0.5, "rdelt": 0.25, "forearms": 0.3, "obliques": 0.2}, "cues": ["One handle on a low pulley, seated, chest tall", "Arm long at the start; let the shoulder go forward for the stretch", "Elbow back and down towards your hip, tucked against your side", "Hand finishes by the hip, not the chest; 2 s back"]},
+  backext: {"muscles": {"erectors": 1, "glutes": 0.7, "hams": 0.6}, "cues": ["Pad just below the hip crease, heels under the rollers", "Plate flat against the chest", "Lower until the torso is about vertical; the lower back may round a little", "Straighten the back and hips to a straight line, no arching past it"]},
+  cablerdf: {"muscles": {"rdelt": 1, "upperback": 0.6, "traps": 0.35}, "cues": ["Pulleys at shoulder height; left cable in the right hand, right in the left", "Arms nearly straight, palms down, a soft fixed bend", "Sweep the hands out until the arms line up with your shoulders", "Shoulders down; return over 2 s until the hands cross"]},
   closegrip: {"muscles": {"triceps": 1, "chest": 0.7, "fdelt": 0.5}, "cues": ["Grip just inside shoulder width", "Elbows tucked; touch the lower chest", "Press with the triceps, wrists stacked"]},
   crunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Plate on the chest, feet hooked", "Curl the ribs towards the hips, don’t yank the neck", "Lower under control; no rest at the bottom"]},
   curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Face the low pulley, straight bar, palms up", "Elbows pinned to your sides", "Curl without swinging; lower all the way over 2–3 s"]},
@@ -1828,8 +1832,11 @@ const INFO = {
 /* Order matters: the first match wins. 13 Nov 2026: "Seated cable row (close grip)" went to the close-grip
    bench, so cable rows now come first. */
 const MATCH = [
+  [/(single|one).?arm.*cable|lat.?focus/, 'latrow1'],   // before the cable-row patterns, which would claim "single-arm cable row"
   [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
-  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover.*stand|stand.*pullover/, 'straightarm'], [/pullover/, 'pullover'],
+  // 15 Nov 2026: back day as trained from then on, ahead of the general row and rear-delt patterns that would claim these names
+  [/chest.?supported.*(close|narrow|neutral)|(close|neutral).*chest.?supported/, 'chestrowclose'], [/back ext|hyperext|roman chair/, 'backext'], [/cable.*(rear delt|reverse fl)|rear delt.*cable/, 'cablerdf'],
   [/smith.*incline|incline.*smith/, 'smithincline'], [/smith.*(press|bench)/, 'smithpress'],   // before the incline and chest-press patterns, which would claim these names
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
@@ -1848,13 +1855,15 @@ const MATCH = [
 const VARIANTS = [
   ['Cable pullover', [['pullover', 'Incline bench, bar'], ['straightarm', 'Standing, bar'], ['straightarmrope', 'Standing, rope']]],
   ['Cable curl', [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']]],
-  ['Dumbbell shrug', [['shrugseat', 'Seated'], ['shrug', 'Standing'], ['shrugincline', 'Chest on a bench']]],
+  ['Dumbbell shrug', [['shrugincline', 'Chest on a bench'], ['shrugseat', 'Seated'], ['shrug', 'Standing']]],   // chest on a bench first since 15 Nov 2026 (Sam: "felt good")
   ['Weighted crunch', [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']]],
   ['Tricep pushdown', [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']]],
   ['Overhead triceps extension', [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']]],
   ['Seated cable row', [['cablerow', 'Close grip'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide grip']]],
   ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]],
-  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]]];
+  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]],
+  ['Chest-supported row', [['chestrow', 'Wide, overhand'], ['chestrowclose', 'Neutral handles']]],
+  ['Rear delt fly', [['revpec', 'Machine (reverse pec deck)'], ['cablerdf', 'Cable, cross-body']]]];
 const groupOf = k => VARIANTS.find(g => g[1].some(([x]) => x === k));
 const variantsOf = k => ((groupOf(k) || [])[1] || []).map(([key, label]) => ({key, label}));
 const groupName = k => (groupOf(k) || [])[0] || null;
@@ -2034,34 +2043,7 @@ const SIT_FEET = p => legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1])
 // right-side copy of a left-side point or direction given in a frame's terms
 const both = (fn) => [fn(1), fn(-1)];
 
-/* ---- Chest-supported row, seated machine, wide overhand grip ----
-   Footage cues: sit tall with the chest on the pad, feet planted. Start: arms long, shoulder blades spread
-   forward. Pull: shoulder blades back first, then the elbows back and out (about 60° from the torso), hands
-   to the lower chest; forearms stay in line with the levers. Return over 2 s. WHY wide (13 Nov 2026): this is
-   the upper-back and rear-delt row of the split; the close-grip seated cable row is the lat one.
-   The levers hang from a crossbar on two posts, so nothing floats (Sam: "floating poles"). */
-{
-  const base = {root: {p: [0, 0.545, -0.04], pitch: 9}, spine: [2, 3], neck: -6, head: -2};
-  const B0 = solve(SIT_FEET(base)), C0 = B0.chest, padC = fAt(C0, [0, 0.11, 0.145]);
-  const gS = fAt(C0, [0.3, 0.1, 0.6]), gE = fAt(C0, [0.33, 0.03, 0.12]), ZP = gS[2] + 0.12, PIV = [0.3, 1.5, ZP];
-  demo('chestrow', {
-    cam: {yaw: 62, pitch: 12, dist: 3.7, target: [0, 0.95, 0.2]}, tempo: [1.0, 0.5, 2.0, 0.4],
-    props: [...seat(-0.05), ['world', 'B', padC, [0.15, 0.19, 0.035], 0.025, {mat: 'pad', rot: [14, 0, 0]}], tube(V.add(padC, [0, 0, 0.04]), [0, 0.0, padC[2] + 0.16], 0.035),
-      tube([0.38, 0, ZP], [0.38, 1.54, ZP], 0.04), tube([-0.38, 0, ZP], [-0.38, 1.54, ZP], 0.04), tube([-0.38, 1.54, ZP], [0.38, 1.54, ZP], 0.04),
-      tube([-0.38, 0.02, ZP], [-0.38, 0.02, ZP + 0.3], 0.03), tube([0.38, 0.02, ZP], [0.38, 0.02, ZP + 0.3], 0.03),
-      ['handleL', 'Y', [-0.08, 0, 0], [0.07, 0, 0], 0.016, {mat: 'pad'}], ['handleR', 'Y', [-0.07, 0, 0], [0.08, 0, 0], 0.016, {mat: 'pad'}]],
-    frames: ['handleL', 'handleR'],
-    pose(t) {
-      const k = phaseK(t, this.tempo);
-      let p = SIT_FEET({...base, arm: {clav: [lerp1(4, -2, k), lerp1(14, -16, k)]}});
-      const C = solve(p).chest, gL = arcAbout(PIV, gS, gE, k), pole = V.norm(V.lerp(fDir(C, [0.7, -0.45, -0.3]), fDir(C, [0.8, -0.3, -1]), k));
-      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: [0, -1, 0]}, armR: {palm: [0, -1, 0]}});
-      const B = solve(p), fr = {}, segs = [];
-      for (const s of ['L', 'R']) { const g = gripOf(B, s), sg = s === 'L' ? 1 : -1, piv = s === 'L' ? PIV : mirP(PIV); fr['handle' + s] = frameW(g); segs.push([piv, V.add(g, [sg * 0.07, 0, 0]), 0.02]); }
-      return {pose: p, frames: fr, segs};
-    }
-  });
-}
+/* The chest-supported row moved to demos8.js on 15 Nov 2026, rebuilt as the Life Fitness plate-loaded Row Sam uses. */
 
 /* Pec deck levers (13 Nov 2026, Sam: "floating poles"). Each arm turns about a vertical axis straight above its
    shoulder, in a housing on the machine's top bar; the lever runs out level from the pivot, then straight down
@@ -2132,7 +2114,11 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
   const base = {root: {p: [0, 0.875, -0.08], pitch: 24}, spine: [2, 2], neck: -10, head: -4};
   const st = p => legsTo(p, [0.12, 0.067, -0.03], [0.1, 0, 1], [0.12, 0, 1]);
   const B0 = solve(st(base)), S0 = B0.upperL.o, TOP = [0, 2.2, 0.95], L = 0.55;
-  const dS = V.norm(V.sub([S0[0], TOP[1] - 0.25, TOP[2] - 0.2], S0)), dE = V.norm([0, -1, 0.42]);
+  /* 15 Nov 2026, Sam: "the shoulders look weird in the fully extended position… clipping or hyperextending".
+     The stretch took the arms about 150° overhead (with the 24° hinge), the shoulders shrugged and the upper arms
+     ran into the sides of the head. The coached stretch stops with the hands at forehead height and the shoulders
+     down: arms about 25° above level, 115-120° from the torso, still a full lat stretch at this hinge. */
+  const dS = V.norm(V.sub([S0[0], S0[1] + 0.24, S0[2] + 0.5], S0)), dE = V.norm([0, -1, 0.42]);
   /* 14 Nov 2026, Sam: the rope version "looks crazy", arms inside each other and into the body. The hands were
      pulled 10 cm inside the shoulders and finished behind the thighs. Now the hands stay shoulder-width, the
      elbows keep one soft bend, and the sweep ends in front of the thighs. A straight bar is the default; the rope
@@ -2144,7 +2130,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
     frames: rope ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = st({...base, arm: {clav: [lerp1(14, -4, k), lerp1(6, -6, k)]}});
+      let p = st({...base, arm: {clav: [lerp1(6, -4, k), lerp1(4, -6, k)]}});   // shoulders down at the stretch (was 14° up)
       const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, L)), [rope ? lerp1(-0.11, 0.0, k) : 0.02, 0, 0]);
       const pole = V.norm(V.lerp(fDir(C, [0.7, 0.3, -0.6]), fDir(C, [0.6, 0, -1]), k)), palm = rope ? fDir(C, [-1, 0, 0]) : slerpV(V.norm([0, 0.3, 1]), V.norm([0, -1, -0.2]), k);
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm}, armR: {palm: rope ? V.mx(palm) : palm}});
@@ -2985,6 +2971,144 @@ function smithDemo(key, o) {
 }
 smithDemo('smithpress', {});
 smithDemo('smithincline', {incline: true});
+
+/* ---------- DEMOS 8: back day as Sam trains it from 15 Nov 2026, and the cable rear delt fly ----------
+   Life Fitness plate-loaded Row (wide and neutral handles), single-arm cable row with a lat focus, weighted
+   45° back extension, cable rear delt fly. Conventions as in demos.js: k = 0 stretched, 1 contracted. */
+
+/* ---- Chest-supported row: the Life Fitness plate-loaded Row (Sam's photos, 15 Nov 2026) ----
+   The machine: a saddle seat on a post that adjusts for height, a tall chest pad in front of it, foot plates on
+   the base, and two independent lever arms that pivot near the floor at the front, each with plates on a horn
+   low down and two handles at the top: a bar that turns inwards (wide, overhand) and an upright grip (neutral).
+   The sticker shows the handles travelling back and up in an arc. WHY the pivot is placed under the finish:
+   a lever pivoting low turns its top along a circle, so the hands rise until the lever is upright; putting it
+   upright at the end of the pull gives exactly the sticker's back-and-up path.
+   Cues: seat high enough that the handles meet you at the bottom of the chest; chest stays on the pad.
+   Wide: elbows out about 60°, pull to the lower chest, squeeze the shoulder blades (upper back, rear delts).
+   Neutral: elbows tucked by your sides, pull to the bottom of the ribs (lats). Return over 2 s, arms long. */
+function lfRow(key, wide) {
+  const base = {root: {p: [0, 0.575, -0.04], pitch: 8}, spine: [2, 3], neck: -6, head: -2};
+  const B0 = solve(SIT_FEET(base)), C0 = B0.chest, S0 = B0.upperL.o, padC = fAt(C0, [0, 0.1, 0.15]);
+  const LX = 0.44, gE = wide ? fAt(C0, [0.3, 0.02, 0.13]) : fAt(C0, [0.18, -0.07, 0.15]);
+  const PIV = [LX, 0.3, gE[2] + 0.06], R = Math.hypot(gE[1] - PIV[1], gE[2] - PIV[2]), a0 = Math.atan2(gE[2] - PIV[2], gE[1] - PIV[1]);
+  const at = (a, x) => [x, PIV[1] + R * Math.cos(a), PIV[2] + R * Math.sin(a)];   // a point on the handle's circle (angle from upright, forward +)
+  // the start: lean the lever forward until the arm is just short of straight (bisection on the angle)
+  const reach = (SK.upper + SK.fore + GRIP) * 0.95; let lo = a0, hi = a0 + 1.2;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (V.len(V.sub(at(m, gE[0]), S0)) < reach) lo = m; else hi = m; }
+  const aS = lo, plate = (x, ang) => { const c = at(ang, 0), d = V.norm(V.sub([0, c[1], c[2]], [0, PIV[1], PIV[2]])), o = V.add([x, PIV[1], PIV[2]], V.sc(d, 0.22)); return o; };
+  demo(key, {
+    cam: {yaw: 58, pitch: 12, dist: 3.9, target: [0, 0.9, 0.25]}, tempo: [1.0, 0.5, 2.0, 0.4],
+    props: [pad([0, 0.52, -0.06], [0.17, 0.04, 0.15]), tube([0, 0.02, -0.06], [0, 0.49, -0.06], 0.035), tube([0, 0.02, -0.4], [0, 0.02, PIV[2] + 0.1], 0.04),
+      ['world', 'B', padC, [0.16, 0.22, 0.04], 0.025, {mat: 'pad', rot: [10, 0, 0]}], tube(V.add(padC, [0, -0.1, 0.05]), [0, 0.5, padC[2] + 0.1], 0.035),
+      ...[-1, 1].flatMap(sx => [tube([sx * LX, 0.02, -0.1], [sx * LX, 0.02, PIV[2] + 0.25], 0.035), tube([sx * (LX + 0.06), PIV[1], PIV[2]], [sx * (LX - 0.06), PIV[1], PIV[2]], 0.06),
+        tube([sx * LX, 0.02, PIV[2] + 0.15], [sx * LX, PIV[1], PIV[2]], 0.04), ['world', 'B', [sx * 0.13, 0.28, 0.5], [0.07, 0.015, 0.12], 0.01, {mat: 'iron', rot: [-30, 0, 0]}]])],
+    pose(t) {
+      const k = phaseK(t, this.tempo), ang = lerp1(aS, a0, ease(k));
+      let p = SIT_FEET({...base, arm: {clav: [lerp1(4, -2, k), lerp1(16, -16, k)]}});
+      const C = solve(p).chest, gL = at(ang, gE[0]);
+      const pole = wide ? V.norm(V.lerp(fDir(C, [0.7, -0.45, -0.3]), fDir(C, [0.8, -0.3, -1]), k)) : V.norm(V.lerp(fDir(C, [0.25, -0.95, -0.2]), fDir(C, [0.3, -0.55, -1]), k));
+      const palm = wide ? [0, -1, 0] : [-1, 0, 0];
+      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm}, armR: {palm: V.mx(palm)}});
+      const B = solve(p), segs = [];
+      for (const sx of [1, -1]) {
+        const g = gripOf(B, sx > 0 ? 'L' : 'R'), top = at(ang, sx * LX), lever = [sx * LX, PIV[1], PIV[2]], hz = at(ang, 0), up = V.norm(V.sub([0, hz[1], hz[2]], [0, PIV[1], PIV[2]]));
+        segs.push([lever, V.add(top, V.sc(up, 0.06)), 0.035]);
+        if (wide) segs.push([V.add(top, V.sc(up, 0.06)), [g[0] - sx * 0.07, g[1] + up[1] * 0.06, g[2] + up[2] * 0.06], 0.02], [[g[0] + sx * 0.07, g[1], g[2]], [g[0] - sx * 0.08, g[1], g[2]], 0.017]);
+        else segs.push([V.add(top, V.sc(up, 0.1)), V.add([g[0], g[1], g[2]], V.sc(up, 0.1)), 0.02], [V.add(g, V.sc(up, 0.09)), V.add(g, V.sc(up, -0.08)), 0.018]);
+        const pc = plate(sx * (LX + 0.08), ang); segs.push([pc, V.add(pc, [sx * 0.05, 0, 0]), 0.2], [V.add(pc, [sx * 0.05, 0, 0]), V.add(pc, [sx * 0.09, 0, 0]), 0.17]);   // a 25 and a 20 on each horn, as in the photo
+      }
+      return {pose: p, segs};
+    }
+  });
+}
+lfRow('chestrow', true);
+lfRow('chestrowclose', false);
+
+/* ---- Single-arm cable row, lat focus ----
+   Footage cues (the lat-biased one-arm row): sit side-on enough that the working arm lines up with the cable,
+   feet on the plate, chest tall. Start with the arm long and the shoulder allowed forward, a slight turn of the
+   torso towards the pulley for a full lat stretch. Pull the elbow back and down towards the hip, keeping it
+   tucked against the side; the hand finishes by the hip, not the chest. The other hand rests on the thigh.
+   Return over 2 s. One arm shown (the left); the other is the mirror. */
+{
+  const PUL = [0.08, 0.55, 1.0];
+  demo('latrow1', {
+    cam: {yaw: 60, pitch: 10, dist: 4.0, target: [0, 0.8, 0.35]}, tempo: [1.0, 0.5, 2.0, 0.4],
+    props: [pad([0, 0.4, -0.05], [0.17, 0.035, 0.32]), tube([0, 0.0, -0.05], [0, 0.37, -0.05], 0.035), tube([0, 0.02, -0.3], [0, 0.02, 1.0], 0.03),
+      ['world', 'B', [0, 0.3, 0.68], [0.18, 0.12, 0.02], 0.01, {mat: 'pad', rot: [-25, 0, 0]}], tube([0, 0, 1.06], [0, 1.6, 1.06], 0.045),
+      ['world', 'Q', [PUL[0] - 0.015, PUL[1], PUL[2]], [PUL[0] + 0.015, PUL[1], PUL[2]], 0.05, {mat: 'steel'}], ['world', 'B', [0, 0.45, 1.1], [0.14, 0.3, 0.05], 0.01, {mat: 'iron'}],
+      dHandle('handL')],
+    pose(t) {
+      const k = phaseK(t, this.tempo);   // 0 = arm long, 1 = elbow at the hip
+      let p = {root: {p: [0, 0.5, lerp1(0.0, -0.03, k)], pitch: lerp1(12, -2, ease(k)), yaw: lerp1(-12, 4, k)}, spine: [lerp1(3, -2, k), lerp1(3, -3, k)], neck: lerp1(-6, 2, k),
+        arm: {clav: [lerp1(8, -6, k), lerp1(18, -14, k)]}};
+      p = legsTo(p, [0.12, 0.33, 0.7], [0.15, 0.35, 1], [0.08, 0.55, 1]);
+      const B1 = solve(p), C = B1.chest, hip = B1.thighL.o;
+      const g = V.lerp([0.1, 0.62, 0.66], V.add(hip, [0.07, 0.1, 0.08]), ease(k)), pole = V.norm(V.lerp(fDir(C, [0.25, -1, -0.15]), fDir(C, [0.15, -0.35, -1]), k));
+      const rest = V.add(B1.thighR.o, [-0.02, 0.06, 0.3]);   // the other hand on the right thigh
+      p = armsTo(p, g, rest, pole, [-0.4, -0.6, -0.5], {arm: {palm: [-1, 0, 0]}, armR: {palm: [0, -1, 0], grip: 0.4}});
+      const B = solve(p), m = gripOf(B, 'L');
+      return {pose: p, segs: [[PUL, m, 0.006]]};
+    }
+  });
+}
+
+/* ---- Weighted back extension, 45° bench ----
+   Footage cues for the lower back (Sam's reason for the lift): pad just below the hip crease so the hips can
+   bend, heels under the rollers, a plate held flat against the chest. Lower until the torso is about vertical,
+   letting the lower back round a little at the bottom, then lift by straightening the back and hips until the
+   body is a straight line on the bench's angle; no arching past it. 2 s down. */
+{
+  const ANG = 45, base = {neck: 0, head: 0};
+  // the bench: foot plate low at the back, the thigh pad's top edge at the hip crease, all on a 45° line
+  const HIP = [0, 0.98, 0.1], DOWN = V.norm([0, -Math.cos(ANG * D2R), -Math.sin(ANG * D2R)]);
+  const ankle = V.add(HIP, V.sc(DOWN, SK.thigh + SK.shin - 0.02)), padTop = V.add(HIP, [0, -0.03, 0.12]);
+  demo('backext', {
+    cam: {yaw: 80, pitch: 6, dist: 4.2, target: [0, 0.85, 0.1]}, tempo: [1.0, 0.6, 2.0, 0.4],
+    props: [['world', 'B', V.add(padTop, V.sc(DOWN, 0.18)), [0.17, 0.2, 0.04], 0.025, {mat: 'pad', rot: [-45, 0, 0]}],
+      ['world', 'Y', V.add(ankle, [-0.15, 0.06, 0.05]), V.add(ankle, [0.15, 0.06, 0.05]), 0.045, {mat: 'pad'}],
+      ['world', 'B', V.add(ankle, [0, -0.07, -0.06]), [0.2, 0.015, 0.12], 0.01, {mat: 'iron', rot: [-45, 0, 0]}],
+      tube(V.add(ankle, [0, -0.08, -0.1]), [0, 0.02, ankle[2] - 0.25], 0.04), tube(V.add(padTop, V.sc(DOWN, 0.4)), V.add(ankle, [0, -0.06, 0]), 0.04),
+      tube(V.add(padTop, V.sc(DOWN, 0.4)), [0, 0.02, padTop[2] + 0.05], 0.04), tube([0, 0.02, ankle[2] - 0.25], [0, 0.02, padTop[2] + 0.1], 0.04),
+      ['plate', 'Q', [0, 0, -0.012], [0, 0, 0.012], 0.15, {mat: 'iron'}]],
+    frames: ['plate'],
+    pose(t) {
+      const k = phaseK(t, this.tempo);   // 0 = folded over the pad, 1 = body in a line at 45°
+      // pitch is the torso's lean from upright: 45 is the bench's line, 145 is folded about 100° at the hips, head towards the floor
+      const pitch = lerp1(145, ANG, ease(k)), round = lerp1(18, -2, k);
+      let p = {...base, root: {p: HIP, pitch}, spine: [round, round * 0.7], neck: lerp1(-55, -8, k), arm: {clav: [0, 4]}};
+      p = legsTo(p, ankle, V.norm([0, 0.3, 1]), V.norm([0, -0.6, 0.8]));
+      const C = solve(p).chest, mid = fAt(C, [0, 0.07, 0.17]);
+      p = armsTo(p, fAt(C, [0.11, 0.05, 0.19]), fAt(C, [-0.11, 0.05, 0.19]), fDir(C, [0.6, -0.8, 0.1]), fDir(C, [-0.6, -0.8, 0.1]), {arm: {palm: fDir(C, [0, 0, -1])}, armR: {palm: fDir(C, [0, 0, -1])}});
+      const Cz = fDir(C, [0, 0, 1]), Cx = fDir(C, [1, 0, 0]);
+      return {pose: p, frames: {plate: F(V.add(mid, V.sc(Cz, 0.03)), Cx, V.cross(Cz, Cx), Cz)}};
+    }
+  });
+}
+
+/* ---- Cable rear delt fly (cross-body, standing) ----
+   Footage cues: two pulleys at about shoulder height, take the left cable in the right hand and the right in the
+   left, so the cables cross in front of you. Arms nearly straight with a soft, fixed bend; palms down. Sweep the
+   hands out and back in a wide arc until the arms line up with the shoulders, thinking "hands out, not back",
+   then return over 2 s until the hands cross. Shoulders stay down. Rear delts first, the middle back helps. */
+{
+  const R = 0.56, PL = [0.95, 1.5, 0.45];
+  demo('cablerdf', {
+    cam: {yaw: 160, pitch: 14, dist: 4.3, target: [0, 1.15, 0.1]}, tempo: [1.0, 0.5, 2.0, 0.4],
+    props: [...[-1, 1].flatMap(sx => [tube([sx * 1.05, 0, PL[2] + 0.05], [sx * 1.05, 2.15, PL[2] + 0.05], 0.045), ['world', 'Q', [sx * PL[0], PL[1], PL[2] - 0.015], [sx * PL[0], PL[1], PL[2] + 0.015], 0.05, {mat: 'steel'}],
+      tube([sx * 1.05, PL[1], PL[2] + 0.05], [sx * PL[0], PL[1], PL[2]], 0.025)]), dHandle('handL'), dHandle('handR')],
+    pose(t) {
+      const k = phaseK(t, this.tempo), th = lerp1(118, -4, ease(k));   // the hand's angle in front of the shoulder line (crossed at 118°)
+      let p = STAND({root: {p: [0, 0.885, 0], pitch: 4}, spine: [1, 2], neck: -4, arm: {clav: [0, lerp1(10, -10, k)]}});
+      const B1 = solve(p), C = B1.chest, S = B1.upperL.o, c = Math.cos(th * D2R), s = Math.sin(th * D2R);
+      const gL = V.add(S, fDir(C, [R * c, -0.04 - 0.05 * (1 - k), R * s])), gR = V.add(B1.upperR.o, fDir(C, [-R * c, -0.04 - 0.05 * (1 - k) + 0.025, R * s]));
+      const pole = V.norm(fDir(C, [s, 0.2, -c])), palm = fDir(C, [0, -1, 0]);
+      p = armsTo(p, gL, gR, pole, V.mx(pole), {arm: {palm}, armR: {palm: V.mx(palm)}});
+      const B = solve(p);
+      return {pose: p, segs: [[mirP(PL), gripOf(B, 'L'), 0.006], [PL, gripOf(B, 'R'), 0.006]]};   // each hand holds the far cable
+    }
+  });
+}
 
 /* ---------- MANNEQUIN: the form-demo figure ----------
    WHY rigid parts: one stretched skin (v7) smeared the chest and lats whenever an arm moved, which is
@@ -5838,8 +5962,13 @@ function termsHtml() {
    - Strength 6–12 at 1–6 reps; power 4–10 at 1–5 reps, moved fast; muscular endurance 8–16 at 15–30 reps;
      The three goals Sam trains for: hypertrophy, strength and power.
    ============================================================ */
-const MUSCLES = [['chest', 'Chest'], ['lats', 'Lats'], ['upper', 'Upper back'], ['traps', 'Traps'], ['fdelt', 'Front delts'], ['sdelt', 'Side delts'], ['rdelt', 'Rear delts'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['quads', 'Quads'], ['hams', 'Hamstrings'], ['glutes', 'Glutes'], ['adductors', 'Adductors'], ['calves', 'Calves'], ['abs', 'Abs']];
+const MUSCLES = [['chest', 'Chest'], ['lats', 'Lats'], ['upper', 'Upper back'], ['traps', 'Traps'], ['erectors', 'Lower back'], ['fdelt', 'Front delts'], ['sdelt', 'Side delts'], ['rdelt', 'Rear delts'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['quads', 'Quads'], ['hams', 'Hamstrings'], ['glutes', 'Glutes'], ['adductors', 'Adductors'], ['calves', 'Calves'], ['abs', 'Abs']];
 const EXMAP = [
+  /* 15 Nov 2026: shrugs first, because "DB shrug (chest-supported)" was being scored as a chest-supported row.
+     Lower back (erectors) as its own muscle (Sam: "kind of a neglected muscle"): a back extension trains it
+     directly (glutes and hamstrings half); hinges (RDL, deadlift) count half. The lat-focused single-arm cable
+     row pulls the elbow to the hip, so lats 1 and upper back only half. */
+  [/shrug/, {traps: 1}], [/back ext|hyperext|roman chair/, {erectors: 1, glutes: .5, hams: .5}], [/(single|one).?arm.*cable|lat.?focus/, {lats: 1, upper: .5, biceps: .5}],
   [/row.*(close|narrow|v.?handle)|(close|narrow).*row/, {lats: 1, upper: .75, rdelt: .25, biceps: .5, traps: .5}],   // close grip, elbows tucked: the lat row (13 Nov 2026)
   [/close.?grip/, {triceps: 1, chest: .5, fdelt: .5}], [/incline.*(press|bench)/, {chest: 1, fdelt: .5, triceps: .5}], [/dip/, {triceps: 1, chest: .75, fdelt: .5}],
   [/reverse pec|rear delt|reverse fl|face.?pull/, {rdelt: 1, upper: .5}], [/pec deck|fly|flye|crossover/, {chest: 1}], [/upright row/, {sdelt: 1, traps: .5}], [/lateral|side raise/, {sdelt: 1}],
@@ -5849,7 +5978,7 @@ const EXMAP = [
   [/single.?arm|one.?arm|(db|dumbbell) row|kroc/, {lats: 1, upper: .75, biceps: .5}], [/row/, {upper: 1, lats: .75, rdelt: .5, biceps: .5, traps: .5}],
   [/leg curl|hamstring curl|nordic/, {hams: 1}], [/curl/, {biceps: 1}], [/push.?down|skull|tricep|triceps|french press|kickback/, {triceps: 1}],
   [/squat|leg press|hack|lunge|split/, {quads: 1, glutes: .5, adductors: .5}], [/press|bench/, {chest: 1, fdelt: .5, triceps: .5}], [/leg ext/, {quads: 1}], // leg press before the generic press (v7.1 scored it as chest)
-  [/rdl|romanian|stiff|good morning|deadlift/, {hams: 1, glutes: 1}], [/hip thrust|glute bridge|kickback/, {glutes: 1, hams: .25}], [/calf/, {calves: 1}],
+  [/rdl|romanian|stiff|good morning|deadlift/, {hams: 1, glutes: 1, erectors: .5}], [/hip thrust|glute bridge|kickback/, {glutes: 1, hams: .25}], [/calf/, {calves: 1}],
   [/knee raise|leg raise|crunch|sit.?up|ab |abs|plank|rollout|wheel/, {abs: 1}], [/shrug/, {traps: 1}]
 ];
 /* Traps as their own muscle (13 Nov 2026, Sam: "traps on shoulder day as something to grow"). Shrugs train the
@@ -5861,7 +5990,7 @@ const GOALS = {
   strength: {label: 'Strength', grow: [6, 12], keep: [3, 6], reps: [1, 6], why: 'Maximal force. Fewer, heavier sets: 1–6 reps at 80%+ of your max, long rests.'},
   power: {label: 'Power', grow: [4, 10], keep: [2, 5], reps: [1, 5], why: 'Force × speed. Low reps moved as fast as possible, well short of failure.'}
 };
-const DEFAULT_PRIORITY = {chest: 'grow', lats: 'grow', upper: 'grow', traps: 'keep', fdelt: 'keep', sdelt: 'grow', rdelt: 'grow', biceps: 'grow', triceps: 'grow', quads: 'keep', hams: 'keep', glutes: 'keep', adductors: 'keep', calves: 'keep', abs: 'keep'};
+const DEFAULT_PRIORITY = {chest: 'grow', lats: 'grow', upper: 'grow', traps: 'keep', fdelt: 'keep', sdelt: 'grow', rdelt: 'grow', biceps: 'grow', triceps: 'grow', quads: 'keep', hams: 'keep', glutes: 'keep', adductors: 'keep', calves: 'keep', abs: 'keep', erectors: 'keep'};
 /* Presets for the split builder. Weekly sets assume the microcycle runs as written.
    Mesocycle 05 (13 Nov 2026), Sam's 4-day split, replacing the 3-day Block 04 preset at his request. WHY: on the
    chest-and-back day the second big muscle group got a tired session, and two big groups in one day took longer
@@ -5881,12 +6010,12 @@ const PRESETS = [{
   id: 'ct-bb-l-sa', label: '4-day: Chest & triceps · Back & biceps · Legs · Shoulders & arms, then rest',
   priority: {abs: 'grow', traps: 'grow'},
   plan: {name: 'Mesocycle 05 — Chest & triceps · Back & biceps · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.6, length: 28, deloadEvery: 28,
-    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a face pull on shoulders day and a third set of shrugs on back day keep rear delts and traps in band. Lateral raises 3 sets on chest, legs and shoulders days (15 Nov 2026): side delts get the same 14 sets a week, in three sessions instead of six sets in one.',
+    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a face pull on shoulders day and a third set of shrugs on back day keep rear delts and traps in band. Lateral raises 3 sets on chest, legs and shoulders days (15 Nov 2026): side delts get the same 14 sets a week, in three sessions instead of six sets in one. Back day (15 Nov 2026, evening): both rows on the chest-supported machine (wide handles for the upper back, neutral handles for the lats), a single-arm cable row for the lats in place of the pullover, weighted back extensions for the lower back, the cable hammer curl in place of the preacher curl; shrugs chest-supported, a cable rear delt fly in place of the face pull.',
     sessions: [
       {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Smith machine chest press', 2, '6-10', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
-      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Seated cable row (close grip)', 2, '6-10', 10], ['Cable pullover (bench)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Cable curl (facing away)', 2, '8-12', 10], ['Preacher curl', 2, '8-12', 10]]},
+      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Chest-supported row (close grip)', 2, '6-10', 10], ['Single-arm cable row (lat focus)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Weighted back extension', 2, '8-12', 9], ['Cable curl (facing away)', 2, '8-12', 10], ['Cable hammer curl', 2, '8-12', 10]]},
       {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '8-12', 10], ['Seated calf raise', 3, '8-12', 10], ['Adductor machine', 2, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Decline weighted crunch', 3, '8-12', 10]]},
-      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (seated)', 3, '8-12', 10], ['Face pull', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
+      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Cable rear delt fly', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
     ]}
 }];
 function applyPreset(P, id) {

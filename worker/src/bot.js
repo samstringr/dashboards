@@ -1,7 +1,7 @@
 /* Health DB · bot.js */
 import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, validDate, normName, webhookSecret, b64 } from './util.js';
 import { getDay, mutateDay, getConfig, putConfig, getKV, setKV, delKV } from './store.js';
-import { reviewSession, reviewExercise, sessionReviewHtml, joinReview, coachNote, weeklyReview } from './coach.js';
+import { reviewSession, reviewExercise, sessionReviewHtml, joinReview, coachNote, weeklyReview, setsShort } from './coach.js';
 import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
 import { parseMessage } from './ai.js';
 import { photoRoute, rememberImages, isProgressNote, moveRemembered, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, undoBatch } from './photos.js';
@@ -264,6 +264,11 @@ export async function handleParsed(env, ctx, r, pending) {
   }
   if (r.intent === 'workout' && r.workout) {
     const w = r.workout, date = validDate(w.date, td);
+    /* "Standard cardio" (15 Nov 2026, Sam: "standard cardio 21 minutes" was saved as a vague "Incline walk on the
+       treadmill"): the parser flags it (usual: true) and the saved standard is applied word for word, so the
+       Training log shows the incline and speed. Minutes always come from the message. */
+    const uc = ctx.settings?.usualCardio && typeof ctx.settings.usualCardio === 'object' ? ctx.settings.usualCardio : null;
+    if (w.usual && uc && w.kind !== 'gym') Object.assign(w, { kind: uc.kind || 'walk', label: uc.label, note: uc.note || w.note });
     const kind = ['gym', 'football', 'run', 'swim', 'cycle', 'walk', 'other'].includes(w.kind) ? w.kind : 'other';
     const planS = ctx.plan?.sessions.find(s => s.code === w.planCode);
     const ex = (w.exercises || []).map(e => ({ n: String(e.name || '').slice(0, 80), sets: (e.sets || []).filter(s => s.kg != null || s.reps != null).map(s => { const o = { kg: s.kg ?? null, r: s.reps ?? null }; if (s.rpe != null) o.rpe = s.rpe; return o; }) })).filter(e => e.n && e.sets.length);
@@ -277,20 +282,22 @@ export async function handleParsed(env, ctx, r, pending) {
       if (ups.length) flags = '\n\n⬆️ Add load next time: ' + ups.map(u => esc(u.n)).join(', ');
     }
     const ctx2 = await loadCtx(env), ps = planState(ctx2);
-    await send(env, `💪 Session saved · ${dLong(date)}\n<b>${esc(rec.label)}</b>${ex.length ? '\n' + ex.map(e => `• ${esc(e.n)}: ${esc(setsText(e.sets))}`).join('\n') : ''}${rec.min ? `\n${rec.min} min` : ''}${rec.km ? ` · ${rec.km} km` : ''}${flags}${ps && planS ? `\n\nNext in the queue: <b>${esc(ps.next.code)} · ${esc(ps.next.name)}</b>` : ''}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
-    /* The coach's review (14 Nov 2026): a second message, so the save is confirmed first and a slow or failed
-       review can't hold it up. ctx is the data from before this session, so "last time" is the previous one. */
     if (kind === 'gym' && ex.length) {
-      const R = reviewSession(ctx, planS, ex), H = sessionReviewHtml(R, rec.label);
-      const note = await coachNote(env, 'session review', [H.verdict, H.lines.join('\n'), H.focus].join('\n'));
+      /* 15 Nov 2026 (Sam: "the output was too long"): a gym session gets a one-line save with its Undo, then the
+         coach's review, which already lists every lift; the old save message listed them all a second time. */
+      await send(env, `💪 <b>Saved</b> · ${esc(rec.label)} · ${dLong(date)} · ${ex.length} lift${ex.length === 1 ? '' : 's'}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
+      const R = reviewSession(ctx, planS, ex), H = sessionReviewHtml(R, rec.label, date);
+      const note = await coachNote(env, 'session review', H.facts);
       let extra = {}, swapTxt = '';
       if (R.swaps.length) {   // done something that isn't in the plan, in place of something that is: offer to make it the plan
         const tk = uid(); await setKV(env, 'swap', { token: tk, code: planS.code, swaps: R.swaps });
         swapTxt = '\n\n🔁 You did ' + R.swaps.map(s => `<b>${esc(s.to)}</b> in place of ${esc(s.from)}`).join(', and ') + '. Make that the plan from now on?';
         extra = buttons([[['🔁 Yes, change the plan', 'swp:' + tk], ['Just today', 'swn:' + tk]]]);
       }
-      await send(env, joinReview(H, note) + swapTxt, extra);
+      const next = ps && planS ? `⏭ Next: <b>${esc(ps.next.code)} · ${esc(ps.next.name)}</b>` : '';
+      return send(env, joinReview(H, note, next) + swapTxt, extra);
     }
+    await send(env, `💪 Session saved · ${dLong(date)}\n<b>${esc(rec.label)}</b>${ex.length ? '\n' + ex.map(e => `• ${esc(e.n)}: ${esc(setsText(e.sets))}`).join('\n') : ''}${rec.min ? `\n${rec.min} min` : ''}${rec.km ? ` · ${rec.km} km` : ''}${flags}${ps && planS ? `\n\nNext in the queue: <b>${esc(ps.next.code)} · ${esc(ps.next.name)}</b>` : ''}`, buttons([[['↩️ Undo', 'undo:' + token]]]));
     return;
   }
   if (r.intent === 'recipe' && r.recipe?.per100) {
@@ -398,12 +405,15 @@ export async function sendWorkout(env, code) {
   const ctx = await loadCtx(env), ps = planState(ctx);
   if (!ps) { await send(env, 'No training plan loaded yet.'); return { ok: false, reason: 'no plan' }; }
   const s = (code && ctx.plan.sessions.find(x => x.code.toLowerCase() === String(code).toLowerCase())) || ps.next;
-  const lines = s.ex.map(e => {
-    const lp = lastPerf(ctx.days, e.n);
-    // what to aim for today, by the same rule the coach's review uses (14 Nov 2026: "advise on what I should aim for")
-    const aim = lp ? reviewExercise(e, { n: e.n, sets: lp.sets }, null).next : null;
-    return `${e.n} ${e.sets}×${e.reps}${e.rpe ? ' @' + e.rpe : ''} (${lp ? 'last ' + setsText(lp.sets) + (aim ? ' → today ' + aim : '') : e.opener ? 'start ' + e.opener : 'new'}):`;
+  /* 15 Nov 2026 (Sam: "make it more clear where I add the outputs when I copy the message and paste… easy to
+     scan"). Two parts: a numbered list to read (the sets and reps, today's target by the coach's rule, last time),
+     then the template on its own in a grey box, which Telegram copies with one tap: the session code on the
+     first line and each lift's name and a colon, nothing to delete before filling it in. */
+  const rows = s.ex.map((e, i) => {
+    const lp = lastPerf(ctx.days, e.n), aim = lp ? reviewExercise(e, { n: e.n, sets: lp.sets }, null).nextShort : null;
+    return `<b>${i + 1}. ${esc(e.n)}</b>  <i>${e.sets}×${esc(e.reps)}</i>\n    🎯 <code>${esc(aim || e.opener || 'new: find a load')}</code>${lp ? `   last ${esc(setsShort(lp.sets))}` : ''}`;
   });
-  await send(env, `🏋️ <b>${esc(s.code)} · ${esc(s.name)}</b> · session ${ps.nextNo}${ctx.plan.length ? ' of ' + ctx.plan.length : ''}${ps.deload ? ' · <b>deload</b>: 60% load, RPE 6' : ''}\nCopy this, fill in after each colon (e.g. <i>30x10, 30x9, 30x8</i>), and send it back.\n<pre>${esc('WORKOUT ' + s.code + '\n' + lines.join('\n'))}</pre>`);
+  const tpl = ['WORKOUT ' + s.code, ...s.ex.map(e => e.n + ': ')].join('\n');
+  await send(env, `🏋️ <b>${esc(s.code)} · ${esc(s.name)}</b> · session ${ps.nextNo}${ctx.plan.length ? '/' + ctx.plan.length : ''}${ps.deload ? ' · <b>deload</b>: 60% load, RPE 6' : ''}\n\n${rows.join('\n')}\n\n📋 <b>Tap the grey box to copy it.</b> After each colon write that lift's sets, <code>42.5x9, 42.5x8</code>; leave a line empty to skip it. Then send it back.\n<pre>${esc(tpl)}</pre>`);
   return { ok: true, session: s.code + ' · ' + s.name };
 }

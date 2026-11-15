@@ -8,7 +8,11 @@ const INFO = {
   cablelat: {"muscles": {"sdelt": 1, "traps": 0.3, "fdelt": 0.25}, "cues": ["Cable crosses in front of your body", "Raise out to the side in an arc, elbow leading", "Keep tension at the bottom: don’t rest the stack"]},
   cablerow: {"muscles": {"upperback": 1, "lats": 0.8, "rdelt": 0.5, "biceps": 0.5, "erectors": 0.3, "forearms": 0.3}, "cues": ["Chest tall; a small forward reach at the start", "Pull to your belly button, elbows close", "Squeeze the shoulder blades, return over 2 s"]},
   calf: {"muscles": {"calves": 1}, "cues": ["Full stretch at the bottom, pause for 1 s", "Rise as high as you can", "Knees straight, not locked"]},
-  chestrow: {"muscles": {"upperback": 1, "rdelt": 0.6, "lats": 0.5, "traps": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Chest on the pad, wide overhand grip", "Elbows back and out, about 60° from your sides", "Squeeze the shoulder blades, pause, then 2 s out", "Don’t lift the chest off the pad"]},
+  chestrow: {"muscles": {"upperback": 1, "rdelt": 0.6, "lats": 0.5, "traps": 0.5, "biceps": 0.5, "forearms": 0.3}, "cues": ["Seat high enough that the handles meet the bottom of your chest", "Chest stays on the pad; top handles, overhand", "Elbows back and out, about 60° from your sides", "Squeeze the shoulder blades, then return over 2 s, arms long"]},
+  chestrowclose: {"muscles": {"lats": 1, "upperback": 0.7, "rdelt": 0.35, "biceps": 0.5, "traps": 0.3, "forearms": 0.3}, "cues": ["Same machine, the upright handles: palms facing in", "Elbows tucked by your sides", "Pull to the bottom of the ribs, elbows past the torso", "Return over 2 s until the arms are long"]},
+  latrow1: {"muscles": {"lats": 1, "upperback": 0.45, "biceps": 0.5, "rdelt": 0.25, "forearms": 0.3, "obliques": 0.2}, "cues": ["One handle on a low pulley, seated, chest tall", "Arm long at the start; let the shoulder go forward for the stretch", "Elbow back and down towards your hip, tucked against your side", "Hand finishes by the hip, not the chest; 2 s back"]},
+  backext: {"muscles": {"erectors": 1, "glutes": 0.7, "hams": 0.6}, "cues": ["Pad just below the hip crease, heels under the rollers", "Plate flat against the chest", "Lower until the torso is about vertical; the lower back may round a little", "Straighten the back and hips to a straight line, no arching past it"]},
+  cablerdf: {"muscles": {"rdelt": 1, "upperback": 0.6, "traps": 0.35}, "cues": ["Pulleys at shoulder height; left cable in the right hand, right in the left", "Arms nearly straight, palms down, a soft fixed bend", "Sweep the hands out until the arms line up with your shoulders", "Shoulders down; return over 2 s until the hands cross"]},
   closegrip: {"muscles": {"triceps": 1, "chest": 0.7, "fdelt": 0.5}, "cues": ["Grip just inside shoulder width", "Elbows tucked; touch the lower chest", "Press with the triceps, wrists stacked"]},
   crunch: {"muscles": {"abs": 1, "obliques": 0.4}, "cues": ["Plate on the chest, feet hooked", "Curl the ribs towards the hips, don’t yank the neck", "Lower under control; no rest at the bottom"]},
   curl: {"muscles": {"biceps": 1, "forearms": 0.5, "fdelt": 0.15}, "cues": ["Face the low pulley, straight bar, palms up", "Elbows pinned to your sides", "Curl without swinging; lower all the way over 2–3 s"]},
@@ -63,8 +67,11 @@ const INFO = {
 /* Order matters: the first match wins. 13 Nov 2026: "Seated cable row (close grip)" went to the close-grip
    bench, so cable rows now come first. */
 const MATCH = [
+  [/(single|one).?arm.*cable|lat.?focus/, 'latrow1'],   // before the cable-row patterns, which would claim "single-arm cable row"
   [/(cable|seated) row.*wide|wide.*(cable|seated) row/, 'cablerowwide'], [/(cable|seated) row.*(medium|shoulder|mid)|(medium|shoulder|mid).*(cable|seated) row/, 'cablerowmid'], [/cable row|seated row/, 'cablerow'], [/curl.*(fac\w* away|behind)|bayesian/, 'facecurl'], [/reverse.*curl|curl.*reverse/, 'revcurl'], [/cable crunch|kneeling crunch/, 'cablecrunch'],
-  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover/, 'pullover'],
+  [/shrug.*seat|seated.*shrug/, 'shrugseat'], [/(chest.?supported|incline).*shrug|shrug.*(incline|chest)/, 'shrugincline'], [/face.?pull/, 'facepull'], [/straight.?arm/, 'straightarm'], [/pullover.*stand|stand.*pullover/, 'straightarm'], [/pullover/, 'pullover'],
+  // 15 Nov 2026: back day as trained from then on, ahead of the general row and rear-delt patterns that would claim these names
+  [/chest.?supported.*(close|narrow|neutral)|(close|neutral).*chest.?supported/, 'chestrowclose'], [/back ext|hyperext|roman chair/, 'backext'], [/cable.*(rear delt|reverse fl)|rear delt.*cable/, 'cablerdf'],
   [/smith.*incline|incline.*smith/, 'smithincline'], [/smith.*(press|bench)/, 'smithpress'],   // before the incline and chest-press patterns, which would claim these names
   [/katana/, 'katana'], [/kneel.*(push|pressdown)|(push|pressdown).*kneel/, 'pushdownkneel'], [/kneel.*overhead|overhead.*kneel/, 'ohtrikneel'],
   [/incline.*curl/, 'inclinecurl'], [/preacher/, 'preacher'], [/hammer/, 'hammer'], [/incline.*(press|bench)/, 'inclinepress'], [/close.?grip/, 'closegrip'], [/skull|lying tri/, 'skull'],
@@ -83,13 +90,15 @@ const MATCH = [
 const VARIANTS = [
   ['Cable pullover', [['pullover', 'Incline bench, bar'], ['straightarm', 'Standing, bar'], ['straightarmrope', 'Standing, rope']]],
   ['Cable curl', [['facecurl', 'Facing away'], ['curl', 'Facing the cable'], ['revcurl', 'Reverse grip']]],
-  ['Dumbbell shrug', [['shrugseat', 'Seated'], ['shrug', 'Standing'], ['shrugincline', 'Chest on a bench']]],
+  ['Dumbbell shrug', [['shrugincline', 'Chest on a bench'], ['shrugseat', 'Seated'], ['shrug', 'Standing']]],   // chest on a bench first since 15 Nov 2026 (Sam: "felt good")
   ['Weighted crunch', [['crunch', 'Decline bench'], ['cablecrunch', 'Cable, kneeling']]],
   ['Tricep pushdown', [['pushdown', 'Standing'], ['pushdownkneel', 'Kneeling']]],
   ['Overhead triceps extension', [['ohtri', 'Standing'], ['ohtrikneel', 'Kneeling'], ['katana', 'Katana (two cables)']]],
   ['Seated cable row', [['cablerow', 'Close grip'], ['cablerowmid', 'Shoulder width'], ['cablerowwide', 'Wide grip']]],
   ['Squat or leg press', [['legpress', 'Leg press'], ['squat', 'Back squat']]],
-  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]]];
+  ['Smith machine chest press', [['smithpress', 'Flat'], ['smithincline', 'Incline']]],
+  ['Chest-supported row', [['chestrow', 'Wide, overhand'], ['chestrowclose', 'Neutral handles']]],
+  ['Rear delt fly', [['revpec', 'Machine (reverse pec deck)'], ['cablerdf', 'Cable, cross-body']]]];
 const groupOf = k => VARIANTS.find(g => g[1].some(([x]) => x === k));
 const variantsOf = k => ((groupOf(k) || [])[1] || []).map(([key, label]) => ({key, label}));
 const groupName = k => (groupOf(k) || [])[0] || null;
