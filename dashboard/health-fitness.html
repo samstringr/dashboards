@@ -150,14 +150,19 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
    its content eases in from 60% and a hairline ring fades out. Was: a 1.5px ink ring over .9 s on every widget. */
 @keyframes pulse{0%{box-shadow:0 0 0 1px var(--line-2)}100%{box-shadow:0 0 0 1px transparent}}
 @keyframes wfade{0%{opacity:.6}100%{opacity:1}}
-.sk{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0}
+.sk{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:hidden}
 .sk-dots{display:grid;grid-template-columns:repeat(14,minmax(0,14px));justify-content:space-between;gap:3px}
 .sk-dots i{aspect-ratio:1;border-radius:3px;background:var(--s3)}
 .sk-dots i.sk-hit{background:var(--good)}.sk-dots i.sk-part{background:var(--good-dim);box-shadow:inset 0 0 0 1px var(--good)}
 .sk-dots i.sk-skip{background:none;box-shadow:inset 0 0 0 1px var(--line-2)}.sk-dots i.sk-open{background:none;box-shadow:inset 0 0 0 1px var(--muted)}
 .sk-dots i.td{outline:1px solid var(--ink);outline-offset:1px}
-.sk-rows{display:grid;gap:2px;font-size:12px;overflow:auto;min-height:0;font-variant-numeric:tabular-nums}
+.sk-rows{display:grid;gap:2px;font-size:12px;font-variant-numeric:tabular-nums}
 .sk-row{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:3px}
+.fit-hide{display:none!important}.fit-clip{overflow:hidden!important}
+.w-body.fit-tight{gap:5px}.fit-tight .extab td{padding-top:2px;padding-bottom:2px}.fit-tight .stats{gap:2px 12px}.fit-tight .sk{gap:4px}
+.widget .scroll{scrollbar-width:none}.widget .scroll::-webkit-scrollbar{width:0;height:0}
+.widget:hover .scroll{scrollbar-width:thin}.widget:hover .scroll::-webkit-scrollbar{width:6px}
+.fit-more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 22px),transparent)}
 .widget.pulse{animation:pulse 1.2s var(--ease)}.widget.pulse>.w-body{animation:wfade .45s var(--ease)}
 .flash.on{opacity:.9}
 @media (hover:none){.w-tools{opacity:1}.w-hint{display:none}}
@@ -235,12 +240,18 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 
 /* ---------- sheet ---------- */
 #scrim{position:fixed;inset:0;z-index:39;background:rgba(5,5,8,.55)}
-#sheet{position:fixed;z-index:40;top:0;right:0;bottom:0;width:min(460px,100%);display:flex;flex-direction:column;background:var(--s1);border-left:1px solid var(--line-2);
-  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
-@media (max-width:640px){#sheet{top:auto;height:92%;width:100%;border-left:0;border-top:1px solid var(--line-2);border-radius:var(--r) var(--r) 0 0;padding-left:env(safe-area-inset-left,0px)}}
+/* Pop-ups (15 Nov 2026, Sam: "go to the middle instead of coming up on the right… like the one that came up in the
+   whole screen", the photos window). On a desktop every sheet is now a window in the middle of the screen: as
+   tall as its content (at least 360px, so a form doesn't jump as search results appear), never more than 86% of
+   the screen; .wide (split builder) is a large fixed window, .full (photos) nearly the whole screen. On a phone
+   it stays a sheet from the bottom, where a thumb reaches it. Was: a 460px panel down the right-hand side. */
+#sheet{position:fixed;z-index:40;top:50%;left:50%;translate:-50% -50%;width:min(600px,calc(100% - 32px));min-height:min(360px,80vh);max-height:86vh;display:flex;flex-direction:column;background:var(--s1);border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;animation:sheetin .18s var(--ease)}
+@keyframes sheetin{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#sheet{animation:none}}
+@media (max-width:640px){#sheet{top:auto;left:0;right:0;bottom:0;translate:none;height:92%;max-height:none;min-height:0;width:100%;border-width:1px 0 0;border-radius:var(--r) var(--r) 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}}
 .sheet-head{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 18px;border-bottom:1px solid var(--line)}
 .sheet-head h3{margin:0;font-size:14px;font-weight:600;flex:1}
-.sheet-body{flex:1;overflow:auto;padding:16px 18px 24px;display:flex;flex-direction:column;gap:16px}
+.sheet-body{flex:1;min-height:0;overflow:auto;padding:16px 18px 24px;display:flex;flex-direction:column;gap:16px}
 .sec{display:flex;flex-direction:column;gap:8px}
 .sec>h5{margin:0;font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.02em}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -420,11 +431,17 @@ select.inp{padding-right:6px}
 .tprog i{display:block;height:100%;width:100%;background:var(--dim);transform-origin:left;animation:tp linear forwards}
 .widget:hover .tprog i{animation-play-state:paused}
 @keyframes tp{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-#sheet.wide{width:min(780px,100%)}
+#sheet.wide{width:min(1000px,calc(100% - 48px));height:86vh}
 /* full: a window over the dashboard rather than a side panel (photos, 14 Nov 2026: "use the screen") */
-#sheet.full{top:3vh;bottom:3vh;left:max(16px,4vw);right:max(16px,4vw);width:auto;border:1px solid var(--line-2);border-radius:var(--r)}
-@media (max-width:640px){#sheet.full{top:auto;left:0;right:0;bottom:0;height:96%;border-radius:var(--r) var(--r) 0 0}}
+#sheet.full{top:3vh;bottom:3vh;left:max(16px,4vw);right:max(16px,4vw);translate:none;width:auto;max-height:none}
+@media (max-width:640px){#sheet.wide{width:100%;height:92%}#sheet.full{top:auto;left:0;right:0;bottom:0;height:96%;border-radius:var(--r) var(--r) 0 0}}
 .vol{display:flex;flex-direction:column;gap:3px}
+.vtab{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.vtab th{font:500 10px/1 var(--mono);color:var(--dim);text-align:right;padding:4px 8px;border-bottom:1px solid var(--line-2)}
+.vtab td{text-align:right;padding:3px 8px;border-bottom:1px solid var(--line)}
+.vtab td:first-child,.vtab th:first-child{text-align:left;padding-left:0}
+.vtab td.over{color:var(--warn)}.vtab td.vv.low{color:var(--warn)}.vtab td.vv.high{color:var(--bad)}
+.vtab tr.tot td{border-top:1px solid var(--line-2);border-bottom:0;color:var(--muted)}
 .vr{display:grid;grid-template-columns:92px 46px minmax(0,1fr) 34px 40px;gap:8px;align-items:center;font-size:12px}
 .vn{color:var(--muted)}
 .vp{height:20px;border-radius:5px;border:1px solid var(--line-2);background:none;font:500 10px/1 var(--mono);color:var(--dim)}
@@ -3575,7 +3592,10 @@ function chart(host, o) {
         const d = `M${x0},${y0}V${y + r}Q${x0},${y} ${x0 + r},${y}H${x1 - r}Q${x1},${y} ${x1},${y + r}V${y0}Z`;
         const hatched = s.hatch && s.hatch[i];
         svg.append(sv('path', {d, style: hatched ? `fill:url(#${hid});stroke:${col};stroke-width:1` : `fill:${col}` + (s.dim && s.dim[i] ? ';fill-opacity:.45' : '')}));
-        if (s.marks && s.marks[i]) svg.append(sv('circle', {class: 'hitmark', cx: X(i), cy: Math.max(3, y - 5), r: 2.2, style: 'fill:var(--good)'}));   // target hit that day
+        if (s.marks && s.marks[i]) {   // target hit that day: a thin green outline round the whole bar (15 Nov 2026, Sam: "subtle… nice, clean"; was a dot above it)
+          const o = Math.min(2, Math.max(1, (band - bw) / 4)), X0 = x0 - o, X1 = x1 + o, Y0 = y - o, Yb = y0 + o, q = Math.min(r + o, (X1 - X0) / 2, (Yb - Y0) / 2);
+          svg.append(sv('path', {class: 'hitmark', d: `M${X0},${Yb - q}V${Y0 + q}Q${X0},${Y0} ${X0 + q},${Y0}H${X1 - q}Q${X1},${Y0} ${X1},${Y0 + q}V${Yb - q}Q${X1},${Yb} ${X1 - q},${Yb}H${X0 + q}Q${X0},${Yb} ${X0},${Yb - q}Z`, style: 'fill:none;stroke:var(--good);stroke-width:1.25;stroke-opacity:.85'}));
+        }
       });
     } else if (s.type === 'line') {
       let d = '', pen = false;
@@ -3728,8 +3748,8 @@ function foodRows(items) {
 }
 function foodListHtml(d, t) {
   const items = (d?.items || []).slice().sort((a, c) => (a.t || '') < (c.t || '') ? -1 : 1);
-  if (items.length) return '<div class="scroll">' + foodRows(items) + '</div>';
-  if (d?.legacy && t) return `<div class="scroll"><div class="cap">Imported day total, not itemised (${esc(d.legacy.conf)}).</div><div class="cap" style="margin-top:4px">${esc(d.legacy.note || '')}</div></div>`;
+  if (items.length) return '<div class="scroll" data-scroll>' + foodRows(items) + '</div>';
+  if (d?.legacy && t) return `<div class="scroll" data-scroll><div class="cap">Imported day total, not itemised (${esc(d.legacy.conf)}).</div><div class="cap" style="margin-top:4px">${esc(d.legacy.note || '')}</div></div>`;
   return '<div class="empty">Nothing logged for ' + dLong(S.sel) + '.<br>Type it in the bar above, send it to the bot, or tap Food.</div>';
 }
 function wireFoodList(b) {
@@ -3982,7 +4002,7 @@ const WT = {
     }
   },
   intake: {
-    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. A green dot over a bar means that day hit: calories within 10% of target, protein at its floor, each against the target that day. The streak counts days that hit both. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
+    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. A green outline round a bar means that day hit: calories within 10% of target, protein at its floor, each against the target that day. The streak counts days that hit both. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
     render(b, inst) {
       const R = inst.cfg.range || 14, T = targets(), dates = rangeDates(R, winEnd(R)), weekly = R >= 90;
       const tots = dates.map(d => dayTotals(d));
@@ -3993,7 +4013,7 @@ const WT = {
           ${hit != null && cnt.length ? `<span>Floor hit <b>${Math.round(hit / cnt.length * 100)}%</b></span>` : ''}
           ${stk && stk.both.best ? `<span title="Days in a row with protein at its floor and calories within 10% of target. Best: ${stk.both.best}">Streak <b>${stk.both.cur}</b> day${stk.both.cur === 1 ? '' : 's'}</span>` : ''}
           <span class="dim">${cnt.length} complete day${cnt.length === 1 ? '' : 's'} of ${R}</span></div>
-        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories${weekly ? '' : ' <span class="dim" style="margin-left:8px"><svg width="6" height="6" style="vertical-align:1px"><circle cx="3" cy="3" r="2.2" fill="var(--good)"/></svg> on target</span>'}</div><div class="chart" data-c="k"></div>
+        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories${weekly ? '' : ' <span class="dim" style="margin-left:8px;display:inline-flex;gap:6px;align-items:center"><span class="sw" style="background:none;box-shadow:inset 0 0 0 1.25px var(--good)"></span>on target</span>'}</div><div class="chart" data-c="k"></div>
         <div class="pl"><span class="sw" style="background:var(--p)"></span>Protein, g</div><div class="chart" data-c="p"></div>`;
       let n, kv, pv, hatch, xl, tip, si = null;   // si: weekly bars mark the selected day's week
       if (weekly) {
@@ -4004,7 +4024,7 @@ const WT = {
         tip = i => { const c = map.get(weeks[i]); return '<b>Week of ' + dShort(weeks[i]) + '</b><br>' + (c.length ? 'avg ' + fmt(kv[i]) + ' kcal · ' + fmt(pv[i]) + ' g P<br><span class="t">' + c.length + ' complete day' + (c.length > 1 ? 's' : '') + '</span>' : '<span class="t">no complete days</span>'); };
       } else {
         n = R; kv = tots.map(t => t && !t.void ? t.kcal : null); pv = tots.map(t => t && !t.void ? t.p : null);
-        // a dot over each bar that hit: calories within 10% (complete days only, so never today), protein at its floor (today too: once reached it can't be undone)
+        // an outline round each bar that hit: calories within 10% (complete days only, so never today), protein at its floor (today too: once reached it can't be undone)
         const hits = dates.map((d, i) => d === today() && tots[i] && !tots[i].void ? {p: tots[i].p >= (targetsOn(d).protein || Infinity) - 0.5, k: false} : dayHit(d, tots[i]));
         var km = hits.map(h => !!h?.k), pm = hits.map(h => !!h?.p);
         hatch = dates.map((d, i) => !!tots[i] && (tots[i].partial || d === today()));
@@ -4064,7 +4084,7 @@ const WT = {
         ${row('Lean mass', C.lean, G.lean, dl, true, pl)}${row('Fat mass', C.fat, G.fat, df, false, pf)}
         ${at ? `<div class="row between"><span class="cap">As it stood on <b style="color:var(--ink)">${dLong(at)}</b>${stale > 0 ? ' · last reading ' + dShort(C.date) : ''}</span>${backBtn()}</div>` : stale > 7 ? `<div class="cap est">Last reading ${stale} days ago</div>` : ''}
         ${extras.length ? `<button class="disc${open ? ' open' : ''}" data-x>More from the scale <span class="dim">${extras.length}</span></button>
-        ${open ? `<div class="scroll"><table class="extab"><tbody>${extras.map(([n, v, bv, u, dd, up]) => `<tr><td>${n}</td><td class="r"><b style="color:var(--ink);font-weight:400">${fmt(v, dd)}</b> ${u}</td><td class="r">${bv != null && up !== null ? `<span class="d-${dirCls(v - bv, up)}">${signed(v - bv, dd)}</span>` : ''}</td></tr>`).join('')}</tbody></table><div class="cap">Bioimpedance estimates from ${dShort(last.date)}. Only weight is measured directly; trust trends over weeks, not single readings.</div></div>` : ''}` : ''}`;
+        ${open ? `<div class="scroll" data-scroll><table class="extab"><tbody>${extras.map(([n, v, bv, u, dd, up]) => `<tr><td>${n}</td><td class="r"><b style="color:var(--ink);font-weight:400">${fmt(v, dd)}</b> ${u}</td><td class="r">${bv != null && up !== null ? `<span class="d-${dirCls(v - bv, up)}">${signed(v - bv, dd)}</span>` : ''}</td></tr>`).join('')}</tbody></table><div class="cap">Bioimpedance estimates from ${dShort(last.date)}. Only weight is measured directly; trust trends over weeks, not single readings.</div></div>` : ''}` : ''}`;
       const xb = b.querySelector('[data-x]'); if (xb) xb.onclick = () => { OPEN.has(inst.id + ':x') ? OPEN.delete(inst.id + ':x') : OPEN.add(inst.id + ':x'); renderWidget(inst.id); };
     }
   },
@@ -4173,9 +4193,9 @@ const WT = {
       const sel = asOf(), gymOn = d => allWorkouts().filter(w => w.date === d && kindGroup(w.kind) === 'gym'), selGym = sel ? gymOn(sel) : [];
       const at = selGym.length ? sel : null, dd = at || today(), dayGym = at ? selGym : gymOn(dd), tw = dayGym.find(w => w.planCode === code);
       const dayRow = !at ? (tw ? `<div class="cap">Trained today: <b style="color:var(--ink)">${esc(code)}</b> · today’s sets on the right</div>` : '') : `<div class="row between"><span class="cap">Trained on ${dLong(at)}: <b style="color:var(--ink)">${dayGym.map(w => esc(w.planCode || w.label || 'gym')).join(', ')}</b>${tw ? ' · that day’s sets on the right' : ''}</span>${backBtn()}</div>`;
-      b.innerHTML = `<div class="row between"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
+      b.innerHTML = `<div class="row between" data-fit="3"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
         <div class="row between"><div class="tabs" role="tablist">${P.sessions.map(x => `<button role="tab" data-tab="${esc(x.code)}" class="${x.code === code ? 'on' : ''}${x.code === ps.next.code ? ' next' : ''}" title="${esc(x.name)}${x.code === ps.next.code ? ' · next' : ''}">${esc(x.code)}</button>`).join('')}</div>
-          <span class="cap num">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
+          <span class="cap num" data-fit="2">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
         <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>${dayRow}
         <div class="scroll"><table class="extab"><tbody>${s.ex.map(e => {
           const done = tw ? (tw.ex || []).find(x => normName(x.n) === normName(e.n)) : null;
@@ -4403,17 +4423,18 @@ const WT = {
     }
   },
   streaks: {
-    title: 'Streaks', cat: 'misc', desc: 'Days in a row on target (protein at its floor and calories within 10% of target), with your best run; the last 14 days as squares; then protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak and today can only add to one; a day not logged breaks it.', def: [10, 8], min: [6, 4],
+    title: 'Streaks', cat: 'misc', desc: 'Small, it shows just the number; give it room and the last 14 days and the other streaks appear. Days in a row on target (protein at its floor and calories within 10% of target), with your best run; the last 14 days as squares; then protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak and today can only add to one; a day not logged breaks it.', def: [10, 8], min: [6, 4],
     render(b, inst) {
       const st = streaks(), T = targets();
       if (!st) { b.innerHTML = '<div class="empty">Log a day of food and a weigh-in to start a streak.</div>'; return; }
       const u = (n, w) => w + (n === 1 ? '' : 's'), lab = {hit: 'on target', part: 'one of the two', miss: 'missed', skip: 'not counted', open: 'today, still open'};
       const rows = [['Protein floor', st.prot, 'day'], ['Food logged', st.log, 'day'], st.gym && ['Gym, ' + st.want + '+ a week', st.gym, 'week'], ['Weigh-ins, 3 a week', st.wt, 'week']].filter(Boolean);
-      b.innerHTML = `<div class="sk">
+      // dropped in this order as the widget shrinks: weigh-ins, gym, food, protein rows, then the target line, then the squares
+      b.innerHTML = `<div class="sk" data-fit-box>
         <div class="row between" style="align-items:baseline"><span><span class="big" style="font-size:32px">${st.both.cur}</span> <span class="muted">${u(st.both.cur, 'day')} on target</span></span><span class="cap">best <b style="color:var(--ink)">${st.both.best}</b></span></div>
-        ${T.ok ? `<div class="cap">Protein ${fmt(T.protein)} g+ and ${fmt(Math.round(T.kcal * (1 - KCAL_BAND) / 10) * 10)}–${fmt(Math.round(T.kcal * (1 + KCAL_BAND) / 10) * 10)} kcal</div>` : ''}
-        <div class="sk-dots">${st.recent.map(x => `<i class="sk-${x.j}${x.d === today() ? ' td' : ''}" title="${esc(dLong(x.d))}: ${lab[x.j]}"></i>`).join('')}</div>
-        <div class="sk-rows">${rows.map(([l, r, w]) => `<div class="sk-row"><span class="muted">${l}</span><span><b>${r.cur}</b> ${u(r.cur, w)} <span class="dim">· best ${r.best}</span></span></div>`).join('')}</div></div>`;
+        ${T.ok ? `<div class="cap" data-fit="4">Protein ${fmt(T.protein)} g+ and ${fmt(Math.round(T.kcal * (1 - KCAL_BAND) / 10) * 10)}–${fmt(Math.round(T.kcal * (1 + KCAL_BAND) / 10) * 10)} kcal</div>` : ''}
+        <div class="sk-dots" data-fit="3">${st.recent.map(x => `<i class="sk-${x.j}${x.d === today() ? ' td' : ''}" title="${esc(dLong(x.d))}: ${lab[x.j]}"></i>`).join('')}</div>
+        <div class="sk-rows">${rows.map(([l, r, w], i) => `<div class="sk-row" data-fit="${5 + i}"><span class="muted">${l}</span><span><b>${r.cur}</b> ${u(r.cur, w)} <span class="dim">· best ${r.best}</span></span></div>`).join('')}</div></div>`;
     }
   },
   note: {
@@ -4506,6 +4527,7 @@ function renderBody(node, inst) {
   if (!def) { body.innerHTML = '<div class="empty">Unknown widget type.</div>'; return; }
   try { def.render(body, inst); }
   catch (err) { console.error(err); body.innerHTML = '<div class="empty">This widget hit an error: ' + esc(err.message) + '</div>'; }
+  try { fitWidget(node); FIT_RO?.observe(body); } catch (err) { console.error(err); }
   // a short note beside the title (Training log: cardio minutes this week against the target)
   const nt = node.querySelector('.w-note');
   if (nt) { let h = ''; try { h = def.note ? def.note(inst) : ''; } catch (err) { console.error(err); } nt.hidden = !h; nt.innerHTML = h ? h.html : ''; nt.title = h ? h.title || '' : ''; }
@@ -4513,6 +4535,29 @@ function renderBody(node, inst) {
   const ad = node.querySelector('.w-add');
   if (ad) { ad.hidden = !def.add; if (def.add) { ad.textContent = def.add.label; ad.title = def.add.title; ad.setAttribute('aria-label', def.add.title); ad.onclick = e => { e.stopPropagation(); def.add.run(inst); }; } }
 }
+/* Fit the box (15 Nov 2026, Sam: "instead of adding a scroll bar… minimalist when it's small… add the text when
+   the size is right… for every widget"). After a widget renders, and whenever it's resized: while anything in it
+   overflows, first tighten the spacing, then hide the optional parts, least important first (data-fit="8" goes
+   before "1"; secondary stats marked .dim count as level 1), checking after each step. Whatever still overflows
+   by a few pixels (rounding, a last border) is clipped instead of getting a scroll bar: that was the Training
+   plan's bar on Back & biceps, where every exercise already showed. A real overflow still scrolls, with the bar
+   shown only on hover and the bottom edge fading to say there's more. Lists that are meant to scroll (the food
+   log, details opened with a click) are marked data-scroll and left alone. */
+function fitWidget(node) {
+  const b = node?.querySelector('.w-body'); if (!b || !b.isConnected || !b.clientHeight) return;
+  b.classList.remove('fit-tight'); b.querySelectorAll('.fit-clip,.fit-more').forEach(x => x.classList.remove('fit-clip', 'fit-more'));
+  const opt = [...b.querySelectorAll('[data-fit], .stats > .dim')]; opt.forEach(x => x.classList.remove('fit-hide'));
+  const over = () => [b, ...b.querySelectorAll('.scroll:not([data-scroll]), [data-fit-box]')].filter(x => x.scrollHeight > x.clientHeight + 1);
+  if (!over().length) return;
+  b.classList.add('fit-tight'); if (!over().length) return;
+  const lvl = x => +(x.dataset.fit || 1);
+  for (const l of [...new Set(opt.map(lvl))].sort((a, c) => c - a)) { opt.filter(x => lvl(x) === l).forEach(x => x.classList.add('fit-hide')); if (!over().length) return; }
+  for (const x of over()) {
+    if (x.scrollHeight - x.clientHeight <= 6) { x.classList.add('fit-clip'); continue; }
+    if (x !== b) { const more = () => x.classList.toggle('fit-more', x.scrollTop + x.clientHeight < x.scrollHeight - 2); more(); x.onscroll = more; }
+  }
+}
+const FIT_RO = window.ResizeObserver ? new ResizeObserver(es => { for (const e of es) { const n = e.target.closest('.widget'); if (!n) continue; cancelAnimationFrame(n._fr); n._fr = requestAnimationFrame(() => fitWidget(n)); } }) : null;
 function renderWidget(id) { const inst = S.layout.find(w => w.id === id), node = nodes.get(id); if (inst && node) { placeWidget(node, inst); renderBody(node, inst); } }
 function renderAll() {
   TG_MEMO.clear();
@@ -5791,7 +5836,19 @@ function openPlanEditor() {
       cd.innerHTML = G.cardio ? field('Aerobic minutes per week', `<input class="inp" type="number" step="10" id="pe-cm" value="${P.cardioMin || 0}">`) : '';
       const cm = cd.querySelector('#pe-cm'); if (cm) cm.oninput = () => { P.cardioMin = +cm.value || 0; score(); cd.querySelector('#pe-cm')?.focus(); };
       const pct = Math.round(R.score * 100), top = Math.max(24, ...R.rows.map(r => Math.max(r.v, r.band[1]))) * 1.08;
-      b.querySelector('#pe-score').innerHTML = `<div class="row between"><h5 style="margin:0">Weekly ${term('volume')}: ${term('hardset', 'hard sets')} per muscle</h5><span class="num"><b class="mid" style="color:var(--${pct >= 98 ? 'good' : pct >= 80 ? 'warn' : 'bad'})">${pct}%</b> <span class="cap">${R.ok} of ${R.rows.length} in range</span></span></div>
+      // 15 Nov 2026 (Sam: "a really nice view of the plan"): the same sets, per muscle per session, beside the weekly bars
+      const vv = lsGet('hf.volView', 'week'), seg = `<div class="seg" id="pe-vv"><button type="button" data-vv="week" class="${vv === 'week' ? 'on' : ''}">Week</button><button type="button" data-vv="session" class="${vv === 'session' ? 'on' : ''}">Per session</button></div>`;
+      if (vv === 'session') {
+        const CAP = 11, perS = P.sessions.map(x => { const v = {}; let tot = 0; for (const e of x.ex) { const n = +e.sets || 0; tot += n; const mm = musclesFor(e); if (mm) for (const k in mm) v[k] = (v[k] || 0) + n * mm[k]; } return {x, v, tot}; });
+        b.querySelector('#pe-score').innerHTML = `<div class="row between"><h5 style="margin:0">${term('hardset', 'Hard sets')} per muscle, per session</h5><span class="row" style="gap:10px">${seg}<span class="num"><b class="mid" style="color:var(--${pct >= 98 ? 'good' : pct >= 80 ? 'warn' : 'bad'})">${pct}%</b></span></span></div>
+          <div style="overflow-x:auto"><table class="vtab"><thead><tr><th></th>${perS.map(q => `<th title="${esc(q.x.name)}">${esc(q.x.code)}</th>`).join('')}<th>Week</th><th>Band</th></tr></thead><tbody>
+          ${R.rows.map(r => `<tr><td>${r.label} <span class="dim">${r.pri === 'grow' ? 'grow' : 'keep'}</span></td>${perS.map(q => { const v = q.v[r.m]; return `<td class="${v > CAP ? 'over' : ''}"${v > CAP ? ` title="Over ~${CAP} in one session: sets past that add little that day"` : ''}>${v ? fmt(v, 1) : '<span class="dim">·</span>'}</td>`; }).join('')}<td class="vv ${r.state}"><b>${fmt(r.v, 1)}</b></td><td class="dim">${r.band[0]}–${r.band[1]}</td></tr>`).join('')}
+          <tr class="tot"><td>Sets in the session</td>${perS.map(q => `<td><b>${q.tot}</b></td>`).join('')}<td></td><td></td></tr></tbody></table></div>
+          <div class="cap">Each column is one session; a muscle an exercise works only partly counts a fraction (dips are ¾ chest). Week = the session columns × ${fmt(R.perSession, 2)} sessions a week. Past about ${CAP} sets for one muscle in one session, more sets that day add little (Remmert, Zourdos et al. 2025): amber marks any over that.</div>`;
+        b.querySelectorAll('[data-vv]').forEach(x => x.onclick = () => { lsSet('hf.volView', x.dataset.vv); score(); });
+        return;
+      }
+      b.querySelector('#pe-score').innerHTML = `<div class="row between"><h5 style="margin:0">Weekly ${term('volume')}: ${term('hardset', 'hard sets')} per muscle</h5><span class="row" style="gap:10px">${seg}<span class="num"><b class="mid" style="color:var(--${pct >= 98 ? 'good' : pct >= 80 ? 'warn' : 'bad'})">${pct}%</b> <span class="cap">${R.ok} of ${R.rows.length} in range</span></span></span></div>
         <div class="cap">Each session runs about ${fmt(R.perSession, 2)}× a week (${fmtPW(+P.perWeek)} sessions a week over a ${P.sessions.length}-session ${term('microcycle')}). Grow aims inside the ${term('mav', 'MAV')}, past the ${term('mev', 'MEV')} and short of the ${term('mrv', 'MRV')}; Keep is ${term('mv', 'maintenance volume')}. Tap Grow or Keep to change a muscle’s priority.</div>
         <div class="vol">${R.rows.map(r => `<div class="vr"><span class="vn">${r.label}</span><button class="vp ${r.pri}" data-m="${r.m}">${r.pri === 'grow' ? 'Grow' : 'Keep'}</button>
           <span class="vb"><i class="band" style="left:${r.band[0] / top * 100}%;width:${(r.band[1] - r.band[0]) / top * 100}%"></i><i class="val ${r.state}" style="width:${Math.min(100, r.v / top * 100)}%"></i></span>
@@ -5799,6 +5856,7 @@ function openPlanEditor() {
           ${R.cardio ? `<div class="vr"><span class="vn">Aerobic min</span><span></span><span class="vb"><i class="val ${R.cardio.v >= R.cardio.band[0] ? 'ok' : 'low'}" style="width:${Math.min(100, R.cardio.v / (R.cardio.band[1] * 1.1) * 100)}%"></i></span><span class="vv num">${R.cardio.v}</span><span class="vs num">${R.cardio.band[0]}–${R.cardio.band[1]}</span></div>` : ''}</div>
         <div class="cap">Rep ranges: <b style="color:var(--ink)">${Math.round(R.reps * 100)}%</b> of sets sit in ${G.reps[0]}–${G.reps[1]} reps.${R.unmapped.length ? ` Not counted (unknown muscles): ${R.unmapped.map(esc).join(', ')}.` : ''}</div>`;
       b.querySelectorAll('[data-m]').forEach(x => x.onclick = () => { P.priority[x.dataset.m] = P.priority[x.dataset.m] === 'grow' ? 'keep' : 'grow'; score(); });
+      b.querySelectorAll('[data-vv]').forEach(x => x.onclick = () => { lsSet('hf.volView', x.dataset.vv); score(); });
     };
     const sessions = () => {
       const host = b.querySelector('#pe-sessions');
@@ -6036,7 +6094,7 @@ function openHelp(tab = 'why') {
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>
       <div class="sec"><h5>The 3D figures</h5><p><b>Physique.</b> A real human body from an open anatomy atlas, finished as a plain matte mannequin like a shop display: the face is smoothed into a blank head, the skin is smoothed so the muscle borders don’t show as lines across the back, and it wears plain dark shorts. Your lean and fat mass move the skin: fat pulls it in towards the muscle, lean pushes it out where lifting adds most (shoulders, arms, chest and back more than legs), so now, 4 weeks and the goal are the same person. The 4-week body is where the plan’s weekly rates put you. This widget lives in the add-widget menu. Pause the turn, pick Front, Side or Back, or drag to look from any angle.</p>
         <p><b>One day, every widget.</b> Click a day in Consistency, a bar in Intake, a point on the weight chart or a week in the Training log and every widget shows that day: Today (which takes the date as its title), Supplements, the food log, what you weighed, your composition and muscle levels as they stood, and in the Training plan the session you trained with the sets you hit. The day is marked in place on every chart; the charts only slide when the day is older than they can show. <b>↩ Today</b> in any widget, or the date in the top bar, brings everything back. Double-click a day in Consistency for its summary sheet. Only widgets whose content changed give a brief flicker of an outline, so you can see what moved.</p>
-        <p><b>Targets and streaks.</b> A day is on target when protein reaches its floor and calories land within 10% of the calorie target, each judged against the targets you had that day. Intake puts a green dot over each bar that hit; the Streaks widget (add it from the widget palette, under Overview) counts days in a row on target, plus protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak, today can only add to one, and a day not logged ends it.</p>
+        <p><b>Targets and streaks.</b> A day is on target when protein reaches its floor and calories land within 10% of the calorie target, each judged against the targets you had that day. Intake outlines each bar that hit in green; the Streaks widget (add it from the widget palette, under Overview) counts days in a row on target, plus protein, food logging, gym weeks and weigh-in weeks. Away days don’t break a streak, today can only add to one, and a day not logged ends it.</p>
         <p><b>Steps.</b> The weigh-in Shortcut also sends the last 7 days of steps from Apple Health. The Training log shows the average a day for each week on its right-hand scale; today’s count is “so far” until the next send and isn’t averaged.</p>
         <p><b>The lift demos.</b> The same body as the physique, moving. Each exercise is choreographed joint by joint on a simple skeleton from the start and end of a rep as it’s coached: the shoulder blades move with the arms, elbows and knees bend only the way they do, hands on a machine travel the machine’s arc. Every frame, that skeleton’s angles are copied onto the physique body’s own bones, with its hands and feet placed on the handles, seats and footplates. On every press the forearm points the way the weight travels, so hands, wrists and elbows stay stacked. Where an exercise has variations (squat or leg press, seated row grip width, pullover, pushdown and overhead extension standing or kneeling, the katana extension, cable curls, shrugs, crunches) the widget shows a toggle and remembers your pick. Drag the figure to turn it, scroll or pinch to zoom, double-click to reset, and use the slider at its top right to slow a rep down or speed it up; the working muscles swell and deepen in colour as they shorten. Click an exercise in the Training plan to open it here, and click a day on any chart to see that day everywhere; scrolling over the chart changes its time range. Red is the main mover, orange a strong helper, yellow a helper. The same Pause, Front, Side and Back controls apply.</p>
         <p><b>Muscle development.</b> The same body again, drawn flat from the front and the back like the muscle maps in strength apps, each muscle filled by its strength level. Tap a muscle for its level and the lifts behind it.</p>
