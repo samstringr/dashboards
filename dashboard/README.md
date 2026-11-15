@@ -130,3 +130,13 @@ Everything else here is how that file is built and checked.
   than writing an empty list.
 - **Wider pop-ups**: default 600 → 720px; `.wide` (split builder, widget palette, Help) is now nearly the photos
   window (4vh / 6vw margins).
+- **Back day as trained from 15 Nov** (`demos8.js`). The chest-supported row is now the Life Fitness plate-loaded
+  Row from Sam's photos: saddle seat, tall chest pad, levers pivoting near the floor in front with plates low on
+  each, wide (inward bar) and neutral (upright) handles. The pivot sits under the finish, so the hands travel back
+  and up as on the machine's sticker. New: `chestrowclose`, `latrow1` (single-arm cable row, lat focus),
+  `backext` (45° back extension with a plate), `cablerdf` (cross-body cable rear delt fly). Shrug variants list
+  chest-on-bench first. MATCH puts the specific names ahead of the general row and rear-delt patterns.
+- **Standing pullover**: the stretch took the arms about 150° overhead with the shoulders shrugged, so the upper
+  arms ran into the head (Sam: "clipping or hyperextending"). Now the hands stop at forehead height, shoulders down.
+- **Lower back** is a split-builder muscle (`erectors`, keep 4–8): back extension 1, RDL and deadlift ½. EXMAP
+  checks shrugs first: "DB shrug (chest-supported)" was being scored as a chest-supported row (lats, upper back).

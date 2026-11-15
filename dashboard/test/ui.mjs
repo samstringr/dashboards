@@ -131,7 +131,7 @@ check('goal switch rescoring', /1–6 reps/.test(await page.locator('#pe-score')
 await page.evaluate(() => document.querySelector('[data-g=hypertrophy]').click()); await page.waitForTimeout(100);
 await page.evaluate(() => document.querySelector('#sheet-b [data-preset="ct-bb-l-sa"]').click()); await page.waitForTimeout(400);
 const pp = await page.locator('#pe-score').innerText();
-check('4-day preset scores 100%', /100%/.test(pp) && /15 of 15 in range/.test(pp) && /5\.6 sessions a week over a 4-session microcycle/.test(pp), (pp.match(/\d+%[^\n]*/) || [''])[0]);
+check('4-day preset scores 100% (16 muscles with lower back)', /100%/.test(pp) && /16 of 16 in range/.test(pp) && /5\.6 sessions a week over a 4-session microcycle/.test(pp), (pp.match(/\d+%[^\n]*/) || [''])[0]);
 await page.screenshot({ path: `${OUT}v7-preset-${vp.width}.png` });
 const order = () => page.evaluate(() => [...document.querySelectorAll('[data-si="0"] .pe-row [data-ek=n]')].map(i => i.value));
 const before = await order(), g3 = page.locator('[data-si="0"] .pe-row:not(.pe-head)').nth(2).locator('[data-drag]');
@@ -313,6 +313,8 @@ check('Intake: on-target legend and dots over bars, streak in the stats', im.leg
 check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
 const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
 check('steps: Training log has a right-hand steps axis, legend and average', stp.legend && stp.axis && stp.stat, JSON.stringify(stp));
+check('15 Nov back day: every exercise has its own demo, and the variant groups', JSON.stringify(await page.evaluate(() => ['Chest-supported row (wide grip)', 'Chest-supported row (close grip)', 'Single-arm cable row (lat focus)', 'Weighted back extension', 'Cable rear delt fly', 'DB shrug (chest-supported)', 'Cable pullover (standing)', 'Reverse pec deck'].map(n => Fig3D.moveFor(n) + (Fig3D.ready(Fig3D.moveFor(n)) ? '' : '!'))))
+  === '["chestrow","chestrowclose","latrow1","backext","cablerdf","shrugincline","straightarm","revpec"]');
 check('Smith machine chest press has its own demo', tl.demo === 'smithpress' && (await page.evaluate(() => Fig3D.ready('smithpress'))), tl.demo);
 await page.click('#d-lbl'); await page.waitForTimeout(200);
 await page.evaluate(() => document.querySelector('#d-lbl').click()); await page.waitForTimeout(600);
@@ -397,6 +399,23 @@ if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part o
   for (const [n, kcal, p] of [[1, 2600, 165], [2, 2500, 158], [3, 3300, 170], [4, 2700, 160]]) await mcpNode('put_day', { date: dd(n), doc: { date: dd(n), items: [{ id: 'x' + n, n: 'Test meal', q: 1, u: 'serving', kcal, p, c: 250, f: 80 }] } });
   await page.reload(); await page.waitForTimeout(3500);
   await page.locator('.widget[data-id=intake]').screenshot({ path: `${OUT}v10-intake-hits-${vp.width}.png` });
+}
+// 15 Nov 2026: a 9-exercise back day fits Sam's Training plan widget (19 × 11 cells) with no scroll bar (made-up loads)
+{ const pl = (await mcpNode('get_snapshot', {})).structuredContent.config.plan, E = (n, sets, reps, op) => ({ n, sets, reps, rpe: 10, opener: op });
+  const bb = { code: 'B&B', name: 'Back & biceps', ex: [E('Lat pulldown', 2, '6-10', '40 kg (9, 8 on 1 Jan)'), E('Chest-supported row (wide grip)', 2, '6-10', '70 kg (10, 9 on 1 Jan)'), E('Chest-supported row (close grip)', 2, '6-10', 'calibrate (neutral handles)'),
+    E('Single-arm cable row (lat focus)', 3, '8-12', 'calibrate'), E('Reverse pec deck', 3, '8-12', '20 kg (8, 7, 7 on 1 Jan)'), E('DB shrug (chest-supported)', 3, '8-12', '16 kg (9, 8, 7 on 1 Jan)'),
+    E('Weighted back extension', 2, '8-12', '10 kg (9, 9 on 1 Jan)'), E('Cable curl (facing away)', 2, '8-12', '10 kg (10, 10 on 1 Jan)'), E('Cable hammer curl', 2, '8-12', '10 kg (8, 7 on 1 Jan)')] };
+  await mcpNode('put_config', { id: 'plan', doc: { ...pl, sessions: [bb, ...pl.sessions.filter(x => x.code !== 'B&B')] } });
+  const lay = (await mcpNode('get_snapshot', {})).structuredContent.config.layout;   // the plan widget at Sam's size
+  await mcpNode('put_config', { id: 'layout', doc: { ...lay, widgets: lay.widgets.map(w => w.type === 'plan' ? { ...w, w: 19, h: 11 } : w) } });
+  await page.reload(); await page.waitForTimeout(3500);
+  if (vp.width > 900) {
+    await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector('.widget[data-id=plan] [data-tab="B&B"]').click()); await page.waitForTimeout(400);
+    const fit = await page.evaluate(() => { const n = document.querySelector('.widget[data-id=plan]'), x = n.querySelector('.scroll'); return {rows: [...x.querySelectorAll('tr')].filter(r => r.getBoundingClientRect().bottom <= x.getBoundingClientRect().bottom + 1).length, all: x.querySelectorAll('tr').length, over: x.scrollHeight - x.clientHeight, name: !!n.querySelector('[data-fit="3"]:not(.fit-hide)')}; });
+    await page.locator('.widget[data-id=plan]').screenshot({ path: `${OUT}v12-plan-bb-${vp.width}.png` });
+    check('Training plan: 9 exercises on back day fit 19 × 11 with nothing to scroll', fit.all === 9 && fit.rows === 9 && fit.over <= 1, JSON.stringify(fit));
+  }
 }
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();

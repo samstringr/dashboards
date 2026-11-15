@@ -19,34 +19,7 @@ const SIT_FEET = p => legsTo(p, [0.17, 0.075, 0.5], [0.2, 0.3, 1], [0.15, 0, 1])
 // right-side copy of a left-side point or direction given in a frame's terms
 const both = (fn) => [fn(1), fn(-1)];
 
-/* ---- Chest-supported row, seated machine, wide overhand grip ----
-   Footage cues: sit tall with the chest on the pad, feet planted. Start: arms long, shoulder blades spread
-   forward. Pull: shoulder blades back first, then the elbows back and out (about 60° from the torso), hands
-   to the lower chest; forearms stay in line with the levers. Return over 2 s. WHY wide (13 Nov 2026): this is
-   the upper-back and rear-delt row of the split; the close-grip seated cable row is the lat one.
-   The levers hang from a crossbar on two posts, so nothing floats (Sam: "floating poles"). */
-{
-  const base = {root: {p: [0, 0.545, -0.04], pitch: 9}, spine: [2, 3], neck: -6, head: -2};
-  const B0 = solve(SIT_FEET(base)), C0 = B0.chest, padC = fAt(C0, [0, 0.11, 0.145]);
-  const gS = fAt(C0, [0.3, 0.1, 0.6]), gE = fAt(C0, [0.33, 0.03, 0.12]), ZP = gS[2] + 0.12, PIV = [0.3, 1.5, ZP];
-  demo('chestrow', {
-    cam: {yaw: 62, pitch: 12, dist: 3.7, target: [0, 0.95, 0.2]}, tempo: [1.0, 0.5, 2.0, 0.4],
-    props: [...seat(-0.05), ['world', 'B', padC, [0.15, 0.19, 0.035], 0.025, {mat: 'pad', rot: [14, 0, 0]}], tube(V.add(padC, [0, 0, 0.04]), [0, 0.0, padC[2] + 0.16], 0.035),
-      tube([0.38, 0, ZP], [0.38, 1.54, ZP], 0.04), tube([-0.38, 0, ZP], [-0.38, 1.54, ZP], 0.04), tube([-0.38, 1.54, ZP], [0.38, 1.54, ZP], 0.04),
-      tube([-0.38, 0.02, ZP], [-0.38, 0.02, ZP + 0.3], 0.03), tube([0.38, 0.02, ZP], [0.38, 0.02, ZP + 0.3], 0.03),
-      ['handleL', 'Y', [-0.08, 0, 0], [0.07, 0, 0], 0.016, {mat: 'pad'}], ['handleR', 'Y', [-0.07, 0, 0], [0.08, 0, 0], 0.016, {mat: 'pad'}]],
-    frames: ['handleL', 'handleR'],
-    pose(t) {
-      const k = phaseK(t, this.tempo);
-      let p = SIT_FEET({...base, arm: {clav: [lerp1(4, -2, k), lerp1(14, -16, k)]}});
-      const C = solve(p).chest, gL = arcAbout(PIV, gS, gE, k), pole = V.norm(V.lerp(fDir(C, [0.7, -0.45, -0.3]), fDir(C, [0.8, -0.3, -1]), k));
-      p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm: [0, -1, 0]}, armR: {palm: [0, -1, 0]}});
-      const B = solve(p), fr = {}, segs = [];
-      for (const s of ['L', 'R']) { const g = gripOf(B, s), sg = s === 'L' ? 1 : -1, piv = s === 'L' ? PIV : mirP(PIV); fr['handle' + s] = frameW(g); segs.push([piv, V.add(g, [sg * 0.07, 0, 0]), 0.02]); }
-      return {pose: p, frames: fr, segs};
-    }
-  });
-}
+/* The chest-supported row moved to demos8.js on 15 Nov 2026, rebuilt as the Life Fitness plate-loaded Row Sam uses. */
 
 /* Pec deck levers (13 Nov 2026, Sam: "floating poles"). Each arm turns about a vertical axis straight above its
    shoulder, in a housing on the machine's top bar; the lever runs out level from the pivot, then straight down
@@ -117,7 +90,11 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
   const base = {root: {p: [0, 0.875, -0.08], pitch: 24}, spine: [2, 2], neck: -10, head: -4};
   const st = p => legsTo(p, [0.12, 0.067, -0.03], [0.1, 0, 1], [0.12, 0, 1]);
   const B0 = solve(st(base)), S0 = B0.upperL.o, TOP = [0, 2.2, 0.95], L = 0.55;
-  const dS = V.norm(V.sub([S0[0], TOP[1] - 0.25, TOP[2] - 0.2], S0)), dE = V.norm([0, -1, 0.42]);
+  /* 15 Nov 2026, Sam: "the shoulders look weird in the fully extended position… clipping or hyperextending".
+     The stretch took the arms about 150° overhead (with the 24° hinge), the shoulders shrugged and the upper arms
+     ran into the sides of the head. The coached stretch stops with the hands at forehead height and the shoulders
+     down: arms about 25° above level, 115-120° from the torso, still a full lat stretch at this hinge. */
+  const dS = V.norm(V.sub([S0[0], S0[1] + 0.24, S0[2] + 0.5], S0)), dE = V.norm([0, -1, 0.42]);
   /* 14 Nov 2026, Sam: the rope version "looks crazy", arms inside each other and into the body. The hands were
      pulled 10 cm inside the shoulders and finished behind the thighs. Now the hands stay shoulder-width, the
      elbows keep one soft bend, and the sweep ends in front of the thighs. A straight bar is the default; the rope
@@ -129,7 +106,7 @@ const deckHousing = (piv, zb) => [tube([piv[0], piv[1] + 0.08, zb], [piv[0], piv
     frames: rope ? [] : ['bar'],
     pose(t) {
       const k = phaseK(t, this.tempo);
-      let p = st({...base, arm: {clav: [lerp1(14, -4, k), lerp1(6, -6, k)]}});
+      let p = st({...base, arm: {clav: [lerp1(6, -4, k), lerp1(4, -6, k)]}});   // shoulders down at the stretch (was 14° up)
       const B1 = solve(p), C = B1.chest, S = B1.upperL.o, d = slerpV(dS, dE, ease(k)), gL = V.add(V.add(S, V.sc(d, L)), [rope ? lerp1(-0.11, 0.0, k) : 0.02, 0, 0]);
       const pole = V.norm(V.lerp(fDir(C, [0.7, 0.3, -0.6]), fDir(C, [0.6, 0, -1]), k)), palm = rope ? fDir(C, [-1, 0, 0]) : slerpV(V.norm([0, 0.3, 1]), V.norm([0, -1, -0.2]), k);
       p = armsTo(p, gL, mirP(gL), pole, mirP(pole), {arm: {palm}, armR: {palm: rope ? V.mx(palm) : palm}});

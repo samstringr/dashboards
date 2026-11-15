@@ -93,13 +93,14 @@ await reset();
 await tgSend({ text: '/workout' });
 m = await lastMsg();
 check('/workout sends next session with copy block', /<pre>WORKOUT U/.test(m.text), m.text.split('\n')[0]);
+check('/workout: numbered lifts with a target each, and a template of names and colons only', /<b>1\. /.test(m.text) && /🎯 <code>/.test(m.text) && /Tap the grey box/.test(m.text) && /<pre>WORKOUT U\n[^<]+: \n/.test(m.text) && !/<pre>[^<]*\(/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
 await reset();
 await tgSend({ text: 'WORKOUT Ps\nFlat DB press 3×8-12 @8 (new): 30x12, 30x10\nPec deck: 45x13' });
-{ const all = (await calls()).filter(x => x.api === 'tg' && x.method === 'sendMessage').map(x => x.body); m = all.find(x => /Session saved/.test(x.text)) || {}; var coachMsg = all.find(x => /Coach ·/.test(x.text)) || { text: '' }; }
-check('workout saved + progression flag', /Session saved/.test(m.text) && /Add load next time: Flat DB press/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 220));
-check('queue advances', /Next in the queue: <b>Pl/.test(m.text));
-// 14 Nov 2026: the coach's review follows the save as its own message
-check('coach review: opening note, per-lift next target with its reason, focus', /Good work today/.test(coachMsg.text) && /Flat DB press<\/b>: 30 kg × 12, 10/.test(coachMsg.text) && /next: <b>32 kg, aim 8–10<\/b>/.test(coachMsg.text) && /top of 8–12/.test(coachMsg.text) && /Focus next time/.test(coachMsg.text), coachMsg.text.replace(/\n/g, ' | ').slice(0, 600));
+{ const all = (await calls()).filter(x => x.api === 'tg' && x.method === 'sendMessage').map(x => x.body); m = all.find(x => /Saved<\/b>/.test(x.text)) || { text: '' }; var coachMsg = all.find(x => /🧭 <b>Coach/.test(x.text)) || { text: '' }; }
+// 15 Nov 2026: a one-line save with Undo, then the coach's review: a line per lift, feedback at the bottom
+check('workout saved: one line with Undo, no list of lifts', /💪 <b>Saved<\/b> · Ps · Push · .* · 2 lifts$/.test(m.text) && !/•/.test(m.text) && /undo:/.test(JSON.stringify(m.reply_markup || {})), m.text);
+check('queue advances', /⏭ Next: <b>Pl/.test(coachMsg.text));
+check('coach review: a line per lift with shorthand next, the coach at the bottom', /<b>Flat DB press<\/b>  30×12,10  →  <code>↑ 32×8–10<\/code>/.test(coachMsg.text) && /<blockquote>🧭 <b>Coach<\/b>\nGood work today/.test(coachMsg.text) && /🎯 <b>Next time:<\/b>/.test(coachMsg.text) && coachMsg.text.indexOf('blockquote') > coachMsg.text.indexOf('Pec deck'), coachMsg.text.replace(/\n/g, ' | ').slice(0, 600));
 // a lift that isn't in the plan, done in place of one that is: the bot offers to change the plan
 await reset(); await tgSend({ text: 'WORKOUT SWAP\nSmith machine chest press: 40x8, 40x7' }); m = await lastMsg();
 const swTok = (m.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data || '');
@@ -109,8 +110,14 @@ await reset(); await tgCb(swTok); m = await lastMsg();
 const planAfter = (await tool('get_snapshot', {})).config.plan.sessions.find(s => s.code === 'Ps').ex[0].n;
 check('swap applied to the plan', /Plan updated/.test(m.text) && planAfter === 'Smith machine chest press' && planBefore !== planAfter, planBefore + ' → ' + planAfter);
 await tool('put_config', { id: 'plan', doc: seed.config.plan });   // put the seed plan back for the checks that follow
+// 15 Nov 2026: "standard cardio" logs the saved standard word for word, minutes from the message
+await tool('put_config', { id: 'settings', doc: { ...seed.config.settings, usualCardio: { label: 'Cardio: incline walk 12% at 3 mph', kind: 'walk', note: 'Incline 12, 3 mph' } } });
+await reset(); await tgSend({ text: 'standard cardio 21 minutes' }); m = await lastMsg();
+{ const d = (await tool('get_day', {})).day, w = (d.workouts || []).find(x => x.min === 21);
+  check('standard cardio: saved label, incline and speed, minutes from the message', w && w.label === 'Cardio: incline walk 12% at 3 mph' && w.note === 'Incline 12, 3 mph' && w.kind === 'walk', JSON.stringify(w)); }
+await tool('put_config', { id: 'settings', doc: seed.config.settings });
 await reset(); await tgSend({ text: '/review' }); m = await lastMsg();
-check('/review: the week with went well, to improve and a focus', /Your week/.test(m.text) && /Training: <b>\d+<\/b> gym/.test(m.text) && /Focus for next week/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
+check('/review: the week with went well, to improve and a focus', /Your week/.test(m.text) && /🏋️ <b>\d+<\/b> gym/.test(m.text) && /🎯 <b>Next week:<\/b>/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
 await reset();
 await tgSend({ text: 'ran 5k in 28 min' });
 check('run saved', /Easy run/.test((await lastMsg()).text));
