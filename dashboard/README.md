@@ -106,3 +106,14 @@ Everything else here is how that file is built and checked.
   across C&T, L and S&A instead of 6 on S&A: same 14.0 a week. Sessions 17 / 19 / 19 / 19 sets. Largest
   per-session load: chest 8.5 on C&T, under the ~11 fractional sets where hypertrophy per session levels off
   (Remmert, Zourdos et al. 2025, SportRxiv preprint).
+- **Pop-ups in the middle** (15 Nov). `#sheet` is a centred window on desktop (as tall as its content, 360px
+  minimum so forms don't jump, 86% maximum); `.wide` is a fixed 1000 × 86% window (split builder), `.full` the
+  photos window. Phones keep the bottom sheet. Was: a 460px panel down the right.
+- **Split builder: Per session** (`hf.volView`): a row per muscle, a column per session, the week and its band,
+  sets per session at the foot; amber over ~11 sets for one muscle in one session.
+- **Fit the box** (`fitWidget`, run after every render and on resize): tighten spacing, then hide `data-fit`
+  parts highest level first (`.stats > .dim` count as 1), clip an overflow of 6px or less instead of scrolling,
+  and fade the bottom edge of anything that still scrolls; scroll bars only on hover. `data-scroll` marks lists
+  meant to scroll (food log, opened details). Streaks: rows 8–5, target line 4, squares 3. Training plan: plan
+  name 3, microcycle line 2.
+- **Intake**: a hit is a thin green outline round the whole bar (was a dot above it).

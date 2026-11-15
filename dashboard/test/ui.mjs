@@ -279,7 +279,7 @@ const wkx = await page.evaluate(() => { const svg = document.querySelector('.wid
 await page.mouse.click(wkx.x, wkx.y); await page.waitForTimeout(400);
 const tl = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan]').innerText, title: document.querySelector('.widget[data-id=today] .w-title').textContent, demo: Fig3D.moveFor('Smith machine chest press')}));
 check('training log click: the session opens in the plan with its sets', /Trained on/.test(tl.plan) && /1 Nov/.test(tl.title), JSON.stringify({i: wkx.i, title: tl.title, plan: tl.plan.slice(0, 200)}));
-const im = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'); return {legend: /on target/.test(w.innerText), k: w.querySelectorAll('[data-c=k] circle.hitmark').length, p: w.querySelectorAll('[data-c=p] circle.hitmark').length, streak: /Streak \d+ day/.test(w.innerText)}; });
+const im = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'); return {legend: /on target/.test(w.innerText), k: w.querySelectorAll('[data-c=k] path.hitmark').length, p: w.querySelectorAll('[data-c=p] path.hitmark').length, streak: /Streak \d+ day/.test(w.innerText)}; });
 check('Intake: on-target legend and dots over bars, streak in the stats', im.legend && im.k + im.p >= 0, JSON.stringify(im));
 check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
 const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
@@ -328,6 +328,47 @@ check('photos: due notice; upload goes to Health DB with a thumbnail and the wei
   JSON.stringify({ sets: ps1.sets, th: th?.data?.length, full: fu?.data?.length, blurred, loaded, lb, lbLeft, after: ps2.sets.length }));
 await page.evaluate(() => document.querySelectorAll('.ph-lb').forEach(x => x.remove()));
 await page.click('#sheet-x');
+// 15 Nov 2026: pop-ups in the middle; the split builder's per-session table
+await page.evaluate(() => document.querySelector('.widget[data-id=plan] [data-edit]').click()); await page.waitForTimeout(400);
+const sb = await page.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(); return {cx: r.left + r.width / 2, cy: r.top + r.height / 2, W: innerWidth, H: innerHeight, right: innerWidth - r.right}; });
+if (vp.width > 900) check('pop-ups open in the middle of the screen, not down the right', Math.abs(sb.cx - sb.W / 2) < 4 && Math.abs(sb.cy - sb.H / 2) < 4 && sb.right > 40, JSON.stringify(sb));
+await page.evaluate(() => document.querySelector('#sheet-b [data-vv=session]').click()); await page.waitForTimeout(250);
+const vt = await page.evaluate(() => { const t = document.querySelector('#sheet-b .vtab'); return t ? {heads: [...t.querySelectorAll('thead th')].map(x => x.textContent), rows: t.querySelectorAll('tbody tr').length, tot: t.querySelector('tr.tot')?.innerText} : null; });
+check('split builder: per-session table, one column per session, a row per muscle, sets per session', !!vt && vt.heads.includes('Week') && vt.heads.length >= 4 && vt.rows >= 10 && /Sets in the session/.test(vt.tot || ''), JSON.stringify(vt));
+await page.evaluate(() => document.querySelector('#sheet-b [data-vv=week]').click()); await page.waitForTimeout(150);
+check('split builder: back to the weekly bars', await page.evaluate(() => !document.querySelector('#sheet-b .vtab') && !!document.querySelector('#sheet-b .vol')));
+await page.click('#sheet-x');
+// widgets fit their box: Streaks is just the number when small, and the detail appears as it grows
+await page.click('[data-act=widgets]'); await page.waitForTimeout(800);
+await page.evaluate(() => document.querySelector('.pal button[data-t=streaks]').click()); await page.waitForTimeout(600);
+const skAt = async h => { await page.evaluate(h => { const n = [...document.querySelectorAll('.widget')].find(x => /^streaks-/.test(x.dataset.id)); n.style.height = h + 'px'; }, h); await page.waitForTimeout(300);
+  return page.evaluate(() => { const n = [...document.querySelectorAll('.widget')].find(x => /^streaks-/.test(x.dataset.id)), vis = q => [...n.querySelectorAll(q)].filter(x => x.offsetParent).length; return {big: vis('.big'), dots: vis('.sk-dots'), rows: vis('.sk-row'), over: n.querySelector('.sk').scrollHeight - n.querySelector('.sk').clientHeight}; }); };
+const small = await skAt(130), tall = await skAt(420);
+check('Streaks: small shows just the number; tall shows the squares and every row; never overflows', small.big === 1 && small.rows === 0 && tall.dots === 1 && tall.rows >= 3 && small.over <= 1 && tall.over <= 1, JSON.stringify({small, tall}));
+await page.evaluate(() => { const n = [...document.querySelectorAll('.widget')].find(x => /^streaks-/.test(x.dataset.id)); n.querySelector('[data-act=remove], .w-x, [aria-label^=Remove]')?.click(); });
+await page.waitForTimeout(300);
+// no needless scroll bars: the Training plan on every tab either fits or genuinely needs to scroll
+const pt = [];
+for (const code of await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=plan] [data-tab]')].map(x => x.dataset.tab))) {
+  await page.evaluate(c => document.querySelector(`.widget[data-id=plan] [data-tab="${c}"]`).click(), code); await page.waitForTimeout(150);
+  pt.push(await page.evaluate(() => { const x = document.querySelector('.widget[data-id=plan] .scroll'); const d = x.scrollHeight - x.clientHeight; return d <= 1 || x.classList.contains('fit-clip') || d > 6 ? 'ok' : 'near-miss ' + d; }));
+}
+check('Training plan: no scroll bar for a few pixels on any tab', pt.every(x => x === 'ok'), JSON.stringify(pt));
+if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part of the pass/fail
+  const ib = await page.locator('.widget[data-id=intake] [data-c=k]').boundingBox();
+  for (let i = 0; i < 2; i++) { await page.mouse.move(ib.x + ib.width / 2, ib.y + ib.height / 2); await page.mouse.wheel(0, 300); await page.waitForTimeout(250); }
+  await page.locator('.widget[data-id=intake]').screenshot({ path: `${OUT}v10-intake-${vp.width}.png` });
+  await page.evaluate(() => document.querySelector('.widget[data-id=plan] [data-edit]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('#sheet-b [data-vv=session]').click()); await page.waitForTimeout(250);
+  await page.evaluate(() => document.querySelector('#sheet-b #pe-score').scrollIntoView()); await page.waitForTimeout(150);
+  await page.screenshot({ path: `${OUT}v10-split-${vp.width}.png` });
+  await page.evaluate(() => document.querySelector('#sheet-b [data-vv=week]').click()); await page.click('#sheet-x');
+  // made-up days in the scratch database: three on target, one over on calories, so the outlines show
+  const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
+  for (const [n, kcal, p] of [[1, 2600, 165], [2, 2500, 158], [3, 3300, 170], [4, 2700, 160]]) await mcpNode('put_day', { date: dd(n), doc: { date: dd(n), items: [{ id: 'x' + n, n: 'Test meal', q: 1, u: 'serving', kcal, p, c: 250, f: 80 }] } });
+  await page.reload(); await page.waitForTimeout(3500);
+  await page.locator('.widget[data-id=intake]').screenshot({ path: `${OUT}v10-intake-hits-${vp.width}.png` });
+}
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();
 console.log(out.join('\n')); console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
