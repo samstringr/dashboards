@@ -117,3 +117,16 @@ Everything else here is how that file is built and checked.
   meant to scroll (food log, opened details). Streaks: rows 8–5, target line 4, squares 3. Training plan: plan
   name 3, microcycle line 2.
 - **Intake**: a hit is a thin green outline round the whole bar (was a dot above it).
+- **Edit layout** (15 Nov, `setEditing`). Widgets only move or resize in edit mode (pencil in the zoom controls,
+  or E); outside it there are no corners and the canvas never selects text. In edit mode a drag anywhere on a
+  widget moves it and the contents are inert. `UNDO` holds the canvas before every change made while editing
+  (drags, Fill screen, loading a preset); Ctrl/⌘ Z or the Undo button steps back; Done or Esc ends it. WHY:
+  Sam was selecting text and nudging widgets while just using the page.
+- **Fill screen** (`fillScreen`): every edge is mapped through one x scale and one y scale to fill the visible
+  canvas at the current zoom, then rounded to the grid, so touching widgets stay touching. If any widget would go
+  under its minimum (the screen holds less than the layout), it refuses and says to zoom out.
+- **Presets** ride in the layout document (`presets: [{name, widgets, view, at}]`); the first load of this
+  version saves the canvas as "Default". Until presets have loaded, `saveLayout` leaves the key out rather
+  than writing an empty list.
+- **Wider pop-ups**: default 600 → 720px; `.wide` (split builder, widget palette, Help) is now nearly the photos
+  window (4vh / 6vw margins).
