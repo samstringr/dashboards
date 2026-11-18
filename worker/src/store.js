@@ -21,6 +21,17 @@ export async function putDay(env, doc) {
     .bind(doc.date, JSON.stringify(doc), doc.updated).run();
   return doc;
 }
+/* Many days in two queries (18 Nov 2026): one read for the range, one batched write. WHY: the steps import back to
+   4 May sends ~200 days at once, and a read plus a write per day would be ~400 database calls in one request. */
+export async function daysBetween(env, from, to) {
+  const { results } = await env.DB.prepare('SELECT doc FROM days WHERE date BETWEEN ? AND ?').bind(from, to).all();
+  return results.map(r => JSON.parse(r.doc));
+}
+export async function putDays(env, docs) {
+  if (!docs.length) return;
+  await env.DB.batch(docs.map(doc => { doc.updated = Math.max(Date.now(), (doc.updated || 0) + 1);
+    return env.DB.prepare('INSERT INTO days (date, doc, updated) VALUES (?, ?, ?) ON CONFLICT(date) DO UPDATE SET doc = excluded.doc, updated = excluded.updated').bind(doc.date, JSON.stringify(doc), doc.updated); }));
+}
 export async function mutateDay(env, date, fn) {
   const doc = (await getDay(env, date)) || { date };
   fn(doc); doc.date = date;

@@ -1,5 +1,5 @@
 import { text, json, r1, fmt, today, validDate, authorized, webhookSecret, dLong, diffDays, addDays } from './util.js';
-import { ensureSchema, getDay, mutateDay } from './store.js';
+import { ensureSchema, getDay, mutateDay, daysBetween, putDays } from './store.js';
 import { targets, loadCtx, weighins, rollAvg } from './model.js';
 import { creatineStart } from './extras.js';
 import { tg, send, telegramWebhook, command } from './bot.js';
@@ -70,7 +70,9 @@ export async function healthIngest(req, env) {
    dropped). Also accepted: a {date: count} object, a [{date, steps}] list, or a bare number for `date`.
    Each send overwrites those days: Apple Health is the source of truth and its later count is the fuller one.
    stepsAt = the date it was sent; on the day itself the count is still running, so the dashboard shows it as
-   "so far" and keeps it out of averages until a later send. Dates must be within the last 60 days. */
+   "so far" and keeps it out of averages until a later send. Dates must be within the last 400 days (was 60 until
+   18 Nov 2026, when Sam asked for a one-off import of his steps back to 4 May: a duplicate of the Shortcut with
+   "Start Date is after 3 May 2026" sends ~200 days in one go). */
 export function parseSteps(v, date) {
   const out = [], put = (d, n) => { const x = Math.round(parseFloat(String(n).replace(/[,\s]/g, ''))); if (/^\d{4}-\d{2}-\d{2}$/.test(d) && isFinite(x) && x >= 0 && x < 200000) out.push([d, x]); };
   if (v == null || v === '') return out;
@@ -78,18 +80,20 @@ export function parseSteps(v, date) {
   else if (Array.isArray(v)) for (const x of v) put(String(x?.date || ''), x?.steps ?? x?.value);
   else if (typeof v === 'object') for (const [d, n] of Object.entries(v)) put(d, n);
   else for (const m of String(v).matchAll(/(\d{4}-\d{2}-\d{2})\s*[=:]\s*([\d][\d,.\s]*)/g)) put(m[1], m[2].trim());
-  const td = today(), seen = new Map(); for (const [d, n] of out) if (d <= td && d >= addDays(td, -60)) seen.set(d, Math.max(n, seen.get(d) ?? 0));
+  const td = today(), seen = new Map(); for (const [d, n] of out) if (d <= td && d >= addDays(td, -400)) seen.set(d, Math.max(n, seen.get(d) ?? 0));
   return [...seen].sort();
 }
 async function saveSteps(env, list) {
-  const td = today(); let n = 0;
+  if (!list.length) return { days: 0, updated: 0 };
+  const td = today(), have = new Map((await daysBetween(env, list[0][0], list[list.length - 1][0])).map(d => [d.date, d])), out = [];
   for (const [date, steps] of list) {
-    const cur = await getDay(env, date);
+    const cur = have.get(date);
     // nothing new: the same count, already marked as of today or already complete (sent after its day)
     if (cur?.steps === steps && (cur.stepsAt === td || (cur.stepsAt && cur.stepsAt !== date))) continue;
-    await mutateDay(env, date, d => { d.steps = steps; d.stepsAt = td; }); n++;
+    out.push({ ...(cur || {}), date, steps, stepsAt: td });
   }
-  return { days: list.length, updated: n };
+  await putDays(env, out);
+  return { days: list.length, updated: out.length };
 }
 /* "Got it" message for an Apple Health weigh-in: the numbers, the trend, and what might be skewing them. */
 async function weighAck(env, date, body, lean, updated) {
