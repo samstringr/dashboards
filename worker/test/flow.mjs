@@ -156,6 +156,17 @@ const good = await tool('put_day', { date: '2026-11-02', doc: { ...cur, partial:
 check('put_day with right base', good.ok && good.doc.note === 'from dashboard');
 const inc = await tool('get_snapshot', { since: rev0 });
 check('incremental snapshot', inc.days.length >= 2 && inc.days.length < seed.days.length, inc.days.map(d => d.date).join(','));
+// 18 Nov 2026: after the snapshot check, which counts changed days
+{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
+  // 18 Nov 2026: the one-off import, ~200 days in one request; a day with food keeps it (made-up counts)
+  const food = (await tool('get_day', { date: '2026-11-02' })).day, n0 = food.items?.length || 0, big = [];
+  for (let i = 10; i < 210; i++) big.push(`${dd(i)}=${5000 + i}`);
+  const bk = await (await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ steps: big.join(';') + ';2026-11-02=7777' }) })).json();
+  const food2 = (await tool('get_day', { date: '2026-11-02' })).day, old = (await tool('get_day', { date: dd(209) })).day;
+  check('steps import: 200+ days in one request, food kept', bk.ok && bk.steps.updated >= 200 && food2.steps === 7777 && (food2.items?.length || 0) === n0 && n0 > 0 && old.steps === 5209 && old.stepsAt === td, JSON.stringify({ steps: bk.steps, n0, n1: food2.items?.length, old: old.steps }));
+  const bk2 = await (await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ steps: big.join(';') + ';2026-11-02=7777' }) })).json();
+  check('steps import: a repeat writes nothing', bk2.ok && bk2.steps.updated === 0, JSON.stringify(bk2.steps));
+}
 await reset();
 const sw = await tool('send_workout', {});
 check('send_workout via MCP', sw.ok && /WORKOUT Pl/.test((await lastMsg()).text), sw.session);

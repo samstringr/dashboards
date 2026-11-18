@@ -114,5 +114,6 @@ import { parseSteps } from '../src/index.js';
   check('steps: a bare number is for the date', JSON.stringify(parseSteps('7,500', y)) === JSON.stringify([[y, 7500]]));
   check('steps: object and list forms', parseSteps({ [y]: 9000 }, td)[0][1] === 9000 && parseSteps([{ date: y, steps: 9100 }], td)[0][1] === 9100);
   check('steps: future, too old and nonsense dropped', parseSteps(`${addDaysU(td, 1)}=5;2020-01-01=5;hello`, td).length === 0);
+  check('steps: 400-day window for the one-off import (18 Nov 2026)', parseSteps(`${addDaysU(td, -200)}=6000;${addDaysU(td, -399)}=5;${addDaysU(td, -401)}=5`, td).length === 2);
 }
 console.log(fails ? fails + ' FAILED' : 'ALL PASSED (with stubs)');
