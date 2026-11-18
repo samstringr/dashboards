@@ -140,3 +140,13 @@ Everything else here is how that file is built and checked.
   arms ran into the head (Sam: "clipping or hyperextending"). Now the hands stop at forehead height, shoulders down.
 - **Lower back** is a split-builder muscle (`erectors`, keep 4–8): back extension 1, RDL and deadlift ½. EXMAP
   checks shrugs first: "DB shrug (chest-supported)" was being scored as a chest-supported row (lats, upper back).
+- **Training log by day (18 Nov 2026).** Sam: "split each week into days… see the different step counts on every day…
+  a 10K step target on that axis… if I hover, it's good to see the week". Each week keeps its band (alternate shading,
+  its Monday underneath) and gets seven columns: steps as a bar on the right-hand scale, brighter at or over the target
+  (dotted line, 10,000, from `stepTarget`: the widget's settings, then `settings.stepTarget`, then 10,000), and the
+  day's sessions as squares underneath (green gym, blue cardio, outlined sport). Hover shows the day, then its week;
+  a click selects the day everywhere (a day with sessions opens the latest in the Training plan). Below 3 px a day
+  (a year on a normal widget) the columns would be hairlines, so it falls back to the weekly totals and average line,
+  which get the dotted target too. Steps go back to 4 May 2026 (one-off import, worker README).
+- **UI test, Intake click (18 Nov 2026).** It clicked the middle of the chart, which as the local seed aged landed on a
+  day with nothing logged. The test now logs two made-up food days in the last fortnight and clicks the first real bar.

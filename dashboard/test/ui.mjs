@@ -22,7 +22,9 @@ const mcpNode = async (name, args) => { const r = await fetch(W + '/mcp', { meth
 const imp = await mcpNode('import_data', { days: seed.days, config: seed.config, mode: 'missing' });
 for (const [date, kind, label, extra] of [['2026-10-27', 'gym', 'U · Upper', { planCode: 'U' }], ['2026-10-29', 'run', 'Easy run', { minutes: 28, distance_km: 5 }], ['2026-10-31', 'football', 'Football', { minutes: 60 }], ['2026-11-01', 'gym', 'L · Lower', { planCode: 'L', exercises: [{ name: 'Back squat', sets: [{ kg: 80, reps: 8 }, { kg: 80, reps: 7 }] }] }], ['2026-11-03', 'cycle', 'Easy ride', { minutes: 45 }], ['2026-11-04', 'swim', 'Swim', {}]]) await mcpNode('log_workout', { date, kind, label, ...extra });
 { const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);   // made-up step counts for the last 20 days
-  await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ steps: Array.from({ length: 20 }, (_, i) => dd(i) + '=' + (6000 + (i * 1373) % 6000)).join(';') }) }); }
+  await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ steps: Array.from({ length: 20 }, (_, i) => dd(i) + '=' + (6000 + (i * 1373) % 6000)).join(';') }) });
+  // 18 Nov 2026: two made-up food days in the last fortnight, so the Intake click below has real bars whatever the seed's age
+  for (const n of [4, 3]) await mcpNode('log_food', { date: dd(n), items: [{ name: 'Test meal', qty: 1, unit: 'serving', kcal: 2400 + n * 50, p: 150, c: 250, f: 80 }] }); }
 const vp = process.argv[2] === 'phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
@@ -162,10 +164,12 @@ check('selected day shows in composition, training log and weight; the plan only
 const pz = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.widget')].map(n => [n.dataset.id, n.classList.contains('pulse')])));
 check('pulse only where content changed: Today yes; the clicked Consistency, Coach and Daily thought no', pz.today && !pz.calendar && !pz.tips && !pz.quote && (gym2 || !pz.plan), JSON.stringify(pz));
 // an intake bar selects its day and the chart doesn't slide (the window still ends today)
-const ib = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=intake] [data-c=k] svg'), r = svg.getBoundingClientRect(); return {x: r.left + r.width * 0.5, y: r.top + r.height * 0.5}; });
+// 18 Nov 2026: click a real bar (the second-to-last logged day), not the middle of the chart, which can land on a day with nothing logged
+await page.click('#d-lbl'); await page.waitForTimeout(200);   // back to today first: with 2 Nov selected the window ends there, and as the seed ages it holds a single logged day
+const ib = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=intake] [data-c=k] svg'), r = svg.getBoundingClientRect(), k = r.width / +svg.getAttribute('width'), bars = [...svg.querySelectorAll('path')].filter(p => /fill:(var\(--kcal\)|url)/.test(p.getAttribute('style') || '')).map(p => p.getBBox()).filter(b => b.height > 2), b = bars[0]; return {x: b ? r.left + (b.x + b.width / 2) * k : r.left + r.width / 2, y: b ? r.top + (b.y + b.height - 2) * k : r.top + r.height / 2, n: bars.length}; });   // a real bar (the first in the window), not the middle of the chart, which can be a day with nothing logged
 await page.mouse.click(ib.x, ib.y); await page.waitForTimeout(300);
 const ia = await page.evaluate(() => ({title: document.querySelector('.widget[data-id=today] .w-title').textContent, supp: document.querySelector('.widget[data-id=supps] .lab')?.textContent || '', shade: !!document.querySelector('.widget[data-id=intake] [data-c=k] svg rect[style*="fill-opacity:.1"]')}));
-check('intake bar click: Today and supplements follow, the bar is shaded in place', ia.title !== 'Today' && !/2 Nov/.test(ia.title) && ia.supp !== 'Today' && ia.shade, JSON.stringify(ia));
+check('intake bar click: Today and supplements follow, the bar is shaded in place', ia.title !== 'Today' && !/2 Nov/.test(ia.title) && ia.supp !== 'Today' && ia.shade, JSON.stringify({...ia, n: ib.n}));
 await page.click('.widget[data-id=today] [data-today]'); await page.waitForTimeout(300);
 check('↩ Today resets every widget', (await page.evaluate(() => document.querySelector('.widget[data-id=today] .w-title').textContent + '|' + document.querySelectorAll('[data-today]').length)) === 'Today|0');
 await page.evaluate(() => [...document.querySelectorAll('.widget[data-id=calendar] i[data-d]')].find(i => i.dataset.d === '2026-11-02').dispatchEvent(new MouseEvent('dblclick', {bubbles: true})));
@@ -303,8 +307,8 @@ const selAfter = await page.evaluate(() => ({lbl: document.querySelector('#d-lbl
 check('linked: clicking a day on the weight chart selects it everywhere', selAfter.lbl !== selBefore && selAfter.pulsed >= 3, JSON.stringify({selBefore, ...selAfter}));
 // Training log → Training plan: clicking a week opens its latest session with the sets that were hit
 await page.click('#d-lbl'); await page.waitForTimeout(200);
-const wkx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), n = 12, pw = r.width - 44, mon = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - (x.getUTCDay() + 6) % 7); return x; };
-  const i = n - 1 - Math.round((mon(new Date().toISOString().slice(0, 10)) - mon('2026-11-01')) / 6048e5); return {x: r.left + 18 + pw / n * (i + .5), y: r.top + r.height / 2, i}; });   // 18 left, 26 right (the steps axis)
+const wkx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), k = r.width / +svg.getAttribute('width'), D = 84, pw = r.width - 30 * k, td = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/London'}).format(new Date()), t = new Date(td + 'T12:00:00Z');
+  t.setUTCDate(t.getUTCDate() - (t.getUTCDay() + 6) % 7 - 77); const j = Math.round((Date.parse('2026-11-01T12:00:00Z') - t) / 864e5); return {x: r.left + 4 * k + pw / D * (j + .5), y: r.top + r.height / 2, i: j}; });   // 18 Nov 2026: one column a day, 4 left, 26 right (the steps axis), scaled by the canvas zoom
 await page.mouse.click(wkx.x, wkx.y); await page.waitForTimeout(400);
 const tl = await page.evaluate(() => ({plan: document.querySelector('.widget[data-id=plan]').innerText, title: document.querySelector('.widget[data-id=today] .w-title').textContent, demo: Fig3D.moveFor('Smith machine chest press')}));
 check('training log click: the session opens in the plan with its sets', /Trained on/.test(tl.plan) && /1 Nov/.test(tl.title), JSON.stringify({i: wkx.i, title: tl.title, plan: tl.plan.slice(0, 200)}));
@@ -313,6 +317,21 @@ check('Intake: on-target legend and dots over bars, streak in the stats', im.leg
 check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
 const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
 check('steps: Training log has a right-hand steps axis, legend and average', stp.legend && stp.axis && stp.stat, JSON.stringify(stp));
+// 18 Nov 2026: a column a day inside each week, the 10k target dotted on the steps scale; a year falls back to weeks
+const dm = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'); return {aria: svg.getAttribute('aria-label'), dashed: [...svg.querySelectorAll('line')].some(l => /dasharray/.test(l.getAttribute('style') || '')), k10: [...svg.querySelectorAll('text')].some(t => t.textContent === '10k'), bars: [...svg.querySelectorAll('rect')].filter(r => /fill:var\(--ink\);fill-opacity:(0?\.62|0?\.26|0?\.14)/.test(r.getAttribute('style') || '')).length, stat: /\/\d+ ≥10k/.test(w.innerText)}; });
+check('Training log by day: a step bar a day, 10k dotted on the right scale, days at target in the stats', /per day/.test(dm.aria) && dm.dashed && dm.k10 && dm.bars >= 15 && dm.stat, JSON.stringify(dm));
+if (vp.width > 900) {
+  const sb = await page.locator('.widget[data-id=workouts] [data-c=w] svg').boundingBox();
+  await page.mouse.move(sb.x + sb.width - 40, sb.y + sb.height / 2); await page.waitForTimeout(150);
+  const tp = await page.locator('.widget[data-id=workouts] .tip').innerText().catch(() => '');
+  check('Training log hover: the day first, then its week', /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ \w{3}/.test(tp) && /Week of/.test(tp) && /steps|still to come/.test(tp), tp.replace(/\n/g, ' | ').slice(0, 160));
+  await page.mouse.move(sb.x - 30, sb.y - 30); await page.locator('.widget[data-id=workouts]').screenshot({ path: `${OUT}v13-steps-days.png` });
+  await page.evaluate(() => { const b = document.querySelector('.widget[data-id=workouts] .w-range'); b.click(); b.click(); }); await page.waitForTimeout(300);
+  const yr = await page.evaluate(() => document.querySelector('.widget[data-id=workouts] [data-c=w] svg')?.getAttribute('aria-label'));
+  await page.locator('.widget[data-id=workouts]').screenshot({ path: `${OUT}v13-steps-year.png` });
+  await page.evaluate(() => { const b = document.querySelector('.widget[data-id=workouts] .w-range'); b.click(); b.click(); b.click(); }); await page.waitForTimeout(300);
+  check('Training log: a year on the default size falls back to weekly totals, then back to 12 weeks by day', yr === 'Sessions per week' && /per day/.test(await page.evaluate(() => document.querySelector('.widget[data-id=workouts] [data-c=w] svg')?.getAttribute('aria-label'))), yr);
+}
 check('15 Nov back day: every exercise has its own demo, and the variant groups', JSON.stringify(await page.evaluate(() => ['Chest-supported row (wide grip)', 'Chest-supported row (close grip)', 'Single-arm cable row (lat focus)', 'Weighted back extension', 'Cable rear delt fly', 'DB shrug (chest-supported)', 'Cable pullover (standing)', 'Reverse pec deck'].map(n => Fig3D.moveFor(n) + (Fig3D.ready(Fig3D.moveFor(n)) ? '' : '!'))))
   === '["chestrow","chestrowclose","latrow1","backext","cablerdf","shrugincline","straightarm","revpec"]');
 check('Smith machine chest press has its own demo', tl.demo === 'smithpress' && (await page.evaluate(() => Fig3D.ready('smithpress'))), tl.demo);
