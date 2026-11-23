@@ -91,7 +91,7 @@ export const TOOLS = [
       const d = await mutateDay(env, date, doc => { doc.body = { ...(doc.body || {}), ...body, src: 'claude' }; });
       return { ok: true, date, body: d.body };
     } },
-  { name: 'log_workout', description: 'Save a session: kind (gym|run|swim|football|cycle|walk|other), label, planCode, minutes, distance_km, exercises [{name, sets:[{kg, reps, rpe}]}], note.',
+  { name: 'log_workout', description: 'Save a session: kind (gym|run|swim|football|cycle|walk|golf|other; golf is light activity, never cardio), label, planCode, minutes, distance_km, exercises [{name, sets:[{kg, reps, rpe}]}], note.',
     inputSchema: { type: 'object', properties: { date: { type: 'string' }, kind: { type: 'string' }, label: { type: 'string' }, planCode: { type: 'string' }, minutes: { type: 'number' }, distance_km: { type: 'number' }, exercises: { type: 'array', items: { type: 'object' } }, note: { type: 'string' } }, required: ['kind'] },
     run: async (env, a) => {
       const date = validDate(a.date, today());

@@ -100,10 +100,11 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
   const T0 = today(), D = n => addDaysU(T0, -n);
   const wk = { plan, settings: {}, config: { away: { ranges: [{ from: D(5), to: D(4) }] } }, days: [
     { date: D(6), items: [{ kcal: 2000, p: 100 }], workouts: [{ kind: 'gym', planCode: 'A', ex: [{ n: 'Incline DB bench', sets: [{ kg: 32, r: 8 }] }] }] },
-    { date: D(5), items: [{ kcal: 900, p: 40 }] }, { date: D(3), items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }] },
+    { date: D(5), items: [{ kcal: 900, p: 40 }] }, { date: D(3), items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }, { kind: 'golf', min: 120 }] },
     { date: T0, items: [{ kcal: 600, p: 30 }] }, { date: D(20), workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
   const F = weeklyFacts(wk, T0), H = weeklyHtml(F);
   check('weekly: away days and today left out of food; sessions planned scale with the days away', F.logged === 2 && F.open === 4 && F.away === 2 && Math.round(F.kcal) === 2100 && F.want === 4 && F.gym === 1 && F.cardioMin === 25 && F.ups.join() === 'Incline DB bench' && /Get to 4 sessions/.test(H.focus) && /Away/.test(H.stats), JSON.stringify({ l: F.logged, o: F.open, a: F.away, k: F.kcal, w: F.want, f: H.focus }));
+  check('weekly: golf is reported as light activity, not cardio (23 Nov 2026)', F.cardioMin === 25 && F.cardioN === 1 && F.lightN === 1 && F.lightMin === 120 && /1 golf, 120 min/.test(H.stats || JSON.stringify(H)), JSON.stringify({ c: F.cardioMin, n: F.cardioN, l: F.lightN, lm: F.lightMin }));
 }
 // 14 Nov 2026: steps from the Shortcut (made-up counts)
 import { parseSteps } from '../src/index.js';
