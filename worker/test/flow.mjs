@@ -115,6 +115,10 @@ await tool('put_config', { id: 'settings', doc: { ...seed.config.settings, usual
 await reset(); await tgSend({ text: 'standard cardio 21 minutes' }); m = await lastMsg();
 { const d = (await tool('get_day', {})).day, w = (d.workouts || []).find(x => x.min === 21);
   check('standard cardio: saved label, incline and speed, minutes from the message', w && w.label === 'Cardio: incline walk 12% at 3 mph' && w.note === 'Incline 12, 3 mph' && w.kind === 'walk', JSON.stringify(w)); }
+// 23 Nov 2026: golf is its own kind (light activity), saved as said
+await reset(); await tgSend({ text: 'driving range for 2 hours, irons' }); m = await lastMsg();
+{ const d = (await tool('get_day', {})).day, w = (d.workouts || []).find(x => x.kind === 'golf');
+  check('golf: saved as kind golf with its minutes and note', w && w.label === 'Golf: driving range' && w.min === 120 && w.note === 'Irons', JSON.stringify(w)); }
 await tool('put_config', { id: 'settings', doc: seed.config.settings });
 await reset(); await tgSend({ text: '/review' }); m = await lastMsg();
 check('/review: the week with went well, to improve and a focus', /Your week/.test(m.text) && /🏋️ <b>\d+<\/b> gym/.test(m.text) && /🎯 <b>Next week:<\/b>/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
@@ -258,7 +262,8 @@ check('back removes a same-day range', away2.ranges.length === 0, JSON.stringify
 await reset();
 await tgSend({ text: 'going on holiday until the 20th' });
 m = await lastMsg();
-check('holiday in plain words → away', /Away: Holiday/.test(m.text) && /Fri 20 Nov/.test(m.text), m.text.split('\n')[0]);
+{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), to = new Date(Date.parse(td) + 4 * 864e5).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
+  check('holiday in plain words → away', /Away: Holiday/.test(m.text) && m.text.includes(to), m.text.split('\n')[0] + ' / want ' + to); }
 await tgSend({ text: '/back' });
 
 // --- 7 Nov 2026 quality of life: Sam's exact burger message, repeats, presets, how much, failures

@@ -269,7 +269,7 @@ export async function handleParsed(env, ctx, r, pending) {
        Training log shows the incline and speed. Minutes always come from the message. */
     const uc = ctx.settings?.usualCardio && typeof ctx.settings.usualCardio === 'object' ? ctx.settings.usualCardio : null;
     if (w.usual && uc && w.kind !== 'gym') Object.assign(w, { kind: uc.kind || 'walk', label: uc.label, note: uc.note || w.note });
-    const kind = ['gym', 'football', 'run', 'swim', 'cycle', 'walk', 'other'].includes(w.kind) ? w.kind : 'other';
+    const kind = ['gym', 'football', 'run', 'swim', 'cycle', 'walk', 'golf', 'other'].includes(w.kind) ? w.kind : 'other';   // golf: 23 Nov 2026, light activity (see coach.js LIGHT)
     const planS = ctx.plan?.sessions.find(s => s.code === w.planCode);
     const ex = (w.exercises || []).map(e => ({ n: String(e.name || '').slice(0, 80), sets: (e.sets || []).filter(s => s.kg != null || s.reps != null).map(s => { const o = { kg: s.kg ?? null, r: s.reps ?? null }; if (s.rpe != null) o.rpe = s.rpe; return o; }) })).filter(e => e.n && e.sets.length);
     const rec = { id: uid(), kind, label: String(w.label || (planS ? planS.code + ' · ' + planS.name : kind)).slice(0, 80), ...(planS ? { planCode: planS.code } : {}),

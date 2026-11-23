@@ -25,6 +25,10 @@ import { esc, fmt, mean, addDays, diffDays, dLong, normName, today } from './uti
 import { dayTotals, targets, weighins, rollAvg, allWorkouts, lastPerf, setsText, planState } from './model.js';
 import { claude } from './ai.js';
 import { awayOn } from './extras.js';
+/* Light activity (23 Nov 2026): golf, e.g. two hours at the driving range. Measured at 2.3-2.6 MET (Wolkodoff
+   2024, range practice), under the 3.0 that counts as moderate, so it is shown and reported but never counted as
+   cardio: an hour would otherwise cover 40% of the 150-minute week. */
+export const LIGHT = ['golf'];
 
 export const loadStep = n => /\bdb\b|dumbbell/i.test(n) ? 2 : /\bleg\b|machine|deck|smith|squat|deadlift/i.test(n) ? 5 : /cable|push.?down|pull.?down|pullover|face pull|rope|curl|lateral|crunch/i.test(n) ? 2.5 : 5;
 const range = reps => { const m = String(reps || '').match(/(\d+)\s*[-–]\s*(\d+)/); return m ? [+m[1], +m[2]] : null; };
@@ -132,7 +136,7 @@ export function weeklyFacts(ctx, end) {
   const wkDays = Array.from({ length: 7 }, (_, i) => addDays(from, i)), away = wkDays.filter(d => awayOn(ctx, d)), open = wkDays.filter(d => !awayOn(ctx, d) && d < td);
   const food = days.filter(d => open.includes(d.date)).map(d => ({ d, t: dayTotals(d) })).filter(x => x.t && x.t.kcal != null && !x.t.void && !x.t.partial);
   const tots = food.map(x => x.t);
-  const ws = allWorkouts(ctx.days).filter(w => inWk(w.date)), gym = ws.filter(w => w.kind === 'gym'), other = ws.filter(w => w.kind !== 'gym');
+  const ws = allWorkouts(ctx.days).filter(w => inWk(w.date)), gym = ws.filter(w => w.kind === 'gym'), other = ws.filter(w => w.kind !== 'gym' && !LIGHT.includes(w.kind)), light = ws.filter(w => LIGHT.includes(w.kind));
   const wl = weighins(ctx.days).filter(x => x.w), wNow = wl.some(x => inWk(x.date)) ? rollAvg(wl, end, 'w') : null, wPrev = rollAvg(wl, addDays(end, -7), 'w');
   // lifts: the first set of each exercise this week against the last time it was done before this week
   const before = { ...ctx, days: ctx.days.filter(d => d.date < from) }, ups = [], downs = [], seen = new Set();
@@ -144,7 +148,7 @@ export function weeklyFacts(ctx, end) {
   const want = ctx.plan?.perWeek ? Math.floor(ctx.plan.perWeek * (7 - away.length) / 7) : null;
   return { from, end, T, open: open.length, away: away.length, awayFrom: away[0], awayTo: away[away.length - 1], logged: tots.length,
     hit: T.ok ? food.filter(x => { const t = targets(ctx, x.d.date); return t.ok && x.t.p >= t.protein - 0.5; }).length : null, kcal: mean(tots.map(t => t.kcal)), prot: mean(tots.map(t => t.p)),
-    gym: gym.length, want, codes: gym.map(w => w.planCode || w.label || 'gym').reverse(), cardioMin: other.reduce((a, w) => a + (+w.min || 0), 0), cardioN: other.length,
+    gym: gym.length, want, codes: gym.map(w => w.planCode || w.label || 'gym').reverse(), cardioMin: other.reduce((a, w) => a + (+w.min || 0), 0), cardioN: other.length, lightN: light.length, lightMin: light.reduce((a, w) => a + (+w.min || 0), 0),
     steps: mean(days.filter(d => d.steps != null && d.stepsAt !== d.date).map(d => +d.steps)), stepDays: days.filter(d => d.steps != null && d.stepsAt !== d.date).length,
     wNow, wPrev: wNow != null ? wPrev : null, weighed: wl.filter(x => inWk(x.date)).length, ups, downs, lifts: seen.size, prevFrom };
 }
@@ -159,7 +163,7 @@ export function weeklyHtml(F) {
   const focus = F.want != null && F.gym < F.want ? `Get to ${F.want} sessions: the plan only works at its frequency.`
     : F.hit != null && F.logged && F.hit < F.logged - 1 ? `Protein: ${F.T.protein} g every day. Front-load it: 40 g by lunch makes the floor easy.`
     : F.open && F.logged < F.open - 1 ? 'Log every day, even roughly.' : F.ups.length ? 'Same again: one more rep or the next load on every first set.' : 'One more rep on the first set of each lift.';
-  const stats = [`🏋️ <b>${F.gym}</b> gym${F.codes.length ? ' (' + F.codes.map(esc).join(', ') + ')' : ''}${F.cardioN ? ` · ${F.cardioN} cardio or sport${F.cardioMin ? ', ' + fmt(F.cardioMin) + ' min' : ''}` : ''}`,
+  const stats = [`🏋️ <b>${F.gym}</b> gym${F.codes.length ? ' (' + F.codes.map(esc).join(', ') + ')' : ''}${F.cardioN ? ` · ${F.cardioN} cardio or sport${F.cardioMin ? ', ' + fmt(F.cardioMin) + ' min' : ''}` : ''}${F.lightN ? ` · ${F.lightN} golf${F.lightMin ? ', ' + fmt(F.lightMin) + ' min' : ''}` : ''}`,
     F.logged ? `🍽 <b>${fmt(F.kcal)}</b> kcal · <b>${fmt(F.prot)}</b> g protein a day${F.T.ok ? ` (targets ${fmt(F.T.kcal)} / ${F.T.protein})` : ''}` : '🍽 Nothing complete logged',
     F.away ? `🏝 Away ${F.away === 1 ? dLong(F.awayFrom) : dLong(F.awayFrom) + ' – ' + dLong(F.awayTo)}: not counted` : '',
     F.steps != null ? `👟 <b>${fmt(F.steps)}</b> steps a day (${F.stepDays} day${F.stepDays === 1 ? '' : 's'} counted)` : '',

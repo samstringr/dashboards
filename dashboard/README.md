@@ -150,3 +150,16 @@ Everything else here is how that file is built and checked.
   which get the dotted target too. Steps go back to 4 May 2026 (one-off import, worker README).
 - **UI test, Intake click (18 Nov 2026).** It clicked the middle of the chart, which as the local seed aged landed on a
   day with nothing logged. The test now logs two made-up food days in the last fortnight and clicks the first real bar.
+- **Golf, light activity (23 Nov 2026).** Sam: "I want to be able to log when I did golf training". `kindGroup` has a
+  fourth group, `light` (`LIGHT_KINDS = ['golf']`): shown on the Training log (outlined grey square, its own stat and
+  legend entry, in the hover), never counted in cardio minutes, sessions a week or the Consistency cardio dot. WHY:
+  range practice measured 2.3-2.6 MET (Wolkodoff 2024), under the 3.0 that counts as moderate; an hour would otherwise
+  cover 40% of the 150-minute week. The cardio sheet has a Golf button (label "Golf: driving range"). The session lane
+  holds three markers a day (gym + cardio + golf happened on 19 Nov).
+- **Away days in the widgets (23 Nov 2026).** Sam, after Cambridge: "nice to see that in the widgets too… not able to
+  hit my targets there". `countable` and `dayHit` leave away days out (no averages, no on-target ring, no floor-hit %),
+  as the streaks and the weekly review already did. Intake and the Training log draw the Consistency grid's dashed
+  outline round them (`AWAY_STROKE`), Intake dims their bars and adds "away" to its legend, hovers say "away, <place>"
+  and Today shows an "Away · <place>" chip. The place is the away note up to its first comma.
+- **S&A preset:** cable crunch → decline weighted crunch (Sam's swap, 23 Nov; the same demo as on Legs).
+- **UI tests, dates (23 Nov 2026):** the made-up steps cover 40 days (the 1 Nov click needs steps the week before it).

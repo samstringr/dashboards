@@ -21,10 +21,14 @@ const out = []; let fails = 0; const check = (n, c, x = '') => { out.push((c ? '
 const mcpNode = async (name, args) => { const r = await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args || {} } }) }); return (await r.json()).result; };
 const imp = await mcpNode('import_data', { days: seed.days, config: seed.config, mode: 'missing' });
 for (const [date, kind, label, extra] of [['2026-10-27', 'gym', 'U · Upper', { planCode: 'U' }], ['2026-10-29', 'run', 'Easy run', { minutes: 28, distance_km: 5 }], ['2026-10-31', 'football', 'Football', { minutes: 60 }], ['2026-11-01', 'gym', 'L · Lower', { planCode: 'L', exercises: [{ name: 'Back squat', sets: [{ kg: 80, reps: 8 }, { kg: 80, reps: 7 }] }] }], ['2026-11-03', 'cycle', 'Easy ride', { minutes: 45 }], ['2026-11-04', 'swim', 'Swim', {}]]) await mcpNode('log_workout', { date, kind, label, ...extra });
-{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);   // made-up step counts for the last 20 days
-  await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ steps: Array.from({ length: 20 }, (_, i) => dd(i) + '=' + (6000 + (i * 1373) % 6000)).join(';') }) });
+{ const td = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()), dd = n => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);   // made-up step counts for the last 40 days (was 20; 1 Nov fell out of it by 23 Nov)
+  await fetch(W + '/health', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ steps: Array.from({ length: 40 }, (_, i) => dd(i) + '=' + (6000 + (i * 1373) % 6000)).join(';') }) });
   // 18 Nov 2026: two made-up food days in the last fortnight, so the Intake click below has real bars whatever the seed's age
-  for (const n of [4, 3]) await mcpNode('log_food', { date: dd(n), items: [{ name: 'Test meal', qty: 1, unit: 'serving', kcal: 2400 + n * 50, p: 150, c: 250, f: 80 }] }); }
+  for (const n of [4, 3]) await mcpNode('log_food', { date: dd(n), items: [{ name: 'Test meal', qty: 1, unit: 'serving', kcal: 2400 + n * 50, p: 150, c: 250, f: 80 }] });
+  // 23 Nov 2026: a made-up golf session (light, never cardio) and a made-up away weekend with food logged
+  await mcpNode('log_workout', { date: dd(2), kind: 'golf', label: 'Golf: driving range', minutes: 60 });
+  await mcpNode('log_food', { date: dd(6), items: [{ name: 'Trip meal', qty: 1, unit: 'serving', kcal: 1500, p: 70, c: 150, f: 60 }] });
+  await mcpNode('put_config', { id: 'away', doc: { ranges: [{ from: dd(6), to: dd(5), note: 'Test trip, made up' }] } }); }
 const vp = process.argv[2] === 'phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1 });
@@ -320,6 +324,13 @@ check('steps: Training log has a right-hand steps axis, legend and average', stp
 // 18 Nov 2026: a column a day inside each week, the 10k target dotted on the steps scale; a year falls back to weeks
 const dm = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'); return {aria: svg.getAttribute('aria-label'), dashed: [...svg.querySelectorAll('line')].some(l => /dasharray/.test(l.getAttribute('style') || '')), k10: [...svg.querySelectorAll('text')].some(t => t.textContent === '10k'), bars: [...svg.querySelectorAll('rect')].filter(r => /fill:var\(--ink\);fill-opacity:(0?\.62|0?\.26|0?\.14)/.test(r.getAttribute('style') || '')).length, stat: /\/\d+ ≥10k/.test(w.innerText)}; });
 check('Training log by day: a step bar a day, 10k dotted on the right scale, days at target in the stats', /per day/.test(dm.aria) && dm.dashed && dm.k10 && dm.bars >= 15 && dm.stat, JSON.stringify(dm));
+// 23 Nov 2026: golf shows as its own light marker and stat, never in cardio minutes; away days are outlined
+const gl = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'), st = [...svg.querySelectorAll('rect')].map(r => r.getAttribute('style') || '');
+  return {stat: /\b1 golf\b/.test(w.innerText), legend: /golf/.test(w.querySelector('.pl')?.innerText || ''), marker: st.some(x => /stroke:var\(--ink\);stroke-opacity:\.55/.test(x)), away: st.filter(x => /dasharray:3 2/.test(x)).length, cardio: (w.querySelector('.w-head, .wh, header')?.innerText || w.innerText).match(/Cardio\s*([\d,]+)/)?.[1]}; });
+check('golf: its own outlined marker, legend and stat on the Training log; away days dashed', gl.stat && gl.legend && gl.marker && gl.away === 2, JSON.stringify(gl));
+await page.click('#d-lbl'); await page.waitForTimeout(250);   // back to today: the away days are in the last fortnight
+const ia2 = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'), svg = w.querySelector('[data-c=k] svg'); return {away: [...svg.querySelectorAll('rect')].filter(r => /dasharray:3 2/.test(r.getAttribute('style') || '')).length, legend: /away/.test(w.innerText)}; });
+check('Intake: away days outlined and in the legend', ia2.away === 2 && ia2.legend, JSON.stringify(ia2));
 if (vp.width > 900) {
   const sb = await page.locator('.widget[data-id=workouts] [data-c=w] svg').boundingBox();
   await page.mouse.move(sb.x + sb.width - 40, sb.y + sb.height / 2); await page.waitForTimeout(150);
@@ -331,6 +342,13 @@ if (vp.width > 900) {
   await page.locator('.widget[data-id=workouts]').screenshot({ path: `${OUT}v13-steps-year.png` });
   await page.evaluate(() => { const b = document.querySelector('.widget[data-id=workouts] .w-range'); b.click(); b.click(); b.click(); }); await page.waitForTimeout(300);
   check('Training log: a year on the default size falls back to weekly totals, then back to 12 weeks by day', yr === 'Sessions per week' && /per day/.test(await page.evaluate(() => document.querySelector('.widget[data-id=workouts] [data-c=w] svg')?.getAttribute('aria-label'))), yr);
+  // 23 Nov 2026: click a made-up away day in the Training log: Today says where, the hover says away
+  const ax = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), k = r.width / +svg.getAttribute('width'), pw = r.width - 30 * k, td = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/London'}).format(new Date()), t = new Date(td + 'T12:00:00Z'), a = new Date(td + 'T12:00:00Z');
+    t.setUTCDate(t.getUTCDate() - (t.getUTCDay() + 6) % 7 - 77); a.setUTCDate(a.getUTCDate() - 5); const j = Math.round((a - t) / 864e5); return {x: r.left + 4 * k + pw / 84 * (j + .5), y: r.top + r.height / 3}; });
+  await page.mouse.click(ax.x, ax.y); await page.waitForTimeout(400); await page.mouse.move(ax.x + 1, ax.y); await page.waitForTimeout(150);   // the click re-renders the widget, so hover again for the tip
+  const awt = await page.evaluate(() => ({today: document.querySelector('.widget[data-id=today]')?.innerText || '', tip: document.querySelector('.widget[data-id=workouts] .tip')?.innerText || ''}));
+  check('away day: Today shows the place, the Training log hover says away', /Away · Test trip/.test(awt.today) && /away, Test trip/.test(awt.tip), awt.today.slice(0, 120).replace(/\n/g, ' | ') + ' // ' + awt.tip.slice(0, 80).replace(/\n/g, ' | '));
+  await page.click('#d-lbl'); await page.waitForTimeout(200);
 }
 check('15 Nov back day: every exercise has its own demo, and the variant groups', JSON.stringify(await page.evaluate(() => ['Chest-supported row (wide grip)', 'Chest-supported row (close grip)', 'Single-arm cable row (lat focus)', 'Weighted back extension', 'Cable rear delt fly', 'DB shrug (chest-supported)', 'Cable pullover (standing)', 'Reverse pec deck'].map(n => Fig3D.moveFor(n) + (Fig3D.ready(Fig3D.moveFor(n)) ? '' : '!'))))
   === '["chestrow","chestrowclose","latrow1","backext","cablerdf","shrugincline","straightarm","revpec"]');

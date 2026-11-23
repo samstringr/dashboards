@@ -3529,7 +3529,7 @@ function dayTotals(date) {
 const KCAL_BAND = 0.10, TG_MEMO = new Map();   // TG_MEMO: targets by date, cleared on every render
 const targetsOn = d => { if (!TG_MEMO.has(d)) TG_MEMO.set(d, targets(d)); return TG_MEMO.get(d); };
 function dayHit(d, t = dayTotals(d)) {
-  if (!t || t.void || t.partial || t.kcal == null) return null;
+  if (!t || t.void || t.partial || t.kcal == null || awayOn(d)) return null;   // an away day isn't judged against target (23 Nov 2026)
   const T = targetsOn(d); if (!T.ok) return null;
   const p = t.p >= T.protein - 0.5, k = Math.abs(t.kcal - T.kcal) <= T.kcal * KCAL_BAND;
   return {p, k, both: p && k};
@@ -3554,7 +3554,7 @@ function streaks() {
   const recent = rangeDates(14, td).map(d => ({d, j: d < logged[0] ? 'skip' : d === td && judge(d) !== 'hit' ? 'open' : judge(d)}));
   return {both, prot, log, gym, want, wt, recent};
 }
-function countable(date, t) { return !!t && !t.partial && !t.void && t.kcal != null && date < today(); }
+function countable(date, t) { return !!t && !t.partial && !t.void && t.kcal != null && date < today() && !awayOn(date); }   // away days stay out of averages (23 Nov 2026)
 function weighins() {
   const out = [];
   for (const [date, d] of S.days) if (d.body && (d.body.w || d.body.bf || d.body.smm || d.body.waist)) out.push({date, ...d.body});
@@ -3725,6 +3725,7 @@ function chart(host, o) {
     svg.append(sv('line', {x1: padL, x2: W - padR, y1: Y(t), y2: Y(t), style: 'stroke:var(--line);stroke-width:1'}));
     const tx = sv('text', {x: padL - 6, y: Y(t) + 3, 'text-anchor': 'end'}); tx.textContent = tickFmt(t); svg.append(tx);
   }
+  if (o.away) o.away.forEach((a, i) => { if (a) svg.append(sv('rect', {x: padL + band * i + 1, y: padT, width: Math.max(1, band - 2), height: ph, rx: 3, style: AWAY_STROKE})); });
   for (const s of o.series) {
     const col = s.color;
     if (s.type === 'bar') {
@@ -3876,10 +3877,11 @@ const rangeLabel = n => n % 7 === 0 && n >= 28 && n !== 364 ? (n / 7) + 'w' : n 
 function tipDay(d, t, extra = '') {
   let tag = '';
   if (d === today()) tag = ' <span class="t">· in progress</span>';
+  else if (awayOn(d)) tag = ' <span class="t">· away, ' + esc(awayLabel(d)) + '</span>';
   else if (t?.void) tag = ' <span class="t">· excluded</span>';
   else if (t?.partial) tag = ' <span class="t">· partial</span>';
   else if (t?.src === 'legacy') tag = ' <span class="t">· ' + esc(t.conf) + '</span>';
-  if (!t || t.kcal == null) return '<b>' + dLong(d) + '</b><br><span class="t">not logged</span>' + extra;
+  if (!t || t.kcal == null) return '<b>' + dLong(d) + '</b><br><span class="t">not logged' + (awayOn(d) ? ' · away, ' + esc(awayLabel(d)) : '') + '</span>' + extra;
   return '<b>' + dLong(d) + '</b>' + tag + '<br>' + fmt(t.kcal) + ' kcal · ' + fmt(t.p) + ' g P<br><span class="t">' + fmt(t.c) + ' C · ' + fmt(t.f) + ' F</span>' + extra;
 }
 
@@ -4053,7 +4055,12 @@ const signed = (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '±') + fmt(Math.abs
 const SUPP_HOURS = {morning: 9, lunch: 13, post: 20, dinner: 19, bed: 22, any: 12};
 const SLOT_LABEL = {morning: 'Morning', lunch: 'Lunch', post: 'After training', dinner: 'Dinner', bed: 'Bed', any: 'Any time'};
 function suppList() { return S.supps?.items?.length ? S.supps : DEFAULT_SUPPS; }
-function kindGroup(k) { return k === 'gym' ? 'gym' : ['run', 'swim', 'cycle', 'walk'].includes(k) ? 'cardio' : 'sport'; }
+/* Light activity (23 Nov 2026, Sam: "I want to be able to log when I did golf training"): golf, e.g. two hours at
+   the driving range. Range practice measured 2.3-2.6 MET (Wolkodoff 2024), under the 3.0 that counts as moderate,
+   so it shows on the Training log (an outlined grey square) but never counts towards the cardio target, the
+   sessions-a-week figure or the blue cardio dot: an hour would otherwise cover 40% of the 150-minute week. */
+const LIGHT_KINDS = ['golf'];
+function kindGroup(k) { return k === 'gym' ? 'gym' : LIGHT_KINDS.includes(k) ? 'light' : ['run', 'swim', 'cycle', 'walk'].includes(k) ? 'cardio' : 'sport'; }
 /* Cardio target: 150 minutes a week. WHY: the WHO 2020 guideline is 150–300 min of moderate activity a week
    (or 75–150 vigorous) on top of lifting twice a week, with no upper limit for health. 150 is the floor that
    buys the health benefit. Past ~300 min, the interference with muscle and power grows with how often and how
@@ -4068,17 +4075,19 @@ const STEP_TARGET = 10000;
 function stepTarget(inst) { return +inst?.cfg?.steps > 0 ? +inst.cfg.steps : +S.settings?.stepTarget > 0 ? +S.settings.stepTarget : STEP_TARGET; }
 const ks = v => v >= 1000 ? fmt(v / 1000, v % 1000 ? 1 : 0) + 'k' : String(v);
 function weekTip(c) {
-  return `<b>Week of ${dShort(c.mon)}</b> <span class="t">· ${c.list.length} session${c.list.length === 1 ? '' : 's'}${c.cmin ? ' · ' + fmt(c.cmin) + ' min cardio' : ''}${c.st ? ' · ' + fmt(c.st.avg) + ' steps/day' : ''}</span>` + (c.list.length ? '<br>' + c.list.slice().reverse().map(w => `<span class="t">${WD[parse(w.date).getDay()]}</span> ${esc(sessionLine(w))}`).join('<br>') : '<br><span class="t">nothing logged</span>');
+  const n = c.list.length - (c.light || 0);
+  return `<b>Week of ${dShort(c.mon)}</b> <span class="t">· ${n} session${n === 1 ? '' : 's'}${c.light ? ' · ' + c.light + ' golf' : ''}${c.cmin ? ' · ' + fmt(c.cmin) + ' min cardio' : ''}${c.st ? ' · ' + fmt(c.st.avg) + ' steps/day' : ''}</span>` + (c.list.length ? '<br>' + c.list.slice().reverse().map(w => `<span class="t">${WD[parse(w.date).getDay()]}</span> ${esc(sessionLine(w))}`).join('<br>') : '<br><span class="t">nothing logged</span>');
 }
 /* The Training log, one column a day inside its week (see the widget's render for the WHY). */
 function drawLogDays(host, inst, o) {
   const {W, H, padR, weeks, start, cols, byDay, td, at, stT, hasSteps, tot} = o, D = weeks * 7, padL = 4, padT = 6, padB = 14;
-  const pw = W - padL - padR, slot = pw / D, wkW = slot * 7, m = clamp(Math.floor(slot * .7), 3, 7), laneH = tot ? 2 * m + 5 : 0, yb = H - padB - laneH, ph = Math.max(10, yb - padT);
+  const pw = W - padL - padR, slot = pw / D, wkW = slot * 7, m = clamp(Math.floor(slot * .7), 3, 7), laneH = tot ? 3 * m + 6 : 0, yb = H - padB - laneH, ph = Math.max(10, yb - padT);
   const X = j => padL + slot * j, steps = Array.from({length: D}, (_, j) => { const d = addDays(start, j); return d > td ? null : stepsOn(d); });
   const topS = Math.ceil(Math.max(stT * 1.15, ...steps.map(x => x?.n || 0)) / 5000) * 5000, YS = v => yb - v / topS * ph;
   const svg = sv('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Steps and sessions per day, grouped by week'});
   cols.forEach((c, i) => { if (i % 2) svg.append(sv('rect', {x: X(7 * i), y: padT, width: wkW, height: ph + laneH, style: 'fill:var(--ink);fill-opacity:.03'})); });
   if (at && at >= start) { const j = diffDays(start, at); if (j < D) svg.append(sv('rect', {x: X(j), y: padT, width: slot, height: ph + laneH, style: 'fill:var(--ink);fill-opacity:.12'})); }
+  for (let j = 0; j < D; j++) if (awayOn(addDays(start, j))) svg.append(sv('rect', {x: X(j) + .5, y: padT, width: Math.max(1, slot - 1), height: ph + laneH, rx: 2, style: AWAY_STROKE}));   // away days (23 Nov 2026)
   svg.append(sv('line', {x1: padL, x2: W - padR, y1: yb + .5, y2: yb + .5, style: 'stroke:var(--line);stroke-width:1'}));
   if (hasSteps) {
     // labels every 5k when there's room, the target always (in ink, like its dotted line), nothing closer than 11 px to it
@@ -4089,10 +4098,10 @@ function drawLogDays(host, inst, o) {
       svg.append(sv('rect', {x: X(j) + (slot - bw) / 2, y, width: bw, height: Math.max(1, yb - y), rx: Math.min(1.5, bw / 3), style: `fill:var(--ink);fill-opacity:${x.partial ? .14 : x.n >= stT ? .62 : .26}`})); });
     svg.append(sv('line', {x1: padL, x2: W - padR, y1: YS(stT), y2: YS(stT), style: 'stroke:var(--ink);stroke-opacity:.6;stroke-width:1;stroke-dasharray:2 3'}));
   }
-  const order = {gym: 0, cardio: 1, sport: 2};
+  const order = {gym: 0, cardio: 1, sport: 2, light: 3}, hollow = g => g === 'sport' || g === 'light';
   for (const [d, list] of byDay) { const j = diffDays(start, d); if (j < 0 || j >= D) continue;
-    list.slice().sort((a, b) => order[kindGroup(a.kind)] - order[kindGroup(b.kind)]).slice(0, 2).forEach((w, k) => { const g = kindGroup(w.kind), y = yb + 3 + k * (m + 1), x = X(j) + (slot - m) / 2;
-      svg.append(sv('rect', {x: x + (g === 'sport' ? .5 : 0), y: y + (g === 'sport' ? .5 : 0), width: m - (g === 'sport' ? 1 : 0), height: m - (g === 'sport' ? 1 : 0), rx: 1, style: g === 'gym' ? 'fill:var(--cat-train)' : g === 'cardio' ? 'fill:var(--cardio)' : 'fill:none;stroke:var(--cardio);stroke-width:1'})); }); }
+    list.slice().sort((a, b) => order[kindGroup(a.kind)] - order[kindGroup(b.kind)]).slice(0, 3).forEach((w, k) => { const g = kindGroup(w.kind), y = yb + 3 + k * (m + 1), x = X(j) + (slot - m) / 2;
+      svg.append(sv('rect', {x: x + (hollow(g) ? .5 : 0), y: y + (hollow(g) ? .5 : 0), width: m - (hollow(g) ? 1 : 0), height: m - (hollow(g) ? 1 : 0), rx: 1, style: g === 'gym' ? 'fill:var(--cat-train)' : g === 'cardio' ? 'fill:var(--cardio)' : g === 'light' ? 'fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1' : 'fill:none;stroke:var(--cardio);stroke-width:1'})); }); }
   const idx = weeks <= 2 ? [0, weeks - 1] : [0, Math.floor((weeks - 1) / 2), weeks - 1];
   idx.forEach((i, k) => { const t = sv('text', {x: k === 0 ? padL : k === idx.length - 1 ? W - padR : X(7 * i) + wkW / 2, y: H - 3, 'text-anchor': k === 0 ? 'start' : k === idx.length - 1 ? 'end' : 'middle'}); t.textContent = dShort(cols[i].mon); svg.append(t); });
   const hw = sv('rect', {y: padT, height: ph + laneH, width: wkW, style: 'fill:var(--ink);fill-opacity:.04', visibility: 'hidden'}), hd = sv('rect', {y: padT, height: ph + laneH, width: slot, style: 'fill:var(--ink);fill-opacity:.1', visibility: 'hidden'});
@@ -4104,7 +4113,7 @@ function drawLogDays(host, inst, o) {
   const move = e => {
     const j = jAt(e), d = addDays(start, j), i = Math.floor(j / 7), x = steps[j], list = byDay.get(d) || [];
     hw.setAttribute('x', X(7 * i)); hd.setAttribute('x', X(j)); hw.setAttribute('visibility', 'visible'); hd.setAttribute('visibility', 'visible');
-    tip.innerHTML = `<b>${WD[parse(d).getDay()]} ${dShort(d)}</b> <span class="t">· ${x ? fmt(x.n) + ' steps' + (x.partial ? ' so far' : x.n >= stT ? ' ✓' : '') : d > td ? 'still to come' : 'no steps'}</span>${list.length ? '<br>' + list.map(w => esc(sessionLine(w))).join('<br>') : ''}<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--line)">${weekTip(cols[i])}${cols[i].st ? `<br><span class="t">${cols[i].st.hit} of ${cols[i].st.n} days ≥${ks(stT)}</span>` : ''}</div>`;
+    tip.innerHTML = `<b>${WD[parse(d).getDay()]} ${dShort(d)}</b> <span class="t">· ${x ? fmt(x.n) + ' steps' + (x.partial ? ' so far' : x.n >= stT ? ' ✓' : '') : d > td ? 'still to come' : 'no steps'}</span>${awayOn(d) ? '<br><span class="t">away, ' + esc(awayLabel(d)) + '</span>' : ''}${list.length ? '<br>' + list.map(w => esc(sessionLine(w))).join('<br>') : ''}<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--line)">${weekTip(cols[i])}${cols[i].st ? `<br><span class="t">${cols[i].st.hit} of ${cols[i].st.n} days ≥${ks(stT)}</span>` : ''}</div>`;
     tip.hidden = false; const tw = tip.offsetWidth, cx = X(j) + slot / 2; let left = cx + 12; if (left + tw > W) left = cx - 12 - tw; tip.style.left = Math.max(0, left) + 'px';
   };
   hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
@@ -4119,11 +4128,17 @@ function drawLogDays(host, inst, o) {
 }
 function cardioTarget(inst) { return +inst?.cfg?.cardio > 0 ? +inst.cfg.cardio : +S.plan?.cardioMin > 0 ? +S.plan.cardioMin : CARDIO_TARGET; }
 function cardioWeek(mon) {
-  const sun = addDays(mon, 6), ws = allWorkouts().filter(w => w.date >= mon && w.date <= sun && kindGroup(w.kind) !== 'gym');
+  const sun = addDays(mon, 6), ws = allWorkouts().filter(w => w.date >= mon && w.date <= sun && !['gym', 'light'].includes(kindGroup(w.kind)));
   // blank is not zero: a session without minutes is counted as a session, never as 0 min
   return {n: ws.length, min: ws.reduce((a, w) => a + (+w.min || 0), 0), untimed: ws.filter(w => !(+w.min > 0)).length};
 }
 function awayOn(date) { return (S.away?.ranges || []).find(r => r.from <= date && (!r.to || date <= r.to)) || null; }
+/* Away days in the widgets (23 Nov 2026, Sam, after Cambridge: "nice to see that in the widgets too… not able to hit
+   my targets there"). An away day keeps what was logged but is drawn with the dashed outline the Consistency grid
+   already uses, says where in its hover, and is left out of averages and on-target judgements (countable, dayHit),
+   as the weekly review and the streaks already do. The place is the note up to its first comma ("Cambridge"). */
+function awayLabel(date) { const r = awayOn(date); return r ? (String(r.note || '').split(/[,(]/)[0].trim() || 'Away') : ''; }
+const AWAY_STROKE = 'fill:none;stroke:color-mix(in srgb,var(--plan) 70%,transparent);stroke-width:1;stroke-dasharray:3 2';
 function sessionLine(w) {
   const bits = [w.label || w.kind]; if (w.km) bits.push(fmt(w.km, w.km % 1 ? 1 : 0) + ' km'); if (w.min) bits.push(w.min + ' min');
   if (w.ex?.length) bits.push(w.ex.length + ' exercises'); return bits.join(' · ');
@@ -4149,9 +4164,9 @@ const WT = {
     dayTitle: dayName,   // the header follows the selected day (14 Nov 2026)
     render(b, inst) {
       const T = targets(S.sel), t0 = dayTotals(S.sel), t = t0 || {kcal: 0, p: 0, c: 0, f: 0}, d = dayDoc(S.sel), isToday = S.sel === today();
-      const status = !d || (!d.items?.length && !d.legacy) ? '<span class="chip">Not logged</span>'
+      const status = (!d || (!d.items?.length && !d.legacy) ? '<span class="chip">Not logged</span>'
         : t.void ? '<span class="chip bad">Excluded</span>' : t.partial ? '<span class="chip warn">Partial</span>'
-        : isToday ? '<span class="chip acc">In progress</span>' : '<span class="chip good">Complete</span>';
+        : isToday ? '<span class="chip acc">In progress</span>' : '<span class="chip good">Complete</span>') + (awayOn(S.sel) ? ` <span class="chip" style="border-style:dashed" title="An away day: shown, not judged or averaged">Away · ${esc(awayLabel(S.sel))}</span>` : '');
       const kcalTot = t.kcal || 0, share = g => kcalTot ? Math.round(g / kcalTot * 100) : 0;
       const meter = (lab, col, v, of, unit, warnOver) => {
         const pc = of ? clamp(v / of, 0, 1.25) : 0;
@@ -4208,7 +4223,7 @@ const WT = {
     }
   },
   intake: {
-    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. A green outline round a bar means that day hit: calories within 10% of target, protein at its floor, each against the target that day. The streak counts days that hit both. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
+    title: 'Intake', cat: 'food', desc: 'Calories and protein per day against target. A green outline round a bar means that day hit: calories within 10% of target, protein at its floor, each against the target that day. A dashed outline marks a day away (tell the bot “away until…”): it shows what you ate but isn’t judged or averaged. The streak counts days that hit both. Scroll out for weekly averages.', def: [14, 8], min: [8, 6], ranges: R_DAYS, range: 14,
     render(b, inst) {
       const R = inst.cfg.range || 14, T = targets(), dates = rangeDates(R, winEnd(R)), weekly = R >= 90;
       const tots = dates.map(d => dayTotals(d));
@@ -4219,7 +4234,7 @@ const WT = {
           ${hit != null && cnt.length ? `<span>Floor hit <b>${Math.round(hit / cnt.length * 100)}%</b></span>` : ''}
           ${stk && stk.both.best ? `<span title="Days in a row with protein at its floor and calories within 10% of target. Best: ${stk.both.best}">Streak <b>${stk.both.cur}</b> day${stk.both.cur === 1 ? '' : 's'}</span>` : ''}
           <span class="dim">${cnt.length} complete day${cnt.length === 1 ? '' : 's'} of ${R}</span></div>
-        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories${weekly ? '' : ' <span class="dim" style="margin-left:8px;display:inline-flex;gap:6px;align-items:center"><span class="sw" style="background:none;box-shadow:inset 0 0 0 1.25px var(--good)"></span>on target</span>'}</div><div class="chart" data-c="k"></div>
+        <div class="pl"><span class="sw" style="background:var(--kcal)"></span>Calories${weekly ? '' : ' <span class="dim" style="margin-left:8px;display:inline-flex;gap:6px;align-items:center"><span class="sw" style="background:none;box-shadow:inset 0 0 0 1.25px var(--good)"></span>on target</span>' + (dates.some(d => awayOn(d)) ? ' <span class="dim" style="margin-left:8px;display:inline-flex;gap:6px;align-items:center"><span class="sw" style="background:none;outline:1px dashed color-mix(in srgb,var(--plan) 70%,transparent);outline-offset:-1px"></span>away</span>' : '')}</div><div class="chart" data-c="k"></div>
         <div class="pl"><span class="sw" style="background:var(--p)"></span>Protein, g</div><div class="chart" data-c="p"></div>`;
       let n, kv, pv, hatch, xl, tip, si = null;   // si: weekly bars mark the selected day's week
       if (weekly) {
@@ -4234,10 +4249,11 @@ const WT = {
         const hits = dates.map((d, i) => d === today() && tots[i] && !tots[i].void ? {p: tots[i].p >= (targetsOn(d).protein || Infinity) - 0.5, k: false} : dayHit(d, tots[i]));
         var km = hits.map(h => !!h?.k), pm = hits.map(h => !!h?.p);
         hatch = dates.map((d, i) => !!tots[i] && (tots[i].partial || d === today()));
+        var aw = dates.map(d => !!awayOn(d));
         xl = i => dShort(dates[i]); tip = i => tipDay(dates[i], tots[i]);
       }
-      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch, marks: weekly ? null : km}], target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day', dates: weekly ? null : dates, si});
-      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch, marks: weekly ? null : pm}], target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day', dates: weekly ? null : dates, si});
+      chart(b.querySelector('[data-c=k]'), {n, series: [{type: 'bar', vals: kv, color: 'var(--kcal)', hatch, marks: weekly ? null : km, dim: weekly ? null : aw}], away: weekly ? null : aw, target: T.ok ? T.kcal : null, targetLabel: T.ok ? 'target ' + fmt(T.kcal) : '', xlabels: false, tip, label: 'Calories per day', dates: weekly ? null : dates, si});
+      chart(b.querySelector('[data-c=p]'), {n, series: [{type: 'bar', vals: pv, color: 'var(--p)', hatch, marks: weekly ? null : pm, dim: weekly ? null : aw}], away: weekly ? null : aw, target: T.ok ? T.protein : null, targetLabel: T.ok ? 'floor ' + fmt(T.protein) + ' g' : '', xl, tip, label: 'Protein per day', dates: weekly ? null : dates, si});
     }
   },
   weight: {
@@ -4421,7 +4437,7 @@ const WT = {
     }
   },
   workouts: {
-    title: 'Training log', cat: 'train', desc: 'Every day in its week: steps as a bar on the right-hand scale (from Apple Health, sent whenever you open Telegram), brighter once you pass the dotted 10k target, and the day’s sessions as squares underneath (green gym, blue cardio, outlined sport). Hover a day to see it and its week; click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget it switches to weekly totals with average steps a day. Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
+    title: 'Training log', cat: 'train', desc: 'Every day in its week: steps as a bar on the right-hand scale (from Apple Health, sent whenever you open Telegram), brighter once you pass the dotted 10k target, and the day’s sessions as squares underneath (green gym, blue cardio, outlined sport, outlined grey golf, which is light activity and never counts as cardio). A dashed outline marks a day away. Hover a day to see it and its week; click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget it switches to weekly totals with average steps a day. Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
     add: {label: '+ Cardio', title: 'Log cardio or sport', run: () => openCardio({})},
     note(inst) {
       const tg = cardioTarget(inst), mon = monday(S.sel), c = cardioWeek(mon), cur = mon === monday(today());
@@ -4431,30 +4447,30 @@ const WT = {
     },
     render(b, inst) {
       const R = inst.cfg.range || 84, weeks = Math.round(R / 7), E = weekEnd(weeks), start = addDays(monday(E), -7 * (weeks - 1)), at = asOf(), td = today(), stT = stepTarget(inst);
-      const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, list: []})), byDay = new Map();
-      for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; c[kindGroup(w.kind)]++; c.list.push(w); if (kindGroup(w.kind) !== 'gym') c.cmin = (c.cmin || 0) + (+w.min || 0); (byDay.get(w.date) || byDay.set(w.date, []).get(w.date)).push(w); }
+      const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, light: 0, list: []})), byDay = new Map();
+      for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; c[kindGroup(w.kind)]++; c.list.push(w); if (!['gym', 'light'].includes(kindGroup(w.kind))) c.cmin = (c.cmin || 0) + (+w.min || 0); (byDay.get(w.date) || byDay.set(w.date, []).get(w.date)).push(w); }
       for (const c of cols) { const v = []; for (let k = 0; k < 7; k++) { const x = stepsOn(addDays(c.mon, k)); if (x && !x.partial) v.push(x.n); } c.st = v.length ? {avg: mean(v), n: v.length, hit: v.filter(n => n >= stT).length} : null; }
       const hasSteps = cols.some(c => c.st || c.mon === monday(td) && stepsOn(td)), st7v = (() => { const v = []; for (let k = 1; k <= 7; k++) { const x = stepsOn(addDays(at || td, -k + (at ? 1 : 0))); if (x && !x.partial) v.push(x.n); } return v; })(), st7 = mean(st7v), stDay = stepsOn(at || td);
-      const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= E).length, dayW = allWorkouts().filter(w => w.date === (at || td)), kT = ks(stT);
-      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${st7 != null ? `<span>Steps <b>${fmt(st7)}</b>/day · <b>${st7v.filter(n => n >= stT).length}</b>/${st7v.length} ≥${kT}</span>` : ''}${at || dayW.length || stDay ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b>${stDay ? ' · ' + fmt(stDay.n) + ' steps' + (stDay.partial ? ' so far' : '') : ''}</span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport${hasSteps ? ` <span class="sw" style="background:var(--ink);opacity:.45"></span>steps/day&nbsp;(right) <span class="sw" style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px);height:1px;opacity:.8"></span>${kT}&nbsp;target` : ''}</span></div><div class="chart" data-c="w"></div>`;
+      const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), light = cols.reduce((a, c) => a + c.light, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= E).length, dayW = allWorkouts().filter(w => w.date === (at || td)), kT = ks(stT);
+      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${light ? `<span><b>${light}</b> golf</span>` : ''}${st7 != null ? `<span>Steps <b>${fmt(st7)}</b>/day · <b>${st7v.filter(n => n >= stT).length}</b>/${st7v.length} ≥${kT}</span>` : ''}${at || dayW.length || stDay ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b>${stDay ? ' · ' + fmt(stDay.n) + ' steps' + (stDay.partial ? ' so far' : '') : ''}</span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio)"></span>cardio <span class="sw" style="border:1px solid var(--cardio)"></span>sport${light ? ' <span class="sw" style="border:1px solid var(--ink);opacity:.55"></span>golf' : ''}${hasSteps ? ` <span class="sw" style="background:var(--ink);opacity:.45"></span>steps/day&nbsp;(right) <span class="sw" style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px);height:1px;opacity:.8"></span>${kT}&nbsp;target` : ''}</span></div><div class="chart" data-c="w"></div>`;
       const host = b.querySelector('[data-c=w]');
-      if (!tot && !hasSteps) { host.innerHTML = '<div class="empty">No sessions or steps in the last ' + weeks + ' weeks.</div>'; return; }
+      if (!tot && !light && !hasSteps) { host.innerHTML = '<div class="empty">No sessions or steps in the last ' + weeks + ' weeks.</div>'; return; }
       const W = Math.max(80, host.clientWidth), H = Math.max(40, host.clientHeight), padR = hasSteps ? 26 : 4;
       /* Day by day (18 Nov 2026, Sam: "split each week into days… see the different step counts on every day… a 10K
          step target on that axis… if I hover, it's good to see the week"). Each week keeps its band (alternate
          shading, its date underneath, the whole week in the hover) and gets seven columns: steps as a bar on the right
          scale, brighter once the target is hit, and the day's sessions as squares underneath. Below 3 px a day (a year
          on a small widget) the columns would be hairlines, so it falls back to the weekly view. */
-      if ((W - 4 - padR) / (weeks * 7) >= 3) return drawLogDays(host, inst, {W, H, padR, weeks, start, cols, byDay, td, at, stT, hasSteps, tot});
+      if ((W - 4 - padR) / (weeks * 7) >= 3) return drawLogDays(host, inst, {W, H, padR, weeks, start, cols, byDay, td, at, stT, hasSteps, tot: tot + light});
       const padL = 18, padB = 16, padT = 6, pw = W - padL - padR, ph = H - padB - padT, band = pw / weeks;
-      const top = Math.max(6, ...cols.map(c => c.gym + c.cardio + c.sport)), Y = v => padT + ph - v / top * ph, bw = Math.max(3, Math.min(band * 0.62, 20));
+      const top = Math.max(6, ...cols.map(c => c.gym + c.cardio + c.sport + c.light)), Y = v => padT + ph - v / top * ph, bw = Math.max(3, Math.min(band * 0.62, 20));
       const svg = sv('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Sessions per week'});
       svg.append(sv('rect', {x: padL, width: pw, y: Y(5), height: Y(4) - Y(5), style: 'fill:var(--cat-train);fill-opacity:.07'}));
       for (const t of [0, 2, 4, 6].filter(t => t <= top)) { svg.append(sv('line', {x1: padL, x2: W - padR, y1: Y(t), y2: Y(t), style: 'stroke:var(--line);stroke-width:1'})); const tx = sv('text', {x: padL - 5, y: Y(t) + 3, 'text-anchor': 'end'}); tx.textContent = t; svg.append(tx); }
       cols.forEach((c, i) => {
         const x = padL + band * i + (band - bw) / 2; let y = Y(0);
-        for (const [k, st] of [['gym', 'fill:var(--cat-train)'], ['cardio', 'fill:var(--cardio)'], ['sport', 'fill:none;stroke:var(--cardio);stroke-width:1']]) {
-          if (!c[k]) continue; const h = c[k] / top * ph; y -= h; svg.append(sv('rect', {x: x + (k === 'sport' ? .5 : 0), y: y + .5, width: bw - (k === 'sport' ? 1 : 0), height: Math.max(1, h - 1), rx: 2, style: st}));
+        for (const [k, st] of [['gym', 'fill:var(--cat-train)'], ['cardio', 'fill:var(--cardio)'], ['sport', 'fill:none;stroke:var(--cardio);stroke-width:1'], ['light', 'fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1']]) {
+          if (!c[k]) continue; const h = c[k] / top * ph; y -= h; svg.append(sv('rect', {x: x + (k === 'sport' || k === 'light' ? .5 : 0), y: y + .5, width: bw - (k === 'sport' || k === 'light' ? 1 : 0), height: Math.max(1, h - 1), rx: 2, style: st}));
         }
       });
       // steps: average per day across the week's complete days, as a line on its own scale at the right, with the target dotted
@@ -4498,7 +4514,7 @@ const WT = {
     title: 'Consistency', cat: 'misc', desc: 'Every day in the range: food logged, protein floor hit, gym sessions (green dot, top), cardio or sport (blue dot, bottom right), supplements (violet dot, bottom left: filled = all taken, ring = some), days away. Today has the dark outline, the selected day the amber one. Click a day to show it in every widget; double-click for its summary.', def: [14, 6], min: [8, 4], ranges: [56, 84, 182, 364], range: 182,
     render(b, inst) {
       const R = inst.cfg.range || 182, T = targets(), td = today();
-      const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) (kindGroup(w.kind) === 'gym' ? gymD : cardD).add(w.date);
+      const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) { const g = kindGroup(w.kind); if (g !== 'light') (g === 'gym' ? gymD : cardD).add(w.date); }
       b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>' + (asOf() ? '00 Nov selected ' + backBtn() + ' · ' : '') + '000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
       const cal = b.querySelector('[data-cal]');   // (the summary placeholder above carries the ↩ Today button too: the grid is sized from that row's measured height)
       /* Square cells that use the box (14 Nov 2026). First they stretched to fill it and Sam didn't like the
@@ -5462,7 +5478,7 @@ function removeWorkout(date, id) {
 }
 /* Cardio and sport get their own quick sheet: type, minutes, done. The session sheet is built around sets and
    reps, which is why cardio was hard to find. Minutes are what the weekly target counts; distance is optional. */
-const CARDIO_KINDS = [['football', 'Football'], ['run', 'Run'], ['cycle', 'Cycle'], ['swim', 'Swim'], ['walk', 'Walk'], ['other', 'Other']];
+const CARDIO_KINDS = [['football', 'Football'], ['run', 'Run'], ['cycle', 'Cycle'], ['swim', 'Swim'], ['walk', 'Walk'], ['golf', 'Golf'], ['other', 'Other']];   // golf: light, shown but not counted (23 Nov 2026)
 function openCardio(pre = {}) {
   const last = allWorkouts().find(w => kindGroup(w.kind) !== 'gym');
   let kind = CARDIO_KINDS.some(([k]) => k === pre.kind) ? pre.kind : last?.kind || 'football';
@@ -5476,12 +5492,13 @@ function openCardio(pre = {}) {
       <div class="cap" id="c-week"></div>
       <div class="row" style="gap:8px"><button class="btn primary" id="c-save">Save</button><button class="btn ghost" id="c-gym" type="button">Gym session instead</button></div>`;
     const $c = id => b.querySelector(id), minIn = $c('#c-min'), kmIn = $c('#c-km'), dateIn = $c('#c-date');
-    const label = () => CARDIO_KINDS.find(([k]) => k === kind)[1];
+    const label = () => kind === 'golf' ? 'Golf: driving range' : CARDIO_KINDS.find(([k]) => k === kind)[1];
     const sync = () => {
       b.querySelectorAll('#c-kind [data-k]').forEach(x => { const on = x.dataset.k === kind; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
       $c('#c-kmf').style.display = ['run', 'cycle', 'swim', 'walk'].includes(kind) ? '' : 'none';
       $c('#c-label').placeholder = label();
       const mon = monday(dateIn.value || S.sel), wk = cardioWeek(mon), add = +minIn.value || 0, cur = mon === monday(today());
+      if (kindGroup(kind) === 'light') { $c('#c-week').innerHTML = 'Golf is light activity: it shows on the Training log but doesn’t count towards your cardio minutes.'; return; }
       $c('#c-week').innerHTML = `Cardio ${cur ? 'this week' : 'week of ' + dShort(mon)}: <b style="color:var(--ink)">${fmt(wk.min)}${add ? ' → ' + fmt(wk.min + add) : ''}</b> / ${fmt(tg)} min${add ? '' : ' · no minutes means it counts as a session, not as 0 min'}`;
     };
     b.querySelectorAll('#c-kind [data-k]').forEach(x => x.onclick = () => { kind = x.dataset.k; sync(); });
@@ -5494,7 +5511,7 @@ function openCardio(pre = {}) {
       const w = {id: uid(), kind, label: $c('#c-label').value.trim() || label(), ...(min > 0 ? {min} : {}), ...(km > 0 && $c('#c-kmf').style.display !== 'none' ? {km} : {}), ...(note ? {note} : {})};
       writeDay(date, x => { (x.workouts ||= []).push(w); }).then(() => {
         const wk = cardioWeek(monday(date));
-        toast(`Saved · ${w.label}${min > 0 ? ' ' + min + ' min' : ''} · cardio ${fmt(wk.min)} / ${fmt(tg)} min`); closeSheet();
+        toast(`Saved · ${w.label}${min > 0 ? ' ' + min + ' min' : ''}` + (kindGroup(kind) === 'light' ? ' · light, not counted as cardio' : ` · cardio ${fmt(wk.min)} / ${fmt(tg)} min`)); closeSheet();
       }).catch(() => {});
     };
   });
@@ -6080,7 +6097,7 @@ const PRESETS = [{
       {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Smith machine chest press', 2, '6-10', 10], ['Weighted dip (+kg)', 2, '6-10', 9], ['Pec deck', 3, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
       {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Chest-supported row (close grip)', 2, '6-10', 10], ['Single-arm cable row (lat focus)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Weighted back extension', 2, '8-12', 9], ['Cable curl (facing away)', 2, '8-12', 10], ['Cable hammer curl', 2, '8-12', 10]]},
       {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '8-12', 10], ['Seated calf raise', 3, '8-12', 10], ['Adductor machine', 2, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Decline weighted crunch', 3, '8-12', 10]]},
-      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Cable rear delt fly', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Cable crunch', 2, '8-12', 10]]}
+      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Cable rear delt fly', 3, '8-12', 10], ['Overhead cable triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Decline weighted crunch', 2, '8-12', 10]]}
     ]}
 }];
 function applyPreset(P, id) {
