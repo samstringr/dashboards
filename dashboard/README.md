@@ -163,3 +163,10 @@ Everything else here is how that file is built and checked.
   and Today shows an "Away · <place>" chip. The place is the away note up to its first comma.
 - **S&A preset:** cable crunch → decline weighted crunch (Sam's swap, 23 Nov; the same demo as on Legs).
 - **UI tests, dates (23 Nov 2026):** the made-up steps cover 40 days (the 1 Nov click needs steps the week before it).
+- **Publish `build/index.html`, never `health-fitness.html` (23 Nov 2026).** health-fitness.html is a fragment.
+  `build.py` puts it inside `page-shell.html` (doctype, UTF-8, viewport, and the reset the page relies on:
+  `body{margin:0}` and `[hidden]{display:none!important}`) and writes `build/index.html`; the UI test loads the same
+  shell. WHY: v31 went out through a publishing tool that serves the file as-is (the old one added this shell itself).
+  With no doctype or charset the page ran in quirks mode, and without the `[hidden]` rule the layout-presets menu could
+  not close: Sam saw a stuck menu and no widgets. Reproduced locally (the v31 file, unwrapped, times out on the first
+  click); the page now also carries the two reset rules itself, so even an unwrapped copy works.

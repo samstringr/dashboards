@@ -46,3 +46,14 @@ end = s.index('</script>', start)
 out = s[:start] + bundle + s[end:]
 if out == s: print('health-fitness.html already up to date', len(out))
 else: open(p, 'w', encoding='utf-8').write(out); print('inlined', len(out))
+
+# The page to publish: health-fitness.html is a fragment, so it goes inside page-shell.html (doctype, UTF-8, viewport,
+# and the two-rule reset the page relies on: body{margin:0} and [hidden]{display:none!important}).
+# WHY (23 Nov 2026): v31 went out through a publishing tool that serves the file as-is, unlike the old one that added
+# this shell itself. With no doctype and no charset the page ran in quirks mode with the wrong encoding, and without
+# the [hidden] rule the layout-presets menu could not close: Sam saw no widgets and a stuck menu.
+# Publish build/index.html, never health-fitness.html. The UI test loads the same shell.
+shell = open(R + 'page-shell.html', encoding='utf-8').read()
+page = shell.replace('{{PAGE}}', out)
+assert page.lower().startswith('<!doctype html>') and 'charset="utf-8"' in page and '[hidden]{display:none!important}' in page and page.count(out) == 1
+open(R + 'build/index.html', 'w', encoding='utf-8').write(page); print('build/index.html (publish this)', len(page))
