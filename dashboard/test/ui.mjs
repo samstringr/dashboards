@@ -16,7 +16,7 @@ if (!process.env.HF_SEED) { console.error('Set HF_SEED to a Health DB snapshot (
 const W = process.env.HF_WORKER || 'http://127.0.0.1:8787', KEY = process.env.HF_KEY || 'testkey';
 const seed = JSON.parse(fs.readFileSync(process.env.HF_SEED, 'utf8'));
 const html = fs.readFileSync(R + '../health-fitness.html', 'utf8');
-fs.writeFileSync(OUT + '_test.html', `<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>${html}</body></html>`);
+fs.writeFileSync(OUT + '_test.html', fs.readFileSync(R + '../page-shell.html', 'utf8').replace('{{PAGE}}', () => html));
 const out = []; let fails = 0; const check = (n, c, x = '') => { out.push((c ? 'PASS ' : 'FAIL ') + n + (x ? '  ' + x : '')); if (!c) fails++; };
 const mcpNode = async (name, args) => { const r = await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args || {} } }) }); return (await r.json()).result; };
 const imp = await mcpNode('import_data', { days: seed.days, config: seed.config, mode: 'missing' });

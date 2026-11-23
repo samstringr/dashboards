@@ -6,6 +6,9 @@
 <style>
 /* Layout: an infinite dot-grid drafting sheet (1 cell = 1 cm) under a fixed command bar.
    Widgets snap to whole cells. Dark only, by request. Tokens follow Sam's design-system.md v2. */
+/* The page relies on these two; page-shell.html has them too. Here as well since 23 Nov 2026, when v31 was served
+   without its shell and the presets menu (hidden attribute) could not close. */
+body{margin:0}[hidden]{display:none!important}
 :root{
   color-scheme: dark;
   --bg:#0c0c0f; --s1:#131316; --s2:#1a1a1f; --s3:#22222a; --hover:#16161b;
