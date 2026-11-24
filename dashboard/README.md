@@ -178,3 +178,22 @@ Everything else here is how that file is built and checked.
   many rows of squares as the busiest day needs. WHY: a fixed three-row lane of 7 px squares left the bars about 10 px tall.
 - **S&A preset:** overhead cable triceps extension → Katana triceps extension (Sam's pick, 23 Nov). The name keeps
   "triceps" so the split builder scores it (EXMAP) and "katana" so the 3D demo matches.
+- **Lift progress frames the working muscle (24 Nov 2026).** Sam: "like the preacher curl is now, honed in on the target
+  muscle… for a rear delt cable fly, focused in on the back". `focusCam` (mann.js) aims the camera at the demo's main
+  muscle on the posed body mid-rep, from the side it faces (front, back, side or three-quarter, from the torso's own
+  facing, so seated, lying and bent-over bodies work), at 55-70% of the whole-body distance, never more than 40° from
+  above. Hamstrings from the side, triceps from straight behind (a seat back and a cable tower got in the way). The
+  demo's own `cam` is the fallback; `opt.whole` keeps it. Checked on a contact sheet of every plan exercise.
+- **Outlines, one language (24 Nov 2026).** Sam: away days "too subtle… a red border where I'm not on target… pink…
+  make it consistent… where nothing is logged… comes down, across the bottom, then up". Intake bars get an outline:
+  green hit, red missed (never today while it's going), magenta away (`--away`, Microsoft Teams' out-of-office
+  colour). A run of away days with no bar gets a magenta bracket under the axis (`awayBracket`). Consistency's away
+  cells and the Today chip use the same magenta. Replaces the dotted line of 23 Nov.
+- **Training log, third version (24 Nov 2026).** Sam: "I want to know if I'm hitting my weekly cardio goal… steps can be
+  a line graph, and then a stacked bar chart can be the cardio". `drawLog`: one bar a week of counted cardio minutes,
+  a segment per session, solid once the week reaches 150 and faint until then; light cardio as a narrow outlined bar
+  beside it (on top, it looked as if it lifted the week over the target); steps a line with a dot on 10k days. The
+  scales are tied so 150 min and 10k sit on ONE dotted line. Sessions stay as squares under the axis (per day, or gym
+  squares per week on long ranges); a magenta bracket marks away days. Stats add "weeks ≥150 min". "Golf" reads
+  "light cardio" in the key and stats; the hover still says what it was.
+- **C&T preset** follows the plan: incline DB 2, Smith chest press (flat) 3, pec deck 3; dips out (24 Nov 2026).

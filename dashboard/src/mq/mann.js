@@ -145,6 +145,32 @@ function liftScene(ex, man) {
   }
   return {g, frames, segMeshes, mats, dispose() { g.traverse(o => o.geometry && o.geometry.dispose()); for (const m of Object.values(mats)) m.dispose(); }};
 }
+/* Default framing on the working muscle (24 Nov 2026, Sam: "like the preacher curl is now, kind of honed in on the
+   target muscle… obviously it clips out the bar… for a rear delt cable fly, it's focused in on the back"). The camera
+   aims at the demo's main muscle on the posed body (mid-rep), from the side that muscle faces (front, back, the left
+   side, or a three-quarter view between them) and a little above (never more than 40 degrees: steeper looked down on
+   the head), at about 55-70% of the whole-body distance. Hamstrings are framed from the side (from behind, a seat back
+   hides them) and triceps from straight behind (a three-quarter view put a cable tower in the way).
+   Facing comes from the torso, so a seated, lying or bent-over body is framed the same way. Drag, the wheel and the
+   Front/Side/Back buttons work as before; a double-click comes back here. opt.whole keeps the old whole-body view. */
+const FOCUS = {chest: ['chest', 'front'], fdelt: ['shL', 'frontL'], sdelt: ['shL', 'left'], rdelt: ['shL', 'backL'], traps: ['neck', 'back'],
+  upperback: ['upback', 'back'], lats: ['lats', 'backL'], biceps: ['armL', 'frontL'], triceps: ['armL', 'back'], forearms: ['foreL', 'frontL'],
+  abs: ['abs', 'front'], obliques: ['abs', 'frontL'], erectors: ['lumbar', 'back'], glutes: ['pelvis', 'backL'], quads: ['thighL', 'frontL'],
+  hams: ['thighL', 'left'], adductors: ['thighL', 'front'], calves: ['shinL', 'backL']};
+function focusCam(ex, t) {
+  const m = Object.entries(ex.muscles || {}).sort((a, b) => b[1] - a[1])[0]?.[0], f = FOCUS[m];
+  if (!f || !ex.pose) return null;
+  let B; try { B = solve(ex.pose(t).pose); } catch { return null; }
+  if (!B.upperL || !B.chest) return null;
+  const mid = (a, b) => V.lerp(a, b, 0.5), sh = mid(B.upperL.o, B.upperR.o), fw = V.norm(B.chest.z), lf = V.norm(V.sub(B.upperL.o, B.upperR.o)), up = V.norm(B.chest.y);
+  const P = {chest: V.add(sh, V.add(V.sc(up, -0.13), V.sc(fw, 0.06))), shL: B.upperL.o, neck: B.neck.o, upback: V.add(sh, V.sc(up, -0.12)),
+    lats: V.lerp(sh, B.pelvis.o, 0.4), armL: mid(B.upperL.o, B.foreL.o), foreL: mid(B.foreL.o, B.handL.o), abs: mid(B.chest.o, B.pelvis.o),
+    lumbar: B.lumbar.o, pelvis: B.pelvis.o, thighL: mid(B.thighL.o, B.shinL.o), shinL: mid(B.shinL.o, B.footL.o)}[f[0]];
+  const D = {front: fw, back: V.sc(fw, -1), left: lf, frontL: V.norm(V.add(V.sc(fw, 0.8), V.sc(lf, 0.6))), backL: V.norm(V.add(V.sc(fw, -0.8), V.sc(lf, 0.6)))}[f[1]];
+  if (!P || !D || P.some(Number.isNaN)) return null;
+  const d = V.norm(V.add(D, [0, 0.3, 0])), k = /thigh|shin|pelvis|lumbar/.test(f[0]) ? 0.7 : /arm|fore|shL|neck/.test(f[0]) ? 0.55 : 0.62;
+  return {yaw: Math.atan2(d[0], d[2]) / D2R, pitch: Math.max(-15, Math.min(40, Math.asin(Math.max(-1, Math.min(1, d[1]))) / D2R)), dist: Math.max(1.6, (ex.cam?.dist || 3.9) * k), target: P};
+}
 function liftView(host0, opt = {}) {
   let host = host0, renderer;
   try { renderer = new T.WebGLRenderer({antialias: true, alpha: true, preserveDrawingBuffer: !!opt.still}); } catch (e) { host.innerHTML = '<div class="empty">3D needs WebGL, which this browser has turned off.</div>'; return null; }
@@ -167,7 +193,7 @@ function liftView(host0, opt = {}) {
     eq = liftScene(ex, man); scene.add(eq.g);
     for (const q of Object.values(man.groups)) for (const c of q.children) if (!c.userData.body) c.userData.eq = true;
     man.paint(ex.muscles || {});
-    const c = ex.cam || {yaw: 30, pitch: 10, dist: 3.9, target: [0, 0.95, 0]};
+    const c = (!opt.whole && focusCam(ex, opt.t ?? 0.4)) || ex.cam || {yaw: 30, pitch: 10, dist: 3.9, target: [0, 0.95, 0]};
     yaw = c.yaw; pitch = c.pitch; dist = c.dist; target = c.target; userAz = 0; userEl = 0; zoom = 1; t = opt.t ?? 0.4;
     st.dirty = true;
   };

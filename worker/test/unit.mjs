@@ -83,6 +83,18 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
   check('coach: in range → same load, one more rep', mid.status === 'in' && /^20 kg, aim 10–11 on the first set$/.test(mid.next) && /goes to 22.5 kg/.test(mid.why), JSON.stringify(mid));
   const hv = reviewExercise({ reps: '8-12' }, { n: 'Pec deck', sets: [{ kg: 40, r: 6 }, { kg: 40, r: 5 }, { kg: 40, r: 3 }] }, { date: '2026-10-01', sets: [{ kg: 50, r: 10 }] });
   check('coach: under the range → about 10% off, and the drop-off note', hv.status === 'heavy' && /^35 kg, aim 8–10$/.test(hv.next) && hv.rest === true && hv.up === -1, JSON.stringify(hv));
+  // 24 Nov 2026: every set has to land in the range, and the dot compares with the last few sessions (made-up loads)
+  const dr = reviewExercise({ reps: '6-10' }, { n: 'Incline DB bench', sets: [{ kg: 24, r: 9 }, { kg: 24, r: 5 }] }, { date: '2026-11-14', sets: [{ kg: 26, r: 8 }, { kg: 26, r: 8 }] });
+  check('coach: set 2 under the range → hold the load, 3 minutes rest, not counted as every set in range', dr.status === 'drop' && dr.allIn === false && dr.setsIn === 1 && /^24×9, 6\+ · rest 3′$/.test(dr.nextShort) && /3 minutes/.test(dr.next), JSON.stringify(dr));
+  const dr2 = reviewExercise({ reps: '6-10' }, { n: 'Incline DB bench', sets: [{ kg: 24, r: 8 }, { kg: 24, r: 4 }] }, { date: '2026-11-20', sets: [{ kg: 24, r: 9 }, { kg: 24, r: 5 }] });
+  check('coach: set 2 under the range twice at the same load → back-off set 10% lighter', dr2.status === 'drop' && /^24×8, then 22×6\+$/.test(dr2.nextShort), JSON.stringify(dr2));
+  const tp2 = reviewExercise({ reps: '6-10' }, { n: 'Incline DB bench', sets: [{ kg: 24, r: 10 }, { kg: 24, r: 5 }] }, null);
+  check('coach: top on set 1 but set 2 under → no load jump yet', tp2.status === 'drop' && !/↑/.test(tp2.nextShort), JSON.stringify(tp2));
+  const hs = [{ date: '2026-11-20', sets: [{ kg: 20, r: 7 }] }, { date: '2026-11-15', sets: [{ kg: 20, r: 10 }] }, { date: '2026-11-10', sets: [{ kg: 20, r: 10 }] }];
+  const tr = reviewExercise({ reps: '8-12' }, { n: 'Cable curl', sets: [{ kg: 20, r: 9 }, { kg: 20, r: 9 }] }, hs[0], hs);
+  check('coach: the dot compares with the average of the last 3 sessions, not last time alone (up on last time, level on the average)', tr.up === 0 && /average of the last 3/.test(tr.ref) && tr.allIn, JSON.stringify({ up: tr.up, ref: tr.ref }));
+  const { finishNote } = await import('../src/coach.js');
+  check('coach: a note cut off mid-sentence ends at its last full sentence', finishNote('Strong session overall. Six of seven in range. The clear MI') === 'Strong session overall. Six of seven in range.' && finishNote('All good.') === 'All good.' && finishNote('no stop at all') === '', finishNote('Strong session overall. The clear MI'));
   const bw = reviewExercise({ reps: '6-10' }, { n: 'Weighted dip (+kg)', sets: [{ kg: null, r: 10 }] }, null);
   check('coach: bodyweight at the top → add load', /add 2.5 kg/.test(bw.next), bw.next);
   check('coach: load steps', loadStep('Incline DB bench') === 2 && loadStep('Seated leg curl') === 5 && loadStep('Cable lateral raise') === 2.5 && loadStep('Smith machine chest press') === 5);
@@ -104,7 +116,7 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
     { date: T0, items: [{ kcal: 600, p: 30 }] }, { date: D(20), workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
   const F = weeklyFacts(wk, T0), H = weeklyHtml(F);
   check('weekly: away days and today left out of food; sessions planned scale with the days away', F.logged === 2 && F.open === 4 && F.away === 2 && Math.round(F.kcal) === 2100 && F.want === 4 && F.gym === 1 && F.cardioMin === 25 && F.ups.join() === 'Incline DB bench' && /Get to 4 sessions/.test(H.focus) && /Away/.test(H.stats), JSON.stringify({ l: F.logged, o: F.open, a: F.away, k: F.kcal, w: F.want, f: H.focus }));
-  check('weekly: golf is reported as light activity, not cardio (23 Nov 2026)', F.cardioMin === 25 && F.cardioN === 1 && F.lightN === 1 && F.lightMin === 120 && /1 golf, 120 min/.test(H.stats || JSON.stringify(H)), JSON.stringify({ c: F.cardioMin, n: F.cardioN, l: F.lightN, lm: F.lightMin }));
+  check('weekly: golf is reported as light activity, not cardio (23 Nov 2026)', F.cardioMin === 25 && F.cardioN === 1 && F.lightN === 1 && F.lightMin === 120 && /1 light cardio, 120 min/.test(H.stats || JSON.stringify(H)), JSON.stringify({ c: F.cardioMin, n: F.cardioN, l: F.lightN, lm: F.lightMin }));
 }
 // 14 Nov 2026: steps from the Shortcut (made-up counts)
 import { parseSteps } from '../src/index.js';
