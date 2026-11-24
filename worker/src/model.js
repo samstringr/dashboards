@@ -44,6 +44,18 @@ export function lastPerf(days, name) {
   for (const w of allWorkouts(days)) for (const e of (w.ex || [])) if (normName(e.n) === k && e.sets?.length) return { date: w.date, sets: e.sets };
   return null;
 }
+/* The last few times a lift was done (newest first), within `within` days of the newest: the coach compares a session
+   with these, not with one session (24 Nov 2026, Sam: "base progress off of a number of weeks, not just what I did
+   last time"). */
+export function recentPerf(days, name, n = 3, within = 42) {
+  const k = normName(name), out = [];
+  for (const w of allWorkouts(days)) for (const e of (w.ex || [])) {
+    if (normName(e.n) !== k || !e.sets?.length) continue;
+    if (out.length && diffDays(w.date, out[0].date) > within) return out;
+    out.push({ date: w.date, sets: e.sets }); if (out.length >= n) return out;
+  }
+  return out;
+}
 export function setsText(sets) {
   if (!sets?.length) return '';
   const kgs = [...new Set(sets.map(s => s.kg))];
