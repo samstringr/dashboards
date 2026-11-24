@@ -170,3 +170,11 @@ Everything else here is how that file is built and checked.
   With no doctype or charset the page ran in quirks mode, and without the `[hidden]` rule the layout-presets menu could
   not close: Sam saw a stuck menu and no widgets. Reproduced locally (the v31 file, unwrapped, times out on the first
   click); the page now also carries the two reset rules itself, so even an unwrapped copy works.
+- **Away days, subtler (23 Nov 2026, same evening).** Sam: "make it more subtle… it shouldn't disrupt what the existing
+  widget looks like… happy with the dotted line and a colour". The full-height dashed box round each away day became one
+  short dotted line in the plan colour just under the baseline for each run of away days (`AWAY_LINE`, `awayRuns`), in
+  Intake and the Training log; Intake no longer dims away bars. Hover, the Today chip and the averages are unchanged.
+- **Training log on a short widget.** Under 80 px of chart (Sam's is about 50): 3 px squares, no date labels, and only as
+  many rows of squares as the busiest day needs. WHY: a fixed three-row lane of 7 px squares left the bars about 10 px tall.
+- **S&A preset:** overhead cable triceps extension → Katana triceps extension (Sam's pick, 23 Nov). The name keeps
+  "triceps" so the split builder scores it (EXMAP) and "katana" so the 3D demo matches.

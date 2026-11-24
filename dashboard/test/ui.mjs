@@ -326,11 +326,11 @@ const dm = await page.evaluate(() => { const w = document.querySelector('.widget
 check('Training log by day: a step bar a day, 10k dotted on the right scale, days at target in the stats', /per day/.test(dm.aria) && dm.dashed && dm.k10 && dm.bars >= 15 && dm.stat, JSON.stringify(dm));
 // 23 Nov 2026: golf shows as its own light marker and stat, never in cardio minutes; away days are outlined
 const gl = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'), st = [...svg.querySelectorAll('rect')].map(r => r.getAttribute('style') || '');
-  return {stat: /\b1 golf\b/.test(w.innerText), legend: /golf/.test(w.querySelector('.pl')?.innerText || ''), marker: st.some(x => /stroke:var\(--ink\);stroke-opacity:\.55/.test(x)), away: st.filter(x => /dasharray:3 2/.test(x)).length, cardio: (w.querySelector('.w-head, .wh, header')?.innerText || w.innerText).match(/Cardio\s*([\d,]+)/)?.[1]}; });
-check('golf: its own outlined marker, legend and stat on the Training log; away days dashed', gl.stat && gl.legend && gl.marker && gl.away === 2, JSON.stringify(gl));
+  return {stat: /\b1 golf\b/.test(w.innerText), legend: /golf/.test(w.querySelector('.pl')?.innerText || ''), marker: st.some(x => /stroke:var\(--ink\);stroke-opacity:\.55/.test(x)), away: svg.querySelectorAll('line[data-away]').length, boxes: st.filter(x => /dasharray:3 2/.test(x)).length, cardio: (w.querySelector('.w-head, .wh, header')?.innerText || w.innerText).match(/Cardio\s*([\d,]+)/)?.[1]}; });
+check('golf: its own outlined marker, legend and stat on the Training log; away days one dotted line, no boxes', gl.stat && gl.legend && gl.marker && gl.away === 1 && gl.boxes === 0, JSON.stringify(gl));
 await page.click('#d-lbl'); await page.waitForTimeout(250);   // back to today: the away days are in the last fortnight
-const ia2 = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'), svg = w.querySelector('[data-c=k] svg'); return {away: [...svg.querySelectorAll('rect')].filter(r => /dasharray:3 2/.test(r.getAttribute('style') || '')).length, legend: /away/.test(w.innerText)}; });
-check('Intake: away days outlined and in the legend', ia2.away === 2 && ia2.legend, JSON.stringify(ia2));
+const ia2 = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'), svg = w.querySelector('[data-c=k] svg'); return {away: svg.querySelectorAll('line[data-away]').length, boxes: [...svg.querySelectorAll('rect')].filter(r => /dasharray:3 2/.test(r.getAttribute('style') || '')).length, legend: /away/.test(w.innerText)}; });
+check('Intake: away days one dotted line under the bars, in the legend', ia2.away === 1 && ia2.boxes === 0 && ia2.legend, JSON.stringify(ia2));
 if (vp.width > 900) {
   const sb = await page.locator('.widget[data-id=workouts] [data-c=w] svg').boundingBox();
   await page.mouse.move(sb.x + sb.width - 40, sb.y + sb.height / 2); await page.waitForTimeout(150);
