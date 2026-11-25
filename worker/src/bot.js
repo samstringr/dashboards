@@ -2,7 +2,7 @@
 import { text, json, esc, r1, fmt, mean, uid, clamp, today, addDays, dLong, validDate, normName, webhookSecret, b64 } from './util.js';
 import { getDay, mutateDay, getConfig, putConfig, getKV, setKV, delKV } from './store.js';
 import { reviewSession, reviewExercise, sessionReviewHtml, joinReview, coachNote, weeklyReview, setsShort } from './coach.js';
-import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx } from './model.js';
+import { dayTotals, weighins, rollAvg, targets, lastPerf, setsText, planState, addLoadDue, libMacros, loadCtx, restMin, restLine } from './model.js';
 import { parseMessage } from './ai.js';
 import { photoRoute, rememberImages, isProgressNote, moveRemembered, photoSessionOpen, openPhotoSession, closePhotoSession, savePhotoFromTelegram, undoBatch } from './photos.js';
 import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
@@ -411,9 +411,11 @@ export async function sendWorkout(env, code) {
      first line and each lift's name and a colon, nothing to delete before filling it in. */
   const rows = s.ex.map((e, i) => {
     const lp = lastPerf(ctx.days, e.n), aim = lp ? reviewExercise(e, { n: e.n, sets: lp.sets }, null).nextShort : null;
-    return `<b>${i + 1}. ${esc(e.n)}</b>  <i>${e.sets}×${esc(e.reps)}</i>\n    🎯 <code>${esc(aim || e.opener || 'new: find a load')}</code>${lp ? `   last ${esc(setsShort(lp.sets))}` : ''}`;
+    // rest per lift (24 Nov 2026); when the coach's target already says rest (a later set fell short: 3′), that one stands
+    const rs = /\brest\b/.test(aim || '') ? '' : ` · rest ${restMin(e)}′`;
+    return `<b>${i + 1}. ${esc(e.n)}</b>  <i>${e.sets}×${esc(e.reps)}${rs}</i>\n    🎯 <code>${esc(aim || e.opener || 'new: find a load')}</code>${lp ? `   last ${esc(setsShort(lp.sets))}` : ''}`;
   });
   const tpl = ['WORKOUT ' + s.code, ...s.ex.map(e => e.n + ': ')].join('\n');
-  await send(env, `🏋️ <b>${esc(s.code)} · ${esc(s.name)}</b> · session ${ps.nextNo}${ctx.plan.length ? '/' + ctx.plan.length : ''}${ps.deload ? ' · <b>deload</b>: 60% load, RPE 6' : ''}\n\n${rows.join('\n')}\n\n📋 <b>Tap the grey box to copy it.</b> After each colon write that lift's sets, <code>42.5x9, 42.5x8</code>; leave a line empty to skip it. Then send it back.\n<pre>${esc(tpl)}</pre>`);
+  await send(env, `🏋️ <b>${esc(s.code)} · ${esc(s.name)}</b> · session ${ps.nextNo}${ctx.plan.length ? '/' + ctx.plan.length : ''}${ps.deload ? ' · <b>deload</b>: 60% load, RPE 6' : ''}${s.rest ? '\n⏱ Rest ' + esc(restLine(s)) : ''}\n\n${rows.join('\n')}\n\n📋 <b>Tap the grey box to copy it.</b> After each colon write that lift's sets, <code>42.5x9, 42.5x8</code>; leave a line empty to skip it. Then send it back.\n<pre>${esc(tpl)}</pre>`);
   return { ok: true, session: s.code + ' · ' + s.name };
 }

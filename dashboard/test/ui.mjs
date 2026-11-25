@@ -61,12 +61,14 @@ const broken = await page.evaluate(() => [...document.querySelectorAll('.widget'
 check('no widget errors', !broken.length, broken.join(' | '));
 const lay = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets;
 check('layout saved to Health DB', lay.length === 13 && lay.some(w => w.type === 'muscles') && lay.some(w => w.type === 'quote'));
-// cardio note beside the Training log title: 45 min logged this week, one swim without minutes
-const cn = await page.locator('.widget[data-id=workouts] .w-note').innerText().catch(() => '');
+// 24 Nov 2026: the Training log's cardio meter (was a note beside the title): minutes this week against 150
+const kpi = async k => (await page.locator(`.widget[data-id=workouts] [data-kpi-${k}]`).innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+const logRd = async () => (await page.locator('.widget[data-id=workouts] [data-rd]').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+const cn = await kpi('cardio');
 const tt = await page.evaluate(() => { const e = document.querySelector('.widget[data-id=workouts] .w-title'); return e.scrollWidth <= e.clientWidth; });
 check('training log title not cut off by the note', tt);
 if (process.argv[2] === 'phone') { const tb = await page.evaluate(() => ({dn: document.querySelector('.datenav').getBoundingClientRect().right, ac: document.querySelector('.actions').getBoundingClientRect().left})); check('phone top bar: buttons clear of the date', tb.ac >= tb.dn, JSON.stringify(tb)); }
-check('training log: cardio X / 150 min this week', /^Cardio \d+ \/ 150 min/.test(cn), cn);
+check('training log: cardio meter X / 150 min this week', /^Cardio \d+ \/ 150 min/.test(cn), cn);
 const cardio0 = +((cn.match(/^Cardio (\d+)/) || [])[1] || 0);
 // consistency grid: gym dot vs cardio dot, legend
 const cal = await page.evaluate(() => { const c = d => document.querySelector(`.widget[data-id=calendar] i[data-d="${d}"]`); return {fb: c('2026-10-31')?.className, gym: c('2026-11-01')?.className, leg: document.querySelector('.widget[data-id=calendar] .pl')?.innerText}; });
@@ -94,8 +96,8 @@ await page.click('#c-kind [data-k=run]'); await page.click('[data-m="45"]'); awa
 const wkLine = await page.locator('#c-week').innerText();
 await page.click('#c-save'); await page.waitForTimeout(1200);
 const dayNow = (await mcpNode('get_day', {})).structuredContent.day, runRec = (dayNow.workouts || []).find(w => w.kind === 'run');
-const cn2 = await page.locator('.widget[data-id=workouts] .w-note').innerText().catch(() => '');
-check('cardio sheet: run 45 min 8 km saved, note goes up by 45', /Log cardio or sport/.test(ct) && wkLine.includes(`${cardio0} → ${cardio0 + 45}`) && runRec?.min === 45 && runRec?.km === 8 && cn2.startsWith(`Cardio ${cardio0 + 45} / 150`), JSON.stringify(runRec) + ' | ' + cn2);
+const cn2 = await kpi('cardio');
+check('cardio sheet: run 45 min 8 km saved, cardio meter goes up by 45', /Log cardio or sport/.test(ct) && wkLine.includes(`${cardio0} → ${cardio0 + 45}`) && runRec?.min === 45 && runRec?.km === 8 && cn2.startsWith(`Cardio ${cardio0 + 45} / 150`), JSON.stringify(runRec) + ' | ' + cn2);
 // the session sheet hands football to the cardio sheet; the Training log button opens it too
 await page.click('[data-act=session]'); await page.waitForTimeout(200); await page.selectOption('#s-kind', 'football'); await page.waitForTimeout(150);
 const sw = await page.locator('#sheet-t').innerText(), onK = await page.evaluate(() => document.querySelector('#c-kind .on')?.dataset.k);
@@ -202,7 +204,8 @@ check('composition expands scale details', /Visceral|Skeletal/.test(await page.l
 if (vp.width > 900) {
   const wb = await page.locator('.widget[data-id=workouts] .chart svg').boundingBox();
   await page.mouse.move(wb.x + wb.width - 30, wb.y + wb.height / 2); await page.waitForTimeout(150);
-  check('training log hover lists the week', /Week of/.test(await page.locator('.widget[data-id=workouts] .tip').innerText().catch(() => '')));
+  const hr = await logRd(), tipN = await page.locator('.widget[data-id=workouts] .tip').count();
+  check('training log hover (24 Nov 2026): no floating tip; the line under the meters names the week and the day', !tipN && /^(This week|Week of \d+ \w{3}) · (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ \w{3}/.test(hr), hr.slice(0, 120));
   // 15 Nov 2026: widgets stay put outside edit mode; corners only show while editing
   const lockd = await page.evaluate(() => { const n = document.querySelector('.widget[data-id=muscles]'); return {corner: getComputedStyle(n.querySelector('.corner')).display, sel: getComputedStyle(document.querySelector('#viewport')).userSelect}; });
   const hb = await page.locator('.widget[data-id=muscles] .w-head').boundingBox(), m0 = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'muscles');
@@ -293,6 +296,7 @@ const vb = await page.locator('.widget[data-id=lift] [data-vars] button').allInn
 await page.evaluate(() => document.querySelector('.widget[data-id=lift] [data-v=straightarm]').click()); await page.waitForTimeout(1200);
 const vOn = await page.locator('.widget[data-id=lift] [data-vars] .on').innerText().catch(() => ''), vSaved = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.widgets.find(w => w.id === 'lift')?.cfg?.vars;
 await page.evaluate(() => { const s = document.querySelector('.widget[data-id=lift] [data-ex]'); if (![...s.options].some(o => o.value === 'Cable curl (facing away)')) s.add(new Option('Cable curl (facing away)')); s.value = 'Cable curl (facing away)'; s.dispatchEvent(new Event('change')); }); await page.waitForTimeout(1500);
+await page.locator('.widget[data-id=workouts]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=workouts]').screenshot({ path: `${OUT}log-${vp.width}.png` }).catch(() => {});
 await page.locator('.widget[data-id=lift]').scrollIntoViewIfNeeded(); await page.locator('.widget[data-id=lift]').screenshot({ path: `${OUT}lift-variants-${vp.width}.png` });
 const vw = await page.evaluate(() => { const g = document.querySelector('.widget[data-id=lift] [data-vars]'), w = document.querySelector('.widget[data-id=lift]'); return g ? { n: g.children.length, fits: g.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1 && g.getBoundingClientRect().height > 12 } : null; });
 check('lift variants: three curls offered and the toggle fits the widget', vw?.n === 3 && vw.fits, JSON.stringify(vw));
@@ -319,15 +323,16 @@ check('training log click: the session opens in the plan with its sets', /Traine
 const im = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'); return {legend: /on target/.test(w.innerText), k: w.querySelectorAll('[data-c=k] path.hitmark').length, p: w.querySelectorAll('[data-c=p] path.hitmark').length, streak: /Streak \d+ day/.test(w.innerText)}; });
 check('Intake: on-target legend and dots over bars, streak in the stats', im.legend && im.k + im.p >= 0, JSON.stringify(im));
 check('Smith machine chest press: flat and incline variants, incline matched by name', JSON.stringify(await page.evaluate(() => [Fig3D.variants('smithpress').map(v => v.key), Fig3D.moveFor('Incline Smith machine press'), Fig3D.moveFor('Smith machine chest press')])) === '[["smithpress","smithincline"],"smithincline","smithpress"]');
-const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'); return {legend: /steps\/day/.test(w.innerText), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), stat: /Steps [\d,]+\/day/.test(w.innerText)}; });
-check('steps: Training log has a right-hand steps axis, legend and average', stp.legend && stp.axis && stp.stat, JSON.stringify(stp));
+const stp = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), m = w.querySelector('[data-kpi-steps]')?.innerText.replace(/\s+/g, ' ') || ''; return {meter: /Steps a day/.test(m) && /\/ 10k/.test(m), axis: [...w.querySelectorAll('svg text')].some(t => /^\d+(\.\d)?k$/.test(t.textContent)), m}; });
+check('steps: Training log has a right-hand steps axis and a steps meter against 10k', stp.meter && stp.axis, JSON.stringify(stp));
 // 18 Nov 2026: a column a day inside each week, the 10k target dotted on the steps scale; a year falls back to weeks
-const dm = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'); return {aria: svg.getAttribute('aria-label'), target: !!svg.querySelector('line[data-target]'), k10: [...svg.querySelectorAll('text')].some(t => t.textContent === '10k'), steps: (svg.querySelector('path[data-steps]')?.getAttribute('d') || '').split(/[ML]/).length - 1, bars: svg.querySelectorAll('rect[data-wk]').length, stat: /\/\d+ ≥10k/.test(w.innerText), weeks: /\d+\/\d+ weeks ≥150 min/.test(w.innerText)}; });
-check('Training log (24 Nov 2026): steps a line, a point a day; cardio a bar a week; one dotted line for both targets; weeks at 150 in the stats', /per day/.test(dm.aria) && dm.target && dm.k10 && dm.steps >= 15 && dm.bars >= 1 && dm.stat && dm.weeks, JSON.stringify(dm));
+const dm = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'); return {aria: svg.getAttribute('aria-label'), target: !!svg.querySelector('line[data-target]'), k10: [...svg.querySelectorAll('text')].some(t => t.textContent === '10k'), steps: (svg.querySelector('path[data-steps]')?.getAttribute('d') || '').split(/[ML]/).length - 1, bars: svg.querySelectorAll('rect[data-wk]').length, vals: svg.querySelectorAll('text[data-wkv]').length, H: +svg.getAttribute('height'), W: +svg.getAttribute('width'), meters: ['cardio', 'steps', 'gym'].every(k => w.querySelector('[data-kpi-' + k + ']')), squares: [...svg.querySelectorAll('rect')].filter(r => /fill:var\(--cat-train\)/.test(r.getAttribute('style') || '')).length}; });
+check('Training log v4 (24 Nov 2026): three meters; steps a line, a point a day; cardio a bar a week with its minutes on top; one dotted line for both targets; no session squares', /per day/.test(dm.aria) && dm.target && dm.k10 && dm.steps >= 15 && dm.bars >= 1 && dm.vals >= 1 && dm.meters && !dm.squares, JSON.stringify(dm));
 // 23 Nov 2026: golf shows as its own light marker and stat, never in cardio minutes; away days are outlined
 const gl = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=workouts]'), svg = w.querySelector('[data-c=w] svg'), st = [...svg.querySelectorAll('rect')].map(r => r.getAttribute('style') || '');
-  return {stat: /\b1 light cardio\b/.test(w.innerText), legend: /light\s*cardio/.test(w.querySelector('.pl')?.innerText || ''), light: svg.querySelectorAll('rect[data-light]').length, marker: st.some(x => /stroke:var\(--ink\);stroke-opacity:\.55/.test(x)), away: svg.querySelectorAll('path[data-away]').length, boxes: st.filter(x => /dasharray:3 2/.test(x)).length, cardio: (w.querySelector('.w-head, .wh, header')?.innerText || w.innerText).match(/Cardio\s*([\d,]+)/)?.[1]}; });
-check('golf: "light cardio" in the key and stats, outlined on top of its week, its own marker; away days one magenta bracket', gl.stat && gl.legend && gl.marker && gl.light >= 1 && gl.away === 1 && gl.boxes === 0, JSON.stringify(gl));
+  const brk = svg.querySelector('path[data-away]')?.getAttribute('d') || '', dep = (brk.match(/V([\d.]+)H/) || [])[1] - (brk.match(/^M[\d.]+,([\d.]+)/) || [])[1];
+  return {light: svg.querySelectorAll('rect[data-light]').length, away: svg.querySelectorAll('path[data-away]').length, depth: Math.round(dep * 10) / 10, boxes: st.filter(x => /dasharray:3 2/.test(x)).length}; });
+check('golf stays out of the bars; away days one magenta bracket, 3 px deep as in Intake', gl.light === 0 && gl.away === 1 && gl.depth === 3 && gl.boxes === 0, JSON.stringify(gl));
 await page.click('#d-lbl'); await page.waitForTimeout(250);   // back to today: the away days are in the last fortnight
 const ia2 = await page.evaluate(() => { const w = document.querySelector('.widget[data-id=intake]'), svg = w.querySelector('[data-c=k] svg'); return {bracket: svg.querySelectorAll('path[data-away]').length, awayMark: svg.querySelectorAll('path[data-mark=away]').length, miss: w.querySelectorAll('svg path[data-mark=miss]').length,   // both charts: the made-up meals hit calories but miss protein
      hit: svg.querySelectorAll('path[data-mark=hit]').length, legend: /away/.test(w.innerText) && /missed/.test(w.innerText)}; });
@@ -335,8 +340,14 @@ check('Intake (24 Nov 2026): magenta outline on an away day with food, a bracket
 if (vp.width > 900) {
   const sb = await page.locator('.widget[data-id=workouts] [data-c=w] svg').boundingBox();
   await page.mouse.move(sb.x + sb.width - 40, sb.y + sb.height / 2); await page.waitForTimeout(150);
-  const tp = await page.locator('.widget[data-id=workouts] .tip').innerText().catch(() => '');
-  check('Training log hover: the day first, then its week', /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ \w{3}/.test(tp) && /Week of/.test(tp) && /steps|still to come/.test(tp), tp.replace(/\n/g, ' | ').slice(0, 160));
+  const tp = await logRd();
+  check('Training log hover: the week, then the day with its steps', /^(This week|Week of \d+ \w{3}) · (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ \w{3}/.test(tp) && /steps|still to come/.test(tp), tp.slice(0, 160));
+  // golf two days ago: not in the bars, but its day's line says so and its week's cardio meter notes the light minutes in its title
+  const gx = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), k = r.width / +svg.getAttribute('width'), pw = r.width - 34 * k, td = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/London'}).format(new Date()), t = new Date(td + 'T12:00:00Z'), a = new Date(td + 'T12:00:00Z');
+    t.setUTCDate(t.getUTCDate() - (t.getUTCDay() + 6) % 7 - 77); a.setUTCDate(a.getUTCDate() - 2); const j = Math.round((a - t) / 864e5); return {x: r.left + 4 * k + pw / 84 * (j + .5), y: r.top + r.height / 2}; });
+  await page.mouse.move(gx.x, gx.y); await page.waitForTimeout(150);
+  const gr = await logRd(), gt = await page.locator('.widget[data-id=workouts] [data-kpi-cardio]').getAttribute('title').catch(() => '');
+  check('golf: its day says Golf, its week\'s cardio meter says the light minutes don\'t count', /Golf/.test(gr) && /Light cardio such as golf \(60 min\)/.test(gt || ''), gr.slice(0, 120) + ' // ' + (gt || '').slice(-80));
   await page.mouse.move(sb.x - 30, sb.y - 30); await page.locator('.widget[data-id=workouts]').screenshot({ path: `${OUT}v13-steps-days.png` });
   await page.evaluate(() => { const b = document.querySelector('.widget[data-id=workouts] .w-range'); b.click(); b.click(); }); await page.waitForTimeout(300);
   const yr = await page.evaluate(() => document.querySelector('.widget[data-id=workouts] [data-c=w] svg')?.getAttribute('aria-label'));
@@ -347,8 +358,8 @@ if (vp.width > 900) {
   const ax = await page.evaluate(() => { const svg = document.querySelector('.widget[data-id=workouts] [data-c=w] svg'), r = svg.getBoundingClientRect(), k = r.width / +svg.getAttribute('width'), pw = r.width - 34 * k, td = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/London'}).format(new Date()), t = new Date(td + 'T12:00:00Z'), a = new Date(td + 'T12:00:00Z');
     t.setUTCDate(t.getUTCDate() - (t.getUTCDay() + 6) % 7 - 77); a.setUTCDate(a.getUTCDate() - 5); const j = Math.round((a - t) / 864e5); return {x: r.left + 4 * k + pw / 84 * (j + .5), y: r.top + r.height / 3}; });
   await page.mouse.click(ax.x, ax.y); await page.waitForTimeout(400); await page.mouse.move(ax.x + 1, ax.y); await page.waitForTimeout(150);   // the click re-renders the widget, so hover again for the tip
-  const awt = await page.evaluate(() => ({today: document.querySelector('.widget[data-id=today]')?.innerText || '', tip: document.querySelector('.widget[data-id=workouts] .tip')?.innerText || ''}));
-  check('away day: Today shows the place, the Training log hover says away', /Away · Test trip/.test(awt.today) && /away, Test trip/.test(awt.tip), awt.today.slice(0, 120).replace(/\n/g, ' | ') + ' // ' + awt.tip.slice(0, 80).replace(/\n/g, ' | '));
+  const awt = await page.evaluate(() => ({today: document.querySelector('.widget[data-id=today]')?.innerText || '', tip: document.querySelector('.widget[data-id=workouts] [data-rd]')?.innerText || ''}));
+  check('away day: Today shows the place, the Training log hover line says away', /Away · Test trip/.test(awt.today) && /away, Test trip/.test(awt.tip), awt.today.slice(0, 120).replace(/\n/g, ' | ') + ' // ' + awt.tip.slice(0, 80).replace(/\n/g, ' | '));
   await page.click('#d-lbl'); await page.waitForTimeout(200);
 }
 check('15 Nov back day: every exercise has its own demo, and the variant groups', JSON.stringify(await page.evaluate(() => ['Chest-supported row (wide grip)', 'Chest-supported row (close grip)', 'Single-arm cable row (lat focus)', 'Weighted back extension', 'Cable rear delt fly', 'DB shrug (chest-supported)', 'Cable pullover (standing)', 'Reverse pec deck'].map(n => Fig3D.moveFor(n) + (Fig3D.ready(Fig3D.moveFor(n)) ? '' : '!'))))

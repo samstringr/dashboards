@@ -5,6 +5,7 @@ const W = 'http://127.0.0.1:8787', M = 'http://127.0.0.1:9999';
 const secret = crypto.createHash('sha256').update('tg:123:abc').digest('hex').slice(0, 48);
 let uid = 1000; const results = []; let fails = 0;
 const check = (name, cond, extra = '') => { results.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); if (!cond) fails++; };
+const s_rows = t => { const ls = t.split('\n'); return ls.map((l, i) => /^<b>\d+\. /.test(l) ? l + ' ' + (ls[i + 1] || '') : null).filter(Boolean); };   // each lift with its target line
 process.on('uncaughtException', e => { console.log(results.join('\n')); console.log('\nCRASHED: ' + (e.stack || e)); process.exit(1); });
 const mcp = async (method, params, id = 1) => (await (await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer testkey', 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) })).json());
 const tool = async (name, args) => { const r = await mcp('tools/call', { name, arguments: args }); if (r.result?.isError) throw new Error(name + ': ' + r.result.content[0].text); return r.result.structuredContent; };
@@ -89,11 +90,15 @@ day = (await tool('get_day', { date: '2026-11-02' })).day;
 check('screenshot: smm% converted, extras kept', day.body.w === 72.5 && day.body.smm === 38.9 && day.body.scale.smmPct === 53.7 && day.body.scale.muscleKg === 57.3, JSON.stringify(day.body));
 
 // --- /workout then filled-in workout
+{ const pl = (await tool('get_snapshot', {})).config.plan; pl.sessions.find(x => x.code === 'U').rest = '3′ on the presses and rows, 2′ on the rest. Made-up why.'; await tool('put_config', { id: 'plan', doc: pl }); }
 await reset();
 await tgSend({ text: '/workout' });
 m = await lastMsg();
+check('/workout: the session rest one-liner, without its why', /\n⏱ Rest 3′ on the presses and rows, 2′ on the rest\.\n/.test(m.text) && !/Made-up why/.test(m.text), m.text.split('\n').slice(0, 2).join(' | '));
 check('/workout sends next session with copy block', /<pre>WORKOUT U/.test(m.text), m.text.split('\n')[0]);
 check('/workout: numbered lifts with a target each, and a template of names and colons only', /<b>1\. /.test(m.text) && /🎯 <code>/.test(m.text) && /Tap the grey box/.test(m.text) && /<pre>WORKOUT U\n[^<]+: \n/.test(m.text) && !/<pre>[^<]*\(/.test(m.text), m.text.replace(/\n/g, ' | ').slice(0, 400));
+// 24 Nov 2026: rest per lift on every row (3′ when the range starts at 6 or fewer, else 2′, unless the plan says)
+check('/workout: rest on every lift', s_rows(m.text).length > 0 && s_rows(m.text).every(r => / · rest [23]′<\/i>/.test(r) || /rest 3′<\/code>/.test(r)), s_rows(m.text).slice(0, 2).join(' | '));
 await reset();
 await tgSend({ text: 'WORKOUT Ps\nFlat DB press 3×8-12 @8 (new): 30x12, 30x10\nPec deck: 45x13' });
 { const all = (await calls()).filter(x => x.api === 'tg' && x.method === 'sendMessage').map(x => x.body); m = all.find(x => /Saved<\/b>/.test(x.text)) || { text: '' }; var coachMsg = all.find(x => /🧭 <b>Coach/.test(x.text)) || { text: '' }; }
@@ -338,6 +343,13 @@ check('failure: recorded for get_bot_errors', errs[0]?.message === 'garbage in' 
 await reset(); await tgCb(JSON.parse(JSON.stringify(m.reply_markup)).inline_keyboard[0][0].callback_data);
 cs = await calls();
 check('Try again re-runs the same message', cs.some(c => c.method === 'sendMessage' && /Trying again/.test(c.body.text)) && cs.filter(c => c.api === 'claude').length === 2);
+// 24 Nov 2026: a spend limit is named, with where to raise it, and isn't retried
+await reset(); await tgSend({ text: 'spend cap test' });
+m = await lastMsg(); cs = await calls();
+check('spend limit: says so and where to raise it, one call only', /spend limit is reached/.test(m.text) && /settings\/spend-limits/.test(m.text) && cs.filter(c => c.api === 'claude').length === 1, m.text.split('\n')[0]);
+await reset(); await tgSend({ text: 'tier cap test' });
+m = await lastMsg(); cs = await calls();
+check('tier cap: the same message, not retried as a rate limit', /spend limit is reached/.test(m.text) && /2026-12-01/.test(m.text) && cs.filter(c => c.api === 'claude').length === 1, m.text.split('\n')[0].slice(0, 160));
 
 // --- progress photos (13 Nov 2026; 14 Nov: no caption, no /done, one reply per album)
 await reset();
