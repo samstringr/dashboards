@@ -14,6 +14,9 @@ const claudeReply = (body) => {
   const td = (sys.match(/Today is [^(]*\((\d{4}-\d{2}-\d{2})\)/) || [])[1] || '2026-11-02';
   const recent = re => { const sec = sys.slice(Math.max(0, sys.indexOf('RECENT, logged'))); const l = sec.split('\n').find(x => / \| /.test(x) && re.test(x)); return l ? l.split(' | ')[0].trim() : null; };
   const first = (() => { const c = body.messages[0].content; return Array.isArray(c) ? c.filter(p => p.type === 'text').map(p => p.text).join(' ') : String(c); })();
+  // 24 Nov 2026: the Console spend limit (made-up wording after the documented 'specified API usage limits')
+  if (/tier cap test/i.test(first)) return { __status: 429, body: { type: 'error', error: { type: 'rate_limit_error', message: 'You have reached your API usage limits: your organization has crossed its monthly API usage threshold, set based on your organization\'s API tier. You will regain access on 2026-12-01 at 00:00 UTC.', details: { error_code: 'enforced_spend_limit_reached' } } } };
+  if (/spend cap test/i.test(first)) return { __status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.' } } };
   // 7 Nov 2026: Sam's burger message, with the web lookup rate-limited on both models
   if (/You estimate nutrition/.test(sys) && /brioche/i.test(txt)) return { __status: 429, body: { type: 'error', error: { type: 'rate_limit_error', message: 'This request would exceed the rate limit for your organization of 30,000 input tokens per minute.' } } };
   if (/That was not a valid JSON/.test(txt)) {

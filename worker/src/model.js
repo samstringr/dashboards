@@ -56,6 +56,13 @@ export function recentPerf(days, name, n = 3, within = 42) {
   }
   return out;
 }
+/* Rest between sets (24 Nov 2026, Sam: "add a one-liner if rest should be the same throughout the session, or for
+   particular exercises"). The plan's own value wins: e.rest in minutes, s.rest the session's line (its first sentence
+   is the one-liner, the rest says why). Without one: 3 min when the rep range starts at 6 or fewer (the heavy
+   compounds), else 2. WHY 3: 3-minute rests grew more muscle and strength than 1 minute in trained men (Schoenfeld
+   et al. 2016). 2 minutes on isolation lifts is common practice, not a tested optimum. Same rule as the dashboard. */
+export function restMin(e) { if (+e?.rest > 0) return +e.rest; const m = String(e?.reps || '').match(/^\s*(\d+)/); return m && +m[1] <= 6 ? 3 : 2; }
+export const restLine = s => String(s?.rest || '').split(/(?<=\.)\s+/)[0];
 export function setsText(sets) {
   if (!sets?.length) return '';
   const kgs = [...new Set(sets.map(s => s.kg))];

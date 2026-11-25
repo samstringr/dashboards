@@ -34,6 +34,13 @@ export async function claude(env, { model, system, messages, tools, max_tokens =
       if (r.ok) break;
       const m = j.error?.message || ('HTTP ' + r.status);
       if (/credit balance/i.test(m)) throw new Error('your Anthropic credit has run out. Top up in the Console, then resend');
+      /* A spend limit (24 Nov 2026, Sam: "I think we did set a cap, right?"). Two kinds stop the API until 00:00 UTC on
+         the 1st: the monthly limit you set yourself in the Console (HTTP 400, "You have reached your specified API usage
+         limits") and the usage tier's own cap (HTTP 429, "…your API usage limits", error_code
+         enforced_spend_limit_reached, no retry-after). Neither clears by retrying, so stop and say where to raise it;
+         the API's own message carries the date access comes back. */
+      if (/reached your (specified )?(workspace )?API usage limits/i.test(m) || /enforced_spend_limit/.test(JSON.stringify(j.error || '')))
+        throw new Error('the API spend limit is reached (' + m.replace(/\.\s*$/, '') + '). Raise it at platform.claude.com/settings/spend-limits, then resend');
       const busy = r.status === 429 || r.status === 529 || r.status >= 500;
       const wait = Math.min(8000, (+r.headers.get('retry-after') || 0) * 1000 || 2000 * (attempt + 1));
       if (busy && attempt < 2 && end - Date.now() > wait + 5000) { await sleep(wait); continue; }

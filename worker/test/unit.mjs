@@ -15,6 +15,11 @@ check('/away 7', JSON.stringify(parseAwayArgs('2026-12-01', ['7'])) === '{"from"
 check('/away date', parseAwayArgs('2026-12-01', ['2026-12-28']).to === '2026-12-28');
 check('/away open', parseAwayArgs('2026-12-01', []).to === null);
 check('/away words → Claude', parseAwayArgs('2026-12-01', ['until', 'the', '28th']) === null);
+// 24 Nov 2026: rest between sets: the plan's value wins, else 3 min when the range starts at 6 or fewer, else 2
+import { restMin, restLine } from '../src/model.js';
+check('rest: plan value wins', restMin({ reps: '8-12', rest: 3 }) === 3 && restMin({ reps: '6-10', rest: 2 }) === 2);
+check('rest: rule without one', restMin({ reps: '6-10' }) === 3 && restMin({ reps: '8-12' }) === 2 && restMin({}) === 2);
+check('rest: one-liner is the first sentence', restLine({ rest: '3′ on the press, 2′ on everything else. Why it is so.' }) === '3′ on the press, 2′ on everything else.' && restLine({}) === '');
 // double progression with sets to failure
 import { addLoadDue } from '../src/model.js';
 const pe9 = { reps: '8-12', rpe: 9 }, pe10 = { reps: '10-15', rpe: 10 };

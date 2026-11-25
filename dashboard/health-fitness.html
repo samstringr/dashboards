@@ -214,6 +214,7 @@ body:not(.editing) .w-head{cursor:default}
 .chart svg{display:block;overflow:visible}
 .chart text{font-family:var(--mono);font-size:9.5px;fill:var(--dim)}
 .chart .plab{font-size:9.5px;fill:var(--plan)}
+.chart text.halo{paint-order:stroke;stroke:var(--s1);stroke-width:3px;stroke-linejoin:round}
 .pl{font:500 10px/1 var(--mono);color:var(--dim);display:flex;gap:8px;align-items:center}
 .pl .sw{width:8px;height:8px;border-radius:2px;display:inline-block}
 .tip{position:absolute;top:6px;z-index:6;pointer-events:none;background:var(--s3);border:1px solid var(--line-2);border-radius:8px;padding:6px 9px;font-size:11.5px;line-height:1.45;white-space:nowrap;color:var(--ink)}
@@ -241,6 +242,8 @@ body:not(.editing) .w-head{cursor:default}
 .extab td:first-child{padding-left:0}
 .extab tr:last-child td{border-bottom:0}
 .extab .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+/* a long plan opener ("FLAT bench (the incline DB…") is cut with … and shown whole on hover, so it can't squeeze the names */
+.extab .op{max-width:12em;overflow:hidden;text-overflow:ellipsis}
 .up{color:var(--good);font-weight:600}
 .note-ta{flex:1;width:100%;resize:none;background:none;border:0;outline:none;color:var(--ink);font:400 12.5px/1.6 var(--font);padding:0}
 .deriv{font:400 11px/1.7 var(--mono);color:var(--muted)}
@@ -347,6 +350,14 @@ select.inp{padding-right:6px}
 .corner::before{content:"";position:absolute;inset:-6px}
 .hair{height:1px;background:var(--line);flex:none;margin:2px 0}
 .meters{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* Training log meters (24 Nov 2026): three of Today's meters in a row; the line under them is the hover readout */
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 14px}
+/* narrow (a phone): each meter's label goes above its number so "45 / 150 min" stays on one line */
+.kpis.narrow .meter > .row{flex-direction:column;align-items:flex-start;gap:1px}
+.kpis.narrow .num{white-space:nowrap}
+.kpis.narrow .mid{font-size:15px}
+.logrd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.45em;flex:none}
+.logrd b{font-weight:600}
 .meter{display:flex;flex-direction:column;gap:5px;min-width:0}
 .fl-head,.li.fl{display:grid;grid-template-columns:minmax(0,1fr) 38px 30px 28px 28px 18px;gap:6px;align-items:baseline}
 .fl-head{font:500 10px/1 var(--mono);color:var(--dim);padding:0 0 4px;border-bottom:1px solid var(--line);position:sticky;top:0;background:inherit}
@@ -381,7 +392,8 @@ select.inp{padding-right:6px}
 .cal i s{position:absolute;background:var(--dim);pointer-events:none}
 .cal i s.sl{left:-2px;top:-2px;bottom:-2px;width:1px}
 .cal i s.st{top:-2px;left:-2px;right:-2px;height:1px}
-.cal i.away{background:transparent;outline:1.25px solid var(--away);outline-offset:-1.25px}
+/* away with nothing logged keeps the empty day's grey and adds the magenta outline (24 Nov 2026, Sam: "keep the grey background") */
+.cal i.away{outline:1.25px solid var(--away);outline-offset:-1.25px}
 .cal i.sel{outline:1.5px solid var(--accent);outline-offset:-1.5px}
 .cal i:not(.future):hover{filter:brightness(1.35)}
 .pick{max-width:62%;height:26px;background:none;border:1px solid transparent;border-radius:6px;font-weight:600;font-size:12.5px;padding:0 4px;color:var(--ink);text-overflow:ellipsis}
@@ -434,6 +446,9 @@ select.inp{padding-right:6px}
 .qt{font-size:13.5px;line-height:1.5;text-wrap:pretty;margin:0}
 .qs{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11.5px;line-height:1.3;min-width:0}
 .qs span:last-child{min-width:0}
+.qcard.qrow{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px}
+.qrow .qt{min-width:0}
+.qrow .ts{white-space:normal}
 .w-note{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .w-head:has(.w-note:not([hidden])) .w-title{flex:none}
 .w-note:not([hidden]) ~ .w-hint{display:none}
@@ -3672,6 +3687,14 @@ function setsText(sets) {
   if (kgs.length === 1) return (kgs[0] != null ? fmt(kgs[0], kgs[0] % 1 ? 1 : 0) + ' kg × ' : '') + sets.map(s => s.r ?? '?').join(', ');
   return sets.map(s => (s.kg != null ? fmt(s.kg, s.kg % 1 ? 1 : 0) : '?') + '×' + (s.r ?? '?')).join(', ');
 }
+/* Rest between sets (24 Nov 2026, Sam: "add a one-liner if rest should be the same throughout the session, or for
+   particular exercises"). The plan's own value wins (e.rest, minutes; s.rest is the session's one-liner, first
+   sentence shown, the rest is its why). Without one: 3 min when the rep range starts at 6 or fewer (the heavy
+   compounds), else 2. WHY 3: rests of 3 min grew more muscle and strength than 1 min in trained men (Schoenfeld et al.
+   2016), and too little rest is what took the incline DB from 9 reps to 5 on 24 Nov. 2 min on isolation lifts is
+   common practice, not a tested optimum. */
+function restMin(e) { if (+e?.rest > 0) return +e.rest; const m = String(e?.reps || '').match(/^\s*(\d+)/); return m && +m[1] <= 6 ? 3 : 2; }
+const restLine = s => String(s?.rest || '').split(/(?<=\.)\s+/)[0];
 function topOfRange(reps) { const m = String(reps || '').match(/(\d+)\s*[-–]\s*(\d+)/); return m ? +m[2] : null; }
 function progressHint(planEx) {
   const lp = lastPerf(planEx.n); const top = topOfRange(planEx.reps);
@@ -4107,46 +4130,75 @@ const CARDIO_TARGET = 150, CARDIO_CEIL = 300;
 const STEP_TARGET = 10000;
 function stepTarget(inst) { return +inst?.cfg?.steps > 0 ? +inst.cfg.steps : +S.settings?.stepTarget > 0 ? +S.settings.stepTarget : STEP_TARGET; }
 const ks = v => v >= 1000 ? fmt(v / 1000, v % 1000 ? 1 : 0) + 'k' : String(v);
-function weekTip(c) {
-  const n = c.list.length - (c.light || 0);
-  return `<b>Week of ${dShort(c.mon)}</b> <span class="t">· ${n} session${n === 1 ? '' : 's'}${c.light ? ' · ' + c.light + ' golf' : ''}${c.cmin ? ' · ' + fmt(c.cmin) + ' min cardio' : ''}${c.st ? ' · ' + fmt(c.st.avg) + ' steps/day' : ''}</span>` + (c.list.length ? '<br>' + c.list.slice().reverse().map(w => `<span class="t">${WD[parse(w.date).getDay()]}</span> ${esc(sessionLine(w))}`).join('<br>') : '<br><span class="t">nothing logged</span>');
+/* The Training log, fourth version (24 Nov 2026, Sam: "I want like an executive view, just so I can tell at a glance…
+   the hover is too big, it covers the graph… the squares under the axis are unclear… the bracket looks too big, too
+   janky… give the graph more height"). What changed and why:
+   - Three meters on top answer the three questions in one look: cardio minutes this week against 150, steps a day
+     against 10k, gym sessions against the plan (the plan's sessions a week rounded down, as Streaks and the coach do).
+     Same meter as Today's protein and calories, so it reads the same everywhere.
+   - No floating tooltip. Hovering a day switches the meters to that day's week and fills ONE line under them with the
+     day (steps, sessions, away). Nothing ever sits on top of the chart.
+   - The session squares under the axis are gone: the gym meter and the hover line say the same thing more plainly, and
+     the chart gets their height back. Light cardio (golf) left the chart too: it never counted, so it lives in the
+     cardio meter ("+120′ light") and the hover line.
+   - Each week's cardio minutes are written on top of its bar.
+   - The away bracket is Intake's: 3 px deep, straight under the baseline (it was as deep as the squares).
+   Kept from version 3: one bar a week, a segment per session, solid once the week hits; steps as a daily line with a
+   dot at 10k; both targets on one dotted line; click a day to show it everywhere. */
+const logWeekName = (c, td) => c.mon === monday(td) ? 'This week' : 'Week of ' + dShort(c.mon);
+function logKpis(L, c) {
+  const {cT, stT, want, td} = L, cur = c.mon === monday(td), n = c.cardio + c.sport, hit = c.cmin >= cT;
+  const sd = !c.st && cur ? stepsOn(td) : null, gymCodes = c.list.filter(w => kindGroup(w.kind) === 'gym').map(w => w.planCode || w.label || 'gym');
+  const lt = c.lmin ? ` · +${fmt(c.lmin)}′ light` : '';
+  const items = [
+    {k: 'cardio', lab: 'Cardio', col: 'var(--cardio)', v: fmt(c.cmin), of: `/ ${fmt(cT)} min`, pc: c.cmin / cT, hit,
+      sub: (n ? n + ' session' + (n === 1 ? '' : 's') : 'no sessions') + (hit ? ' · hit' : cur ? ' · ' + fmt(cT - c.cmin) + ' to go' : '') + lt,
+      title: `Cardio and sport that week, Mon–Sun, against ${fmt(cT)} min (WHO: 150–300 moderate).${c.lmin ? ' Light cardio such as golf (' + fmt(c.lmin) + ' min) shows but doesn’t count.' : ''}`},
+    {k: 'steps', lab: 'Steps a day', col: 'var(--ink)', v: c.st ? fmt(c.st.avg) : sd ? fmt(sd.n) : '–', of: `/ ${ks(stT)}`, pc: c.st ? c.st.avg / stT : 0, hit: !!c.st && c.st.avg >= stT,
+      sub: c.st ? `${c.st.hit} of ${c.st.n} day${c.st.n === 1 ? '' : 's'} ≥${ks(stT)}` : sd ? 'today so far' : 'no steps',
+      title: 'Average of the full days that week (today counts from tomorrow), against ' + fmt(stT) + ' a day.'},
+    {k: 'gym', lab: 'Gym', col: 'var(--cat-train)', v: fmt(c.gym), of: want ? `/ ${want}` : c.gym === 1 ? 'session' : 'sessions', pc: want ? c.gym / want : 0, hit: !!want && c.gym >= want,
+      sub: gymCodes.length ? gymCodes.join(', ') : 'none yet', title: want ? `Gym sessions that week against ${want} (the plan’s ${fmt(S.plan.perWeek, 1)} a week, rounded down, as in Streaks).` : 'Gym sessions that week.'}
+  ];
+  if (L.mode === 'line') return items.map(x => `<span data-kpi-${x.k} title="${esc(x.title)}">${x.lab} <b${x.hit ? ` style="color:${x.col}"` : ''}>${x.v}</b> ${x.of}</span>`).join('');
+  return items.map(x => `<div class="meter" data-kpi-${x.k} title="${esc(x.title)}"><div class="row between"><span class="lab" style="color:${x.col === 'var(--ink)' ? 'var(--muted)' : x.col}">${x.lab}</span><span class="num"><b class="mid"${x.hit ? ` style="color:${x.col}"` : ''}>${x.v}</b> <span class="dim">${x.of}</span></span></div>
+    <div class="bar"><i style="width:${Math.min(100, Math.max(0, x.pc) * 100).toFixed(1)}%;background:${x.col};opacity:${x.hit ? 1 : .6}"></i></div>${L.mode === 'full' ? `<span class="cap" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.sub)}</span>` : ''}</div>`).join('');
 }
-/* The Training log chart (24 Nov 2026, Sam: "I also want to know if I'm hitting my weekly cardio goal… maybe steps can
-   be a line graph, and then a stacked bar chart can be the cardio"). One bar a week: the cardio minutes that count
-   (cardio and sport), one segment per session, solid once the week reaches its target (150 min), faint until then;
-   light cardio (golf) is a narrow outlined bar beside it because it doesn't count (on top, it looked as if it did). Steps are a line, a point a day, with a dot
-   on days at the target. The two scales are tied so the weekly cardio target and the daily steps target sit on ONE
-   dotted line: a bar or a point above it hit its target. Under the baseline, each day's sessions as squares (on a long
-   range, one square per gym session in each week), and a magenta bracket under away days. Hover gives the day and its
-   week; a click shows the day in every widget. Replaces the 18 Nov steps-as-bars view and the sessions-per-week bars. */
+// the meters for a day's week, and the one line under them for the day itself (or the week, on the weekly chart)
+function logReadout(L, d, weekly) {
+  const {cols, td, stT} = L, i = clamp(Math.floor(diffDays(cols[0].mon, d) / 7), 0, cols.length - 1), c = cols[i];
+  L.kpi.innerHTML = logKpis(L, c);
+  if (weekly) { L.rd.innerHTML = `<b style="color:var(--ink)">${logWeekName(c, td)}</b> · ${c.list.length ? c.list.slice().reverse().map(w => WD[parse(w.date).getDay()] + ' ' + esc(sessionLine(w))).join(' · ') : 'nothing logged'}`; return; }
+  const x = stepsOn(d), list = L.byDay.get(d) || [];
+  const bits = [d > td ? 'still to come' : x ? fmt(x.n) + ' steps' + (x.partial ? ' so far' : x.n >= stT ? ' ✓' : '') : 'no steps'];
+  for (const w of list) bits.push(esc(sessionLine(w)));
+  if (awayOn(d)) bits.push(`<span style="color:var(--away)">away, ${esc(awayLabel(d))}</span>`);
+  L.rd.innerHTML = `<span>${logWeekName(c, td)}</span> · <b style="color:var(--ink)">${WD[parse(d).getDay()]} ${dShort(d)}</b> ${bits.join(' · ')}`;
+}
 function drawLog(host, inst, o) {
-  const {W, H, weeks, start, cols, byDay, td, at, stT, cT, hasSteps} = o, D = weeks * 7, padL = 4, padR = 30, padT = 6;
-  const compact = H < 80, padB = compact ? 3 : 14, pw = W - padL - padR, slot = pw / D, wkW = slot * 7, daily = slot >= 3;
-  const inRange = [...byDay].filter(([d]) => d >= start && diffDays(start, d) < D);
-  const rows = daily ? Math.min(3, Math.max(0, ...inRange.map(([, l]) => l.length))) : Math.max(0, ...cols.map(c => c.gym)) ? 1 : 0;
-  const m = compact || !daily ? 3 : clamp(Math.floor(slot * .7), 3, 7), laneH = rows ? rows * (m + 1) + (compact ? 2 : 5) : 0;
-  const yb = H - padB - laneH, ph = Math.max(10, yb - padT), X = j => padL + slot * j;
+  const {W, H, weeks, start, cols, byDay, td, at, stT, cT, hasSteps, L} = o, D = weeks * 7, padL = 4, padR = 30, padT = 14;
+  const compact = H < 80, padB = compact ? 5 : 16, pw = W - padL - padR, slot = pw / D, wkW = slot * 7, daily = slot >= 3;
+  const yb = H - padB, ph = Math.max(10, yb - padT), X = j => padL + slot * j;
   const steps = Array.from({length: D}, (_, j) => { const d = addDays(start, j); return d > td ? null : stepsOn(d); });
-  const k = Math.max(1.25, ...cols.map(c => (c.cmin + c.lmin) / cT), ...steps.map(x => (x?.n || 0) / stT)) * 1.05;
+  const k = Math.max(1.25, ...cols.map(c => c.cmin / cT), ...steps.map(x => (x?.n || 0) / stT)) * 1.05;
   const YM = v => yb - v / (cT * k) * ph, YS = v => yb - v / (stT * k) * ph, yT = YM(cT), curMon = monday(td);
   const svg = sv('svg', {width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Cardio minutes a week against the target, and steps per day'});
-  cols.forEach((c, i) => { if (i % 2) svg.append(sv('rect', {x: X(7 * i), y: padT, width: wkW, height: ph + laneH, style: 'fill:var(--ink);fill-opacity:.03'})); });
-  if (at && at >= start) { const j = diffDays(start, at); if (j < D) svg.append(daily ? sv('rect', {x: X(j), y: padT, width: slot, height: ph + laneH, style: 'fill:var(--ink);fill-opacity:.12'}) : sv('rect', {x: X(7 * Math.floor(j / 7)), y: padT, width: wkW, height: ph + laneH, style: 'fill:var(--ink);fill-opacity:.1'})); }
-  // weekly cardio: a segment per session (in date order); light cardio as its own narrow outlined bar beside it, so it
-  // never looks as if it lifts the week over the target
+  cols.forEach((c, i) => { if (i % 2) svg.append(sv('rect', {x: X(7 * i), y: padT, width: wkW, height: ph, style: 'fill:var(--ink);fill-opacity:.03'})); });
+  if (at && at >= start) { const j = diffDays(start, at); if (j < D) svg.append(daily ? sv('rect', {x: X(j), y: padT, width: slot, height: ph, style: 'fill:var(--ink);fill-opacity:.12'}) : sv('rect', {x: X(7 * Math.floor(j / 7)), y: padT, width: wkW, height: ph, style: 'fill:var(--ink);fill-opacity:.1'})); }
+  // weekly cardio: a segment per session, in date order, with the week's minutes written on top
   cols.forEach((c, i) => {
-    const g = Math.min(5, wkW * .14), x0 = X(7 * i) + g, wAll = Math.max(2, wkW - 2 * g), w = c.lmin ? wAll * 0.7 : wAll, hit = c.cmin >= cT, cur = c.mon === curMon;
+    const g = Math.min(5, wkW * .14), x0 = X(7 * i) + g, w = Math.max(2, wkW - 2 * g), hit = c.cmin >= cT, cur = c.mon === curMon;
     let y = yb;
     for (const ss of c.list.filter(x => !['gym', 'light'].includes(kindGroup(x.kind)) && +x.min > 0).sort((a, b) => a.date < b.date ? -1 : 1)) {
       const h = yb - YM(+ss.min); y -= h;
       svg.append(sv('rect', {x: x0, y: y + .5, width: w, height: Math.max(1, h - 1), rx: 1.5, 'data-wk': hit ? 'hit' : 'short', style: `fill:var(--cardio);fill-opacity:${hit ? .8 : cur ? .32 : .4}`}));
     }
-    if (c.lmin) { const h = yb - YM(c.lmin), lx = x0 + wAll * 0.74; svg.append(sv('rect', {x: lx + .5, y: yb - h + .5, width: Math.max(1, wAll * 0.26 - 1), height: Math.max(1, h - 1), rx: 1.5, 'data-light': 1, style: 'fill:none;stroke:var(--ink);stroke-opacity:.45;stroke-width:1'})); }
+    if (c.cmin && H >= 50 && wkW >= 18) { const t = sv('text', {x: x0 + w / 2, y: y - 3, 'text-anchor': 'middle', 'data-wkv': 1, class: 'halo', style: hit ? 'fill:var(--ink)' : ''}); t.textContent = fmt(c.cmin); svg.append(t); }
   });
   svg.append(sv('line', {x1: padL, x2: W - padR, y1: yb + .5, y2: yb + .5, style: 'stroke:var(--line);stroke-width:1'}));
   // one dotted line for both targets: 150 min a week (bars) and 10k a day (steps)
   svg.append(sv('line', {x1: padL, x2: W - padR, y1: yT, y2: yT, 'data-target': 1, style: 'stroke:var(--ink);stroke-opacity:.6;stroke-width:1;stroke-dasharray:2 3'}));
-  for (const [txt, y, dy] of [[ks(stT), yT, 0], [fmt(cT) + '′', yT, 10]]) { if (ph < 22 && dy) continue; const tx = sv('text', {x: W - 2, y: y + 3 + dy, 'text-anchor': 'end', style: dy ? '' : 'fill:var(--ink)'}); tx.textContent = txt; svg.append(tx); }
+  for (const [txt, dy] of [[ks(stT), 0], [fmt(cT) + '′', 10]]) { if (ph < 22 && dy) continue; const tx = sv('text', {x: W - 2, y: yT + 3 + dy, 'text-anchor': 'end', style: dy ? '' : 'fill:var(--ink)'}); tx.textContent = txt; svg.append(tx); }
   if (hasSteps) {
     let d = '', dash = '', pen = false, prev = null;
     steps.forEach((x, j) => { if (!x) { pen = false; return; } const px = (X(j) + slot / 2).toFixed(1), py = YS(x.n).toFixed(1);
@@ -4155,32 +4207,23 @@ function drawLog(host, inst, o) {
     if (dash) svg.append(sv('path', {d: dash, style: 'fill:none;stroke:var(--ink);stroke-opacity:.5;stroke-width:1.25;stroke-dasharray:2 2'}));
     if (daily) steps.forEach((x, j) => { if (x && !x.partial && x.n >= stT) svg.append(sv('circle', {cx: X(j) + slot / 2, cy: YS(x.n), r: 1.8, style: 'fill:var(--ink)'})); });
   }
-  // sessions under the baseline: a square per session per day, or per gym session per week on a long range
-  const order = {gym: 0, cardio: 1, sport: 2, light: 3}, hollow = g => g === 'sport' || g === 'light';
-  const sq = (x, y, g) => sv('rect', {x: x + (hollow(g) ? .5 : 0), y: y + (hollow(g) ? .5 : 0), width: m - (hollow(g) ? 1 : 0), height: m - (hollow(g) ? 1 : 0), rx: 1, style: g === 'gym' ? 'fill:var(--cat-train)' : g === 'cardio' ? 'fill:var(--cardio)' : g === 'light' ? 'fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1' : 'fill:none;stroke:var(--cardio);stroke-width:1'});
-  if (laneH && daily) for (const [d, list] of inRange) { const j = diffDays(start, d);
-    list.slice().sort((a, b) => order[kindGroup(a.kind)] - order[kindGroup(b.kind)]).slice(0, 3).forEach((w, r) => svg.append(sq(X(j) + (slot - m) / 2, yb + 3 + r * (m + 1), kindGroup(w.kind)))); }
-  if (laneH && !daily) cols.forEach((c, i) => { const n = Math.min(c.gym, Math.floor((wkW - 2) / (m + 1))), x0 = X(7 * i) + (wkW - n * (m + 1)) / 2; for (let r = 0; r < n; r++) svg.append(sq(x0 + r * (m + 1), yb + 3, 'gym')); });
-  // away: a magenta bracket under each run of away days, round its squares (24 Nov 2026)
-  if (daily) for (const [a, z] of awayRuns(Array.from({length: D}, (_, j) => !!awayOn(addDays(start, j))))) svg.append(awayBracket(X(a) + 1, X(z + 1) - 1, yb + 1.5, Math.max(3, laneH)));
+  // away: Intake's magenta bracket, 3 px under the baseline
+  if (daily) for (const [a, z] of awayRuns(Array.from({length: D}, (_, j) => !!awayOn(addDays(start, j))))) svg.append(awayBracket(X(a) + 1, X(z + 1) - 1, yb + 1.5, 3));
   const idx = compact ? [] : weeks <= 2 ? [0, weeks - 1] : [0, Math.floor((weeks - 1) / 2), weeks - 1];
   idx.forEach((i, q) => { const t = sv('text', {x: q === 0 ? padL : q === idx.length - 1 ? W - padR : X(7 * i) + wkW / 2, y: H - 3, 'text-anchor': q === 0 ? 'start' : q === idx.length - 1 ? 'end' : 'middle'}); t.textContent = dShort(cols[i].mon); svg.append(t); });
-  const hw = sv('rect', {y: padT, height: ph + laneH, width: wkW, style: 'fill:var(--ink);fill-opacity:.04', visibility: 'hidden'}), hd = sv('rect', {y: padT, height: ph + laneH, width: slot, style: 'fill:var(--ink);fill-opacity:.1', visibility: 'hidden'});
+  const hw = sv('rect', {y: padT, height: ph, width: wkW, style: 'fill:var(--ink);fill-opacity:.04', visibility: 'hidden'}), hd = sv('rect', {y: padT, height: ph, width: slot, style: 'fill:var(--ink);fill-opacity:.1', visibility: 'hidden'});
   svg.append(hw, hd);
   const hit = sv('rect', {x: padL, y: 0, width: pw, height: H, style: 'fill:transparent;cursor:pointer'}); svg.append(hit);
   host.replaceChildren(svg);
-  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; host.append(tip);
   const jAt = e => { const r = svg.getBoundingClientRect(); return clamp(Math.floor(((e.clientX - r.left) * (W / r.width) - padL) / slot), 0, D - 1); };
-  const weekLine = c => `<br><span class="t">Cardio <b style="color:var(--ink)">${fmt(c.cmin)}</b> / ${fmt(cT)} min${c.cmin >= cT ? ' ✓' : c.mon === curMon ? ' so far' : ''}${c.lmin ? ' · light cardio ' + fmt(c.lmin) + ' min (not counted)' : ''}${c.st ? ` · ${c.st.hit} of ${c.st.n} days ≥${ks(stT)} steps` : ''}</span>`;
   const move = e => {
-    const j = jAt(e), d = addDays(start, j), i = Math.floor(j / 7), x = steps[j], list = byDay.get(d) || [];
+    const j = jAt(e), d = addDays(start, j), i = Math.floor(j / 7);
     hw.setAttribute('x', X(7 * i)); hw.setAttribute('visibility', 'visible');
     if (daily) { hd.setAttribute('x', X(j)); hd.setAttribute('visibility', 'visible'); }
-    tip.innerHTML = (daily ? `<b>${WD[parse(d).getDay()]} ${dShort(d)}</b> <span class="t">· ${x ? fmt(x.n) + ' steps' + (x.partial ? ' so far' : x.n >= stT ? ' ✓' : '') : d > td ? 'still to come' : 'no steps'}</span>${awayOn(d) ? '<br><span class="t">away, ' + esc(awayLabel(d)) + '</span>' : ''}${list.length ? '<br>' + list.map(w => esc(sessionLine(w))).join('<br>') : ''}<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--line)">` : '<div>') + weekTip(cols[i]) + weekLine(cols[i]) + '</div>';
-    tip.hidden = false; const tw = tip.offsetWidth, cx = daily ? X(j) + slot / 2 : X(7 * i) + wkW / 2; let left = cx + 12; if (left + tw > W) left = cx - 12 - tw; tip.style.left = Math.max(0, left) + 'px';
+    logReadout(L, daily ? d : cols[i].mon, !daily);
   };
   hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
-  hit.addEventListener('pointerleave', () => { tip.hidden = true; hw.setAttribute('visibility', 'hidden'); hd.setAttribute('visibility', 'hidden'); });
+  hit.addEventListener('pointerleave', () => { hw.setAttribute('visibility', 'hidden'); hd.setAttribute('visibility', 'hidden'); logReadout(L, at || td); });
   // click a day (a week, on a long range): it shows in every widget; with sessions, the latest opens in the Training plan (click again for the one before)
   hit.addEventListener('click', e => {
     const j = jAt(e), d = addDays(start, j), c = cols[Math.floor(j / 7)];
@@ -4493,13 +4536,13 @@ const WT = {
       b.innerHTML = `<div class="row between" data-fit="3"><span class="lab" title="${esc(P.note || '')}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(P.name)}</span><span class="row" style="gap:6px">${P.status === 'draft' ? '<span class="chip warn">Draft</span>' : ''}<button class="btn sm ghost" data-edit>${ICON_EDIT}Edit</button></span></div>
         <div class="row between"><div class="tabs" role="tablist">${P.sessions.map(x => `<button role="tab" data-tab="${esc(x.code)}" class="${x.code === code ? 'on' : ''}${x.code === ps.next.code ? ' next' : ''}" title="${esc(x.name)}${x.code === ps.next.code ? ' · next' : ''}">${esc(x.code)}</button>`).join('')}</div>
           <span class="cap num" data-fit="2">${(() => { const n = P.sessions.length, mc = Math.ceil(ps.nextNo / n), of = P.length ? Math.ceil(P.length / n) : 0; return `${term('microcycle', 'Microcycle')} <b style="color:var(--ink)">${mc}</b>${of ? ' of ' + of : ''} · session ${ps.nextNo}${P.length ? ' of ' + P.length : ''}`; })()}${ps.deload ? ' · ' + term('deload', '<span class="est">deload</span>') : ''}</span></div>
-        <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>${dayRow}
+        <div class="row between"><span><b>${esc(s.code)} · ${esc(s.name)}</b>${isNext ? ' <span class="dim">· next</span>' : ''}</span><span class="row" style="gap:6px">${S.mode === 'remote' ? '<button class="btn sm" data-tg title="Send this session to Telegram">Send to phone</button>' : ''}<button class="btn sm primary" data-start>Start</button></span></div>${s.rest ? `<div class="cap" data-fit="2" title="${esc(s.rest)}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Rest: ${esc(restLine(s))}</div>` : ''}${dayRow}
         <div class="scroll"><table class="extab"><tbody>${s.ex.map(e => {
           const done = tw ? (tw.ex || []).find(x => normName(x.n) === normName(e.n)) : null;
           const lp = tw ? (done ? {date: dd, sets: done.sets} : null) : at ? liftHistory(e.n).filter(x => x.date <= at).pop() || null : lastPerf(e.n), hint = at ? null : progressHint(e);
           return `<tr><td><button class="exlink" data-lift="${esc(e.n)}" title="Show in Lift progress">${esc(e.n)}</button>${hint ? ' <span class="up" title="First set hit the top of the range at the planned effort">↑ load</span>' : ''}</td>
-            <td class="r" title="${e.rpe ? 'RPE ' + e.rpe + ' = ' + (10 - e.rpe) + ' rep' + (10 - e.rpe === 1 ? '' : 's') + ' in reserve' + (e.rpe >= 10 ? ' (failure)' : '') : ''}">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}</td>
-            <td class="r" title="${tw ? 'Logged ' + dShort(dd) : lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan'}"${tw && done ? ' style="color:var(--ink)"' : ''}>${lp ? esc(setsText(lp.sets)) : tw ? '<span class="dim">not logged</span>' : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
+            <td class="r" title="${e.rpe ? 'RPE ' + e.rpe + ' = ' + (10 - e.rpe) + ' rep' + (10 - e.rpe === 1 ? '' : 's') + ' in reserve' + (e.rpe >= 10 ? ' (failure)' : '') + ' · ' : ''}rest ${restMin(e)} min between sets">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}<span class="dim"> · ${restMin(e)}′</span></td>
+            <td class="r op" title="${tw ? 'Logged ' + dShort(dd) : lp ? 'Last: ' + dShort(lp.date) : 'Opening load from the plan: ' + esc(e.opener || '–')}"${tw && done ? ' style="color:var(--ink)"' : ''}>${lp ? esc(setsText(lp.sets)) : tw ? '<span class="dim">not logged</span>' : '<span class="dim">' + esc(e.opener || '–') + '</span>'}</td></tr>`;
         }).join('')}</tbody></table></div>`;
       b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { PLAN_AUTO.delete(inst.id); PLAN_TAB.set(inst.id, x.dataset.tab); renderWidget(inst.id); });
       // linked widgets (14 Nov 2026): an exercise here opens in every Lift progress widget
@@ -4512,26 +4555,25 @@ const WT = {
     }
   },
   workouts: {
-    title: 'Training log', cat: 'train', desc: 'Are you hitting your cardio and steps? A blue bar a week is your cardio minutes, one segment per session, solid once the week reaches its target (150 min). Light cardio such as golf is the narrow outlined bar beside it: it shows, but doesn’t count. The line is your steps a day (from Apple Health, sent whenever you open Telegram), with a dot on days at 10k. Both targets share the one dotted line, so anything above it hit. Under the axis, each day’s sessions as squares (green gym, blue cardio, outlined sport, grey outline light cardio) and a magenta bracket under days away. Hover a day to see it and its week; click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget it switches to weekly totals with average steps a day. Beside the title: cardio minutes this week against the target (150 a week unless the plan or this widget’s settings say otherwise; Help explains why).', def: [12, 6], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
+    title: 'Training log', cat: 'train', desc: 'At a glance: three meters for the week, cardio minutes against 150, steps a day against 10k, gym sessions against the plan, with the chart below. A blue bar a week is your cardio minutes (the number on top), one segment per session, solid once the week reaches its target. The line is your steps a day (from Apple Health, sent whenever you open Telegram), with a dot on days at 10k. Both targets share the one dotted line, so anything above it hit. A magenta bracket under the axis marks days away. Light cardio such as golf isn’t in the bars, because it doesn’t count: hover its day to see it (the cardio meter notes its minutes when the widget is tall enough). Hover a day: the meters switch to its week and the line under them gives the day. Click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget the chart switches to weekly totals with average steps a day.', def: [12, 8], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
     add: {label: '+ Cardio', title: 'Log cardio or sport', run: () => openCardio({})},
-    note(inst) {
-      const tg = cardioTarget(inst), mon = monday(S.sel), c = cardioWeek(mon), cur = mon === monday(today());
-      const met = c.min >= tg, over = c.min > CARDIO_CEIL;
-      return {html: `Cardio <b class="${met ? 'met' : ''}">${fmt(c.min)}</b> / ${fmt(tg)} min${cur ? '' : ' · wk of ' + dShort(mon)}${c.untimed ? ` · +${c.untimed} untimed` : ''}`,
-        title: `${cur ? 'This week (Mon–Sun)' : 'Week of ' + dShort(mon)}: ${c.n} cardio or sport session${c.n === 1 ? '' : 's'}${c.untimed ? ', ' + c.untimed + ' without minutes' : ''}. Target ${fmt(tg)} min a week (WHO: 150–300 moderate). ${over ? 'Past ' + CARDIO_CEIL + ' min: fine for health, but recovery and calories start competing with muscle gain.' : 'Up to about ' + CARDIO_CEIL + ' min is fine alongside lifting.'}`};
-    },
     render(b, inst) {
       const R = inst.cfg.range || 84, weeks = Math.round(R / 7), E = weekEnd(weeks), start = addDays(monday(E), -7 * (weeks - 1)), at = asOf(), td = today(), stT = stepTarget(inst);
       const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, light: 0, cmin: 0, lmin: 0, list: []})), byDay = new Map();
       for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; const g = kindGroup(w.kind); c[g]++; c.list.push(w); if (g === 'light') c.lmin += +w.min || 0; else if (g !== 'gym') c.cmin += +w.min || 0; (byDay.get(w.date) || byDay.set(w.date, []).get(w.date)).push(w); }
       for (const c of cols) { const v = []; for (let k = 0; k < 7; k++) { const x = stepsOn(addDays(c.mon, k)); if (x && !x.partial) v.push(x.n); } c.st = v.length ? {avg: mean(v), n: v.length, hit: v.filter(n => n >= stT).length} : null; }
-      const hasSteps = cols.some(c => c.st || c.mon === monday(td) && stepsOn(td)), st7v = (() => { const v = []; for (let k = 1; k <= 7; k++) { const x = stepsOn(addDays(at || td, -k + (at ? 1 : 0))); if (x && !x.partial) v.push(x.n); } return v; })(), st7 = mean(st7v), stDay = stepsOn(at || td);
-      const tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport, 0), light = cols.reduce((a, c) => a + c.light, 0), gym = cols.reduce((a, c) => a + c.gym, 0), done = cols.filter(c => c.mon <= E).length, dayW = allWorkouts().filter(w => w.date === (at || td)), kT = ks(stT), cT = cardioTarget(inst), past = cols.filter(c => c.mon < monday(td)), wkHit = past.filter(c => c.cmin >= cT).length;
-      b.innerHTML = `<div class="stats"><span><b>${fmt(tot / Math.max(1, done), 1)}</b> / week</span><span><b>${gym}</b> gym</span><span><b>${tot - gym}</b> cardio and sport</span>${light ? `<span><b>${light}</b> light cardio</span>` : ''}${past.length ? `<span><b>${wkHit}</b>/${past.length} weeks ≥${fmt(cT)} min</span>` : ''}${st7 != null ? `<span>Steps <b>${fmt(st7)}</b>/day · <b>${st7v.filter(n => n >= stT).length}</b>/${st7v.length} ≥${kT}</span>` : ''}${at || dayW.length || stDay ? `<span>${at ? dShort(at) : 'Today'} <b>${dayW.length ? dayW.map(w => esc(sessionLine(w))).join(' + ') : 'no session'}</b>${stDay ? ' · ' + fmt(stDay.n) + ' steps' + (stDay.partial ? ' so far' : '') : ''}</span>` : ''}<span class="pl" style="margin-left:auto"><span class="sw" style="background:var(--cat-train)"></span>gym <span class="sw" style="background:var(--cardio);opacity:.8"></span>cardio min/week${light ? ' <span class="sw" style="border:1px solid var(--ink);opacity:.55"></span>light&nbsp;cardio' : ''}${hasSteps ? ' <span class="sw" style="height:2px;background:var(--ink);opacity:.7"></span>steps/day' : ''} <span class="sw" style="background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px);height:1px;opacity:.8"></span>targets&nbsp;(${fmt(cT)}&nbsp;min,&nbsp;${kT})</span></div><div class="chart" data-c="w"></div>`;
+      const hasSteps = cols.some(c => c.st) || !!stepsOn(td), tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport + c.light, 0);
+      // the meters and the hover line take about 65 px; under 170 px of body the meters fold into one line so the chart
+      // keeps 100 px or more; only from 320 px (about 10 rows) does each meter get a note under its bar, so a row added
+      // to the widget goes to the chart first (Sam: "give the graph more height")
+      const BH = b.clientHeight || 200, mode = BH < 170 ? 'line' : BH < 320 ? 'tiles' : 'full';
+      b.innerHTML = `<div class="${mode === 'line' ? 'stats' : 'kpis' + (b.clientWidth && b.clientWidth < 540 ? ' narrow' : '')}" data-kpi></div><div class="cap logrd" data-rd></div><div class="chart" data-c="w"></div>`;
       const host = b.querySelector('[data-c=w]');
-      if (!tot && !light && !hasSteps) { host.innerHTML = '<div class="empty">No sessions or steps in the last ' + weeks + ' weeks.</div>'; return; }
+      const L = {kpi: b.querySelector('[data-kpi]'), rd: b.querySelector('[data-rd]'), mode, cols, td, at, stT, cT: cardioTarget(inst), want: S.plan?.perWeek ? Math.floor(S.plan.perWeek) : 0, byDay};
+      logReadout(L, at || td);
+      if (!tot && !hasSteps) { host.innerHTML = '<div class="empty">No sessions or steps in the last ' + weeks + ' weeks.</div>'; return; }
       const W = Math.max(80, host.clientWidth), H = Math.max(40, host.clientHeight);
-      drawLog(host, inst, {W, H, weeks, start, cols, byDay, td, at, stT, cT, hasSteps});
+      drawLog(host, inst, {W, H, weeks, start, cols, byDay, td, at, stT, cT: L.cT, hasSteps, L});
     }
   },
   calendar: {
@@ -4539,7 +4581,7 @@ const WT = {
     render(b, inst) {
       const R = inst.cfg.range || 182, T = targets(), td = today();
       const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) { const g = kindGroup(w.kind); if (g !== 'light') (g === 'gym' ? gymD : cardD).add(w.date); }
-      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>' + (asOf() ? '00 Nov selected ' + backBtn() + ' · ' : '') + '000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="border:1px dashed var(--plan)"></span>away</span></div>';
+      b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>' + (asOf() ? '00 Nov selected ' + backBtn() + ' · ' : '') + '000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="background:var(--s3);outline:1.25px solid var(--away);outline-offset:-1.25px"></span>away</span></div>';
       const cal = b.querySelector('[data-cal]');   // (the summary placeholder above carries the ↩ Today button too: the grid is sized from that row's measured height)
       /* Square cells that use the box (14 Nov 2026). First they stretched to fill it and Sam didn't like the
          squashed look: "keep them as squares… stack them". So the range is cut into 1 to 4 bands of weeks stacked
@@ -4638,15 +4680,21 @@ const WT = {
     }
   },
   quote: {
-    title: 'Daily thought', cat: 'misc', desc: 'One quote a day from philosophers, anime and manga, and athletes. Click for another. Choose which kinds in settings.', def: [8, 5], min: [6, 4],
+    title: 'Daily thought', cat: 'misc', desc: 'One quote a day from philosophers, anime and manga, and athletes. Click for another. Choose which kinds in settings.', def: [8, 5], min: [6, 3],
     render(b, inst) {
       const deck = quoteDeck(inst);
       if (!deck.length) { b.innerHTML = '<div class="empty">Nothing selected. Pick at least one kind in settings.</div>'; return; }
-      const i = (QUOTE.idx.get(inst.id) || 0) % deck.length, q = deck[i], k = quoteKey(q.k);
-      b.innerHTML = `<figure class="qcard" data-next style="margin:0" title="${esc(q.src + (q.tr ? ' · ' + q.tr : ''))}\nClick for another"><blockquote class="qt">${q.note ? esc(q.t) : '“' + esc(q.t) + '”'}</blockquote><figcaption class="qs"><span class="tk tk-${k}">${esc(q.k)}</span><span>${esc(q.src)}</span></figcaption></figure>`;
+      const i = (QUOTE.idx.get(inst.id) || 0) % deck.length, q = deck[i], k = quoteKey(q.k), qt = q.note ? esc(q.t) : '“' + esc(q.t) + '”';
+      /* Three rows tall (24 Nov 2026, Sam: "so the mentor can be brought up 1 more centimeter and fit in nicely", like
+         Coach at 3): the kind sits on the left and the source runs on after the quote, Coach's layout, so the two
+         read as a pair and a two-line quote still fits. Taller, it keeps the stacked layout. */
+      const row = inst.h <= 3 && S.layoutMode !== 'stack';
+      b.innerHTML = row
+        ? `<figure class="qcard qrow" data-next style="margin:0" title="${esc(q.src + (q.tr ? ' · ' + q.tr : ''))}\nClick for another"><span class="tk tk-${k}">${esc(q.k)}</span><blockquote class="qt">${qt} <span class="ts">${esc(q.src)}</span></blockquote></figure>`
+        : `<figure class="qcard" data-next style="margin:0" title="${esc(q.src + (q.tr ? ' · ' + q.tr : ''))}\nClick for another"><blockquote class="qt">${qt}</blockquote><figcaption class="qs"><span class="tk tk-${k}">${esc(q.k)}</span><span>${esc(q.src)}</span></figcaption></figure>`;
       const card = b.querySelector('[data-next]');
       card.onclick = () => { QUOTE.idx.set(inst.id, i + 1); renderWidget(inst.id); };
-      fitText(card, card.querySelector('.qt'), 13.5, 11.5);
+      fitText(card, card.querySelector('.qt'), row ? 13 : 13.5, row ? 10.5 : 11.5);
     }
   },
   metric: {
@@ -4841,7 +4889,7 @@ function renderBody(node, inst) {
   try { def.render(body, inst); }
   catch (err) { console.error(err); body.innerHTML = '<div class="empty">This widget hit an error: ' + esc(err.message) + '</div>'; }
   try { fitWidget(node); FIT_RO?.observe(body); } catch (err) { console.error(err); }
-  // a short note beside the title (Training log: cardio minutes this week against the target)
+  // a short note beside the title (none at present: the Training log’s cardio note became its meters, 24 Nov 2026)
   const nt = node.querySelector('.w-note');
   if (nt) { let h = ''; try { h = def.note ? def.note(inst) : ''; } catch (err) { console.error(err); } nt.hidden = !h; nt.innerHTML = h ? h.html : ''; nt.title = h ? h.title || '' : ''; }
   // a quick-add button in the header (Training log: + Cardio)
@@ -5567,7 +5615,7 @@ function openSession(pre = {}) {
         r.querySelector('button').onclick = () => { r.remove(); [...sets.children].forEach((c, i) => c.querySelector('.sn').textContent = i + 1); };
         sets.append(r);
       };
-      const updHint = () => { const lp = lastPerf(nameIn.value); hint.textContent = (e.reps ? 'Plan ' + e.sets + ' × ' + e.reps + (e.rpe ? ' @ RPE ' + e.rpe : '') + ' · ' : '') + (lp ? 'Last ' + setsText(lp.sets) + ' on ' + dShort(lp.date) : (e.opener ? 'Opener ' + e.opener : 'No history yet')); };
+      const updHint = () => { const lp = lastPerf(nameIn.value); hint.textContent = (e.reps ? 'Plan ' + e.sets + ' × ' + e.reps + (e.rpe ? ' @ RPE ' + e.rpe : '') + ' · rest ' + restMin(e) + ' min · ' : '') + (lp ? 'Last ' + setsText(lp.sets) + ' on ' + dShort(lp.date) : (e.opener ? 'Opener ' + e.opener : 'No history yet')); };
       nameIn.onchange = updHint; updHint();
       blk.querySelector('[data-addset]').onclick = () => addSet();
       blk.querySelector('[data-x]').onclick = () => blk.remove();
@@ -6116,19 +6164,23 @@ const PRESETS = [{
   id: 'ct-bb-l-sa', label: '4-day: Chest & triceps · Back & biceps · Legs · Shoulders & arms, then rest',
   priority: {abs: 'grow', traps: 'grow'},
   plan: {name: 'Mesocycle 05 — Chest & triceps · Back & biceps · Legs · Shoulders & arms', goal: 'hypertrophy', perWeek: 5.6, length: 28, deloadEvery: 28,
-    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a face pull on shoulders day and a third set of shrugs on back day keep rear delts and traps in band. Lateral raises 3 sets on chest, legs and shoulders days (15 Nov 2026): side delts get the same 14 sets a week, in three sessions instead of six sets in one. Back day (15 Nov 2026, evening): both rows on the chest-supported machine (wide handles for the upper back, neutral handles for the lats), a single-arm cable row for the lats in place of the pullover, weighted back extensions for the lower back, the cable hammer curl in place of the preacher curl; shrugs chest-supported, a cable rear delt fly in place of the face pull.',
+    note: '4 sessions then a rest day: a 5-day microcycle, 5.6 sessions a week. A mesocycle is 7 microcycles (28 sessions, about 5 weeks): 6 to train, the 7th a deload (same exercises, about half the sets, 3 reps in reserve). Microcycle 1 = calibration. Compounds 6–10 reps, everything else 8–12; when the first set reaches the top of the range and every set is in range, add load. 2 sets on big compounds, 2–3 on isolation, mostly to failure (RPE 10), RPE 9 on free weights. Chest-supported row wide (upper back), seated cable row close (lats). No upright row (14 Nov 2026): a face pull on shoulders day and a third set of shrugs on back day keep rear delts and traps in band. Lateral raises 3 sets on chest, legs and shoulders days (15 Nov 2026): side delts get the same 14 sets a week, in three sessions instead of six sets in one. Back day (15 Nov 2026, evening): both rows on the chest-supported machine (wide handles for the upper back, neutral handles for the lats), a single-arm cable row for the lats in place of the pullover, weighted back extensions for the lower back, the cable hammer curl in place of the preacher curl; shrugs chest-supported, a cable rear delt fly in place of the face pull. Legs (19 Nov 2026): weighted back extension in place of the Romanian deadlift. Order (24 Nov 2026): no two lifts in a row work the same main muscle, and every session says how long to rest (3 min on the heavy compounds, 2 min on the rest).',
     sessions: [
-      {code: 'C&T', name: 'Chest & triceps', ex: [['Incline DB bench', 2, '6-10', 9], ['Smith machine chest press', 3, '6-10', 10], ['Pec deck', 3, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Tricep pushdown', 2, '8-12', 10], ['Hanging leg raise', 3, '8-12', 10]]},
-      {code: 'B&B', name: 'Back & biceps', ex: [['Lat pulldown', 2, '6-10', 10], ['Chest-supported row (wide grip)', 2, '6-10', 10], ['Chest-supported row (close grip)', 2, '6-10', 10], ['Single-arm cable row (lat focus)', 3, '8-12', 10], ['Reverse pec deck', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Weighted back extension', 2, '8-12', 9], ['Cable curl (facing away)', 2, '8-12', 10], ['Cable hammer curl', 2, '8-12', 10]]},
-      {code: 'L', name: 'Legs', ex: [['Back squat or leg press', 2, '6-10', 9], ['Romanian deadlift', 2, '6-10', 9], ['Bulgarian split squat', 2, '8-12', 9], ['Seated leg curl', 2, '8-12', 10], ['Seated calf raise', 3, '8-12', 10], ['Adductor machine', 2, '8-12', 10], ['Cable lateral raise', 3, '8-12', 10], ['Decline weighted crunch', 3, '8-12', 10]]},
-      {code: 'S&A', name: 'Shoulders & arms', ex: [['DB shoulder press', 2, '6-10', 9], ['Cable lateral raise', 3, '8-12', 10], ['DB shrug (chest-supported)', 3, '8-12', 10], ['Cable rear delt fly', 3, '8-12', 10], ['Katana triceps extension', 3, '8-12', 10], ['Cable hammer curl', 3, '8-12', 10], ['Decline weighted crunch', 2, '8-12', 10]]}
+      {code: 'C&T', name: 'Chest & triceps', rest: '3′ between sets of the two presses, 2′ on everything else. The laterals and leg raises sit between the chest lifts so your pecs recover while something else works.',
+        ex: [['Incline DB bench', 2, '6-10', 9, 3], ['Cable lateral raise', 3, '8-12', 10, 2], ['Smith machine chest press', 3, '6-10', 10, 3], ['Hanging leg raise', 3, '8-12', 10, 2], ['Pec deck', 3, '8-12', 10, 2], ['Tricep pushdown', 2, '8-12', 10, 2]]},
+      {code: 'B&B', name: 'Back & biceps', rest: '3′ on the pulldown and both chest-supported rows, 2′ on everything else. Every pull is followed by something that isn\'t a pull (back extension, shrug, rear delts), so the lats and grip recover.',
+        ex: [['Lat pulldown', 2, '6-10', 10, 3], ['Weighted back extension', 2, '8-12', 9, 2], ['Chest-supported row (wide grip)', 2, '6-10', 10, 3], ['DB shrug (chest-supported)', 3, '8-12', 10, 2], ['Chest-supported row (close grip)', 2, '6-10', 10, 3], ['Reverse pec deck', 3, '8-12', 10, 2], ['Single-arm cable row (lat focus)', 3, '8-12', 10, 2], ['Cable curl (facing away)', 2, '8-12', 10, 2], ['Cable hammer curl', 2, '8-12', 10, 2]]},
+      {code: 'L', name: 'Legs', rest: '3′ on the squat or leg press and the split squats, 2′ on everything else. Hamstrings, delts and lower back sit between the quad lifts.',
+        ex: [['Back squat or leg press', 2, '6-10', 9, 3], ['Seated leg curl', 2, '8-12', 10, 2], ['Bulgarian split squat', 2, '8-12', 9, 3], ['Cable lateral raise', 3, '8-12', 10, 2], ['Weighted back extension', 2, '6-10', 9, 2], ['Adductor machine', 2, '8-12', 10, 2], ['Seated calf raise', 3, '8-12', 10, 2], ['Decline weighted crunch', 3, '8-12', 10, 2]]},
+      {code: 'S&A', name: 'Shoulders & arms', rest: '3′ on the shoulder press, 2′ on everything else. No two lifts in a row share a muscle; the Katana comes well after the press so the triceps are fresh.',
+        ex: [['DB shoulder press', 2, '6-10', 9, 3], ['DB shrug (chest-supported)', 3, '8-12', 10, 2], ['Cable lateral raise', 3, '8-12', 10, 2], ['Katana triceps extension', 3, '8-12', 10, 2], ['Cable rear delt fly', 3, '8-12', 10, 2], ['Cable hammer curl', 3, '8-12', 10, 2], ['Decline weighted crunch', 2, '8-12', 10, 2]]}
     ]}
 }];
 function applyPreset(P, id) {
   const pr = PRESETS.find(x => x.id === id); if (!pr) return;
   const old = new Map((S.plan?.sessions || []).flatMap(s => s.ex).map(e => [String(e.n).toLowerCase(), e.opener]));
   Object.assign(P, {...clone(pr.plan), priority: {...P.priority, ...(pr.priority || {})}, rule: P.rule || S.plan?.rule, site: P.site || S.plan?.site, start: today(), status: 'draft'});
-  P.sessions = pr.plan.sessions.map(s => ({code: s.code, name: s.name, ex: s.ex.map(([n, sets, reps, rpe]) => ({n, sets, reps, rpe, opener: old.get(n.toLowerCase()) || 'calibrate'}))}));
+  P.sessions = pr.plan.sessions.map(s => ({code: s.code, name: s.name, ...(s.rest ? {rest: s.rest} : {}), ex: s.ex.map(([n, sets, reps, rpe, rest]) => ({n, sets, reps, rpe, ...(rest ? {rest} : {}), opener: old.get(n.toLowerCase()) || 'calibrate'}))}));
 }
 const fmtPW = v => fmt(v, Math.round(v * 100) % 10 ? 2 : v % 1 ? 1 : 0);
 function repRange(r) { const m = String(r || '').match(/(\d+)\s*(?:[-–]\s*(\d+))?/); return m ? [+m[1], +(m[2] || m[1])] : null; }
@@ -6411,7 +6463,15 @@ function openHelp(tab = 'why') {
         <li>${B('Reminders')}: an hourly timer inside the Worker sends the weigh-in, supplements and protein nudges, and goes quiet when you’re away.</li>
         <li>${B('Backup')}: every night at 03:00 the whole database is written to your private GitHub repo as JSON and CSV, only when something changed.</li></ul></div>
       <div class="sec"><h5>Security</h5><p>The keys (Telegram, Claude, GitHub, and your own API key) live only in Cloudflare’s secret store and your iPhone’s Passwords. The connector, the Shortcut and the setup page all need your API key. The bot ignores everyone but you.</p></div>
-      <div class="sec"><h5>Cost</h5><p>Cloudflare’s free plan covers the Worker, database and voice transcription at your volume. Claude API use is pay-as-you-go from your Console credit: a typed meal costs a fraction of a penny; a researched home-cooked dish with web search is a penny or two. GitHub is free.</p></div>
+      <div class="sec"><h5>Cost</h5><p>Cloudflare’s free plan covers the Worker, database and voice transcription at your volume, and GitHub is free. Claude API calls are pay-as-you-go from your Console credit, billed on the tokens each call actually uses (a call’s token limit is only a ceiling, not a charge).</p>
+        <table class="ctab"><thead><tr><th>Call</th><th>Model</th><th>Each, about</th></tr></thead><tbody>
+          <tr><td>Reading a message: a meal, weigh-in, workout or voice note</td><td>Haiku 5.5</td><td class="on">$0.0007</td></tr>
+          <tr><td>Coach note after a session, and the weekly review</td><td>Haiku 5.5</td><td class="on">$0.0002</td></tr>
+          <tr><td>Looking a dish up on the web</td><td>Sonnet 5.5 + search</td><td class="on">$0.03–0.10</td></tr>
+          <tr><td>The command bar on this page</td><td>your claude.ai plan</td><td class="on">no API credit</td></tr>
+        </tbody></table>
+        <p class="note">How: a message sends about 5,000 tokens (mostly your food library and the last week’s food) and gets a few hundred back; a coach note about 1,200 in and 150–200 out; a lookup makes up to 3 searches and reads what they find. Prices per million tokens: Haiku 5.5 $0.10 in, $0.50 out; Sonnet 5.5 $2 in, $10 out; web search $10 per 1,000 searches (Anthropic’s pricing page, read 24 Nov 2026). At about 10 messages a day and a lookup every few days, that’s roughly $1 a month. The coach note’s ceiling went from 320 to 700 tokens on 24 Nov so notes stop mid-sentence less: it only costs more when a note runs long, at most $0.0002 more per note.</p>
+        <p><b>What you’ve spent:</b> <a href="https://platform.claude.com/usage" target="_blank" rel="noopener" style="color:inherit">Console → Usage</a> (platform.claude.com/usage), with Cost beside it.<br><b>A cap:</b> <a href="https://platform.claude.com/settings/spend-limits" target="_blank" rel="noopener" style="color:inherit">Console → Settings → Limits</a> (platform.claude.com/settings/spend-limits). Set a monthly spend limit there; it can’t go above your usage tier’s own cap ($500 a month on Start, $1,000 on Build). At either limit the API refuses every call until 00:00 UTC on the 1st, and the bot replies that the spend limit is reached, with the date and this link, instead of logging.</p></div>
       ${(() => { if (!G || !st.height) return ''; const now = C ? ffmi(C.lean, st.height) : null, rows = [...new Set([75, 77, 78, 80, G.w])].sort((a, z) => a - z).map(w => { const l = w * (1 - G.bf / 100), f = ffmi(l, st.height); return `<tr${w === G.w ? ' class="on"' : ''}><td>${w} kg${w === G.w ? ' ← goal' : ''}</td><td class="r num">${fmt(l, 1)} kg</td><td class="r num">${fmt(f.f, 1)}</td><td class="r num">${fmt(f.adj, 1)}</td><td>${ffmiBand(f.adj)}</td></tr>`; }).join('');
         const g = ffmi(G.lean, st.height), need = C ? G.lean - C.lean : null;
         return `<div class="sec"><h5>The goal, and why ${fmt(G.w, 0)} kg</h5>
