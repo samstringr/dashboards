@@ -435,6 +435,15 @@ check('backup skips when unchanged', bk2.skipped === true);
   await reset(); await tgCb('de:' + TD);
   let ed = await lastEdit(); const rm = kbTxt(ed).find(x => /^✕ Test apple/.test(x));
   check('✏️ Edit: the same message turns into one ✕ per item', !!rm && kbTxt(ed).some(x => /^✕ Test quince/.test(x)) && kbTxt(ed).some(x => /^✓ Done=dv:/.test(x)), kbTxt(ed).slice(-3).join(' | '));
+  // 27 Nov 2026: ➕/➖ on counted items: the apple is 1 serving, so ➕ only; ➕ makes it 2 at double the numbers, then ➖ back
+  const appleKey = rm.split('=')[1].split(':').slice(2).join(':'), plus = kbTxt(ed).find(x => x === `➕ to ×2=qp:${TD}:${appleKey}`);
+  check('Edit: a counted item gets ➕ (and no ➖ at 1)', !!plus && !kbTxt(ed).some(x => /^➖ to ×0/.test(x)), kbTxt(ed).filter(x => /^[➕➖]/.test(x)).join(' | '));
+  await reset(); await tgCb(plus.split('=')[1]);
+  let ap = (await tool('get_day', { date: TD })).day.items.find(i => /Test apple/.test(i.n)); ed = await lastEdit();
+  check('➕: ×1 → ×2 and 80 → 160 kcal; the card says so and now offers ➖', ap.q === 2 && ap.kcal === 160 && /×1 → ×2 \(\+80 kcal\)/.test(ed?.text || '') && kbTxt(ed).some(x => x === `➖ to ×1=qm:${TD}:${appleKey}`), (ed?.text || '').split('\n')[1]);
+  await reset(); await tgCb(kbTxt(ed).find(x => x === `➖ to ×1=qm:${TD}:${appleKey}`).split('=')[1]);
+  ap = (await tool('get_day', { date: TD })).day.items.find(i => /Test apple/.test(i.n));
+  check('➖: back to ×1 at 80 kcal', ap.q === 1 && ap.kcal === 80, JSON.stringify({ q: ap.q, kcal: ap.kcal }));
   await reset(); await tgCb(rm.split('=')[1]);
   ed = await lastEdit();
   check('✕ removes at once; the card says so and offers Put back', !(await items()).some(n => /Test apple/.test(n)) && /Removed: <b>Test apple/.test(ed?.text || '') && kbTxt(ed).some(x => /^↩ Put back=pb:/.test(x)), (ed?.text || '').split('\n')[1]);
@@ -451,6 +460,15 @@ check('backup skips when unchanged', bk2.skipped === true);
   await reset(); await tgSend({ text: 'summary of today test' });
   m = await lastMsg();
   check('"summary of today": the day card', /Test quince/.test(m.text) && kbTxt(m).some(x => /^✏️ Edit/.test(x)), m.text.split('\n')[0]);
+}
+// 27 Nov 2026: cardio intensity is kept on the session; the coach's weekly review is kept for the dashboard
+{ await reset(); await tgSend({ text: 'cycling test 45 min' });
+  const cyc = ((await tool('get_day', { date: TD })).day.workouts || []).find(w => w.kind === 'cycle' && w.watts);
+  check('cardio: watts from the message are saved on the session', cyc && cyc.watts === 110 && cyc.min === 45, JSON.stringify(cyc));
+  const r = await tool('coach_review', {}), snap = await tool('get_snapshot', {}), msgs = snap.config.coach?.msgs || [];
+  check('coach_review: writes the week, keeps it in config.coach, not sent to Telegram', /Your week/.test(r.html) && /🏃 <b>\d+<\/b> \/ 150 min cardio/.test(r.html) && msgs.length >= 1 && msgs[msgs.length - 1].end === TD && !(await calls()).some(c => c.api === 'tg' && c.method === 'sendMessage' && /Your week/.test(c.body.text)), JSON.stringify({ n: msgs.length, end: msgs[msgs.length - 1]?.end }));
+  await tool('coach_review', {});
+  check('coach_review: the same week again replaces, not duplicates', ((await tool('get_snapshot', {})).config.coach?.msgs || []).filter(m => m.end === TD).length === 1);
 }
 // setup page
 const st = await fetch(W + '/setup?key=testkey'); const stt = await st.text();

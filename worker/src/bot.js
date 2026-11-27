@@ -102,7 +102,7 @@ export async function tgImage(env, fileId, mime) {
 export async function onCallback(env, cq) {
   await tg(env, 'answerCallbackQuery', { callback_query_id: cq.id });
   const [act, token, opt] = String(cq.data || '').split(':');
-  if (['dv', 'de', 'rf', 'rw', 'pb'].includes(act) && await onEditCallback(env, cq, act, String(cq.data).split(':').slice(1))) return;   // the day card (edit.js)
+  if (['dv', 'de', 'rf', 'rw', 'qm', 'qp', 'pb'].includes(act) && await onEditCallback(env, cq, act, String(cq.data).split(':').slice(1))) return;   // the day card (edit.js)
   const strip = () => tg(env, 'editMessageReplyMarkup', { chat_id: chatId(env), message_id: cq.message?.message_id, reply_markup: { inline_keyboard: [] } });
   if (act === 'ok' || act === 'no') {
     const pending = await getKV(env, 'pending');
@@ -278,7 +278,9 @@ export async function handleParsed(env, ctx, r, pending) {
     const planS = ctx.plan?.sessions.find(s => s.code === w.planCode);
     const ex = (w.exercises || []).map(e => ({ n: String(e.name || '').slice(0, 80), sets: (e.sets || []).filter(s => s.kg != null || s.reps != null).map(s => { const o = { kg: s.kg ?? null, r: s.reps ?? null }; if (s.rpe != null) o.rpe = s.rpe; return o; }) })).filter(e => e.n && e.sets.length);
     const rec = { id: uid(), kind, label: String(w.label || (planS ? planS.code + ' · ' + planS.name : kind)).slice(0, 80), ...(planS ? { planCode: planS.code } : {}),
-      ...(w.minutes ? { min: +w.minutes } : {}), ...(w.distance_km ? { km: +w.distance_km } : {}), ...(ex.length ? { ex } : {}), ...(w.note ? { note: String(w.note).slice(0, 280) } : {}), src: 'telegram', ...(ctx.plan?.site && kind === 'gym' ? { site: ctx.plan.site } : {}) };
+      ...(w.minutes ? { min: +w.minutes } : {}), ...(w.distance_km ? { km: +w.distance_km } : {}), ...(ex.length ? { ex } : {}),
+      // 27 Nov 2026: what the intensity is worked out from (model.js cardioIntensity)
+      ...(kind !== 'gym' && +w.watts > 0 ? { watts: +w.watts } : {}), ...(kind !== 'gym' && +w.speed_mph > 0 ? { speed_mph: r1(+w.speed_mph) } : {}), ...(kind !== 'gym' && w.incline_pct != null && w.incline_pct !== '' ? { incline_pct: +w.incline_pct } : {}), ...(kind !== 'gym' && ['light', 'moderate', 'vigorous'].includes(w.effort) ? { effort: w.effort } : {}), ...(w.note ? { note: String(w.note).slice(0, 280) } : {}), src: 'telegram', ...(ctx.plan?.site && kind === 'gym' ? { site: ctx.plan.site } : {}) };
     await mutateDay(env, date, d => { (d.workouts ||= []).push(rec); });
     const token = uid(); await setKV(env, 'last', { token, kind: 'workout', date, id: rec.id });
     let flags = '';

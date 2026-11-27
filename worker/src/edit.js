@@ -39,7 +39,12 @@ export function dayCardHtml(ctx, d, date, note, left = '') {
 }
 export function dayCardMarkup(d, date, mode, undoToken) {
   if (mode === 'edit') {
-    const rows = (d?.items || []).map((i, n) => [[`✕ ${short(i.n, 34)} · ${fmt(i.kcal)}`, `rf:${date}:${key(i, n)}`]]);
+    const rows = [];
+    (d?.items || []).forEach((i, n) => {
+      rows.push([[`✕ ${short(i.n, 34)}${i.u === 'serving' && +i.q ? ' ×' + fmt(i.q, i.q % 1 ? 1 : 0) : ''} · ${fmt(i.kcal)}`, `rf:${date}:${key(i, n)}`]]);
+      // counted items (27 Nov 2026, Sam: "items where I've added more than one… plus minus them"): one more or one fewer
+      if (i.u === 'serving' && +i.q >= 1) rows.push([...(+i.q >= 2 ? [[`➖ to ×${fmt(+i.q - 1, i.q % 1 ? 1 : 0)}`, `qm:${date}:${key(i, n)}`]] : []), [`➕ to ×${fmt(+i.q + 1, i.q % 1 ? 1 : 0)}`, `qp:${date}:${key(i, n)}`]]);
+    });
     (d?.workouts || []).forEach((w, n) => rows.push([[`✕ ${short(w.label || w.kind, 34)}${+w.min ? ' · ' + fmt(w.min) + '′' : ''}`, `rw:${date}:${key(w, n)}`]]));
     return kb([...rows, [...(undoToken ? [['↩ Put back', `pb:${undoToken}`]] : []), ['✓ Done', `dv:${date}`]]]);
   }
@@ -79,7 +84,23 @@ export async function putBack(env, token) {
   await setKV(env, 'removed', null);
   return r;
 }
-// callbacks: dv view, de edit, rf/rw remove food/session, pb put back. Returns false if the action isn't ours.
+/* One more or one fewer of a counted item: kcal and macros scale with the count (2 flatbreads at 490 → 1 at 245), so
+   it stays the same food at the same per-piece numbers. */
+async function stepQty(env, date, k, by) {
+  let out = null;
+  await mutateDay(env, date, d => {
+    const it = (d.items || [])[find(d.items, k)];
+    if (!it || it.u !== 'serving' || !(+it.q > 0)) return;
+    const q0 = +it.q, q1 = Math.round((q0 + by) * 10) / 10;
+    if (q1 < 1) return;
+    const f = q1 / q0;
+    for (const m of ['kcal', 'p', 'c', 'f']) if (it[m] != null) it[m] = r1(+it[m] * f);
+    it.q = q1;
+    out = { n: it.n, q0, q1, dk: it.kcal - it.kcal / f };
+  });
+  return out;
+}
+// callbacks: dv view, de edit, rf/rw remove food/session, qm/qp one fewer/more, pb put back. Returns false if the action isn't ours.
 export async function onEditCallback(env, cq, act, rest) {
   const mid = cq.message?.message_id;
   if (act === 'dv' || act === 'de') { const date = rest[0]; if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today()) return true; await redraw(env, mid, date, act === 'de' ? 'edit' : 'view'); return true; }
@@ -87,6 +108,12 @@ export async function onEditCallback(env, cq, act, rest) {
     const [date, k] = [rest[0], rest.slice(1).join(':')];
     const r = await removeOne(env, date, act[1], k);
     await redraw(env, mid, date, 'edit', r ? `🗑 Removed: <b>${esc(r.label)}</b>` : 'That was already gone.', r?.token);
+    return true;
+  }
+  if (act === 'qm' || act === 'qp') {
+    const [date, k] = [rest[0], rest.slice(1).join(':')];
+    const r = await stepQty(env, date, k, act === 'qp' ? 1 : -1);
+    await redraw(env, mid, date, 'edit', r ? `✏️ <b>${esc(r.n)}</b>: ×${fmt(r.q0, r.q0 % 1 ? 1 : 0)} → ×${fmt(r.q1, r.q1 % 1 ? 1 : 0)} (${r.dk > 0 ? '+' : '−'}${fmt(Math.abs(r.dk))} kcal)` : 'That can’t go lower: use ✕ to remove it.');
     return true;
   }
   if (act === 'pb') {
