@@ -57,7 +57,7 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 /* the coach's whistle and its unread count (27 Nov 2026) */
 .coach-btn{position:relative}
 .cbadge{position:absolute;top:0;right:-2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--ink);color:var(--s1);font-size:9.5px;font-weight:600;line-height:15px;text-align:center;font-variant-numeric:tabular-nums}
-.coach-nav{margin-bottom:6px}.coach-nav .icon-btn{width:24px;height:24px}
+.coach-nav{margin-bottom:10px;gap:8px}.coach-nav .icon-btn{width:24px;height:24px}
 .coach-new{color:var(--ink);font-weight:600}
 .coach-body{white-space:pre-line;font-size:13px;line-height:1.5;color:var(--muted);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}
 #sheet .coach-wrap{max-width:760px}#sheet .coach-body{flex:none;overflow:visible}
@@ -4151,7 +4151,8 @@ function cardioIntensity(w, kg = cardioKg()) {
   if (!mph && ['run', 'walk'].includes(w.kind) && +w.km > 0 && +w.min > 0) mph = w.km / w.min * 60 / 1.609;   // distance and time give the speed
   const grade = w.incline_pct != null ? +w.incline_pct : (num(/(\d+(?:\.\d+)?)\s*%/) ?? num(/incline\s*(\d+(?:\.\d+)?)/i) ?? 0);
   let met = null, basis;
-  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 72.4) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
+  // (75 kg stands in only until there's a weigh-in)
+  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 75) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
   else if (mph > 0) { const v = mph * 26.8, g = grade / 100; met = (mph <= 3.7 ? .1 * v + 1.8 * v * g + 3.5 : .2 * v + .9 * v * g + 3.5) / 3.5; basis = (grade ? fmt(grade, grade % 1 ? 1 : 0) + '% at ' : '') + fmt(mph, 1) + ' mph'; }
   const kindBand = LIGHT_KINDS.includes(w.kind) ? 'light' : ['football', 'run'].includes(w.kind) ? 'vigorous' : 'moderate';
   const band = met != null ? (met < 3 ? 'light' : met < 6 ? 'moderate' : 'vigorous') : ['light', 'moderate', 'vigorous'].includes(w.effort) ? w.effort : kindBand;
@@ -4729,11 +4730,6 @@ const WT = {
       if (inst.w < 11 || b.clientWidth && b.clientWidth < 380) { card.classList.add('narrow'); fitText(card, card.querySelector('.tt'), 13, 11); }
     }
   },
-  coach: {
-    title: 'Coach · weekly review', cat: 'train', desc: 'The coach’s retrospective of each week: the numbers, what they mean (is the weight trend saying the calories are right, which sessions were missed, which lifts went up or are ready for more load, cardio and steps), and the focus for next week, with a short note from the coach. A new one arrives every Sunday at 19:00 (also in Telegram); Review now writes one for the last 7 days. ◀ ▶ for earlier weeks. The whistle at the top right counts the ones you haven’t read.', def: [12, 12], min: [7, 5],
-    add: {label: 'Review now', title: 'The coach reviews the last 7 days now', run: () => coachAsk()},
-    render(b, inst) { coachCard(b, inst); }
-  },
   quote: {
     title: 'Daily thought', cat: 'misc', desc: 'One quote a day from philosophers, anime and manga, and athletes. Click for another. Choose which kinds in settings.', def: [8, 5], min: [6, 3],
     render(b, inst) {
@@ -5271,7 +5267,7 @@ function applyConfigDoc(id, data) {
   else if (id === 'plan') S.plan = Array.isArray(data.sessions) && data.sessions.length ? data : null;
   else if (id === 'supplements') S.supps = Array.isArray(data.items) ? data : null;
   else if (id === 'away') S.away = Array.isArray(data.ranges) ? data : {ranges: []};
-  else if (id === 'coach') { S.coach = Array.isArray(data.msgs) ? data : {msgs: []}; coachBadge(); return 'coach'; }
+  else if (id === 'coach') { S.coach = {msgs: Array.isArray(data.msgs) ? data.msgs : []}; coachBadge(); return 'coach'; }
   if (id === 'layout' && +data.coachSeen > (+S.coachSeen || 0)) { S.coachSeen = +data.coachSeen; coachBadge(); }   // what's been read, on every device
   if (id === 'layout' && Array.isArray(data.widgets) && !S.dragging) {
     if (Array.isArray(data.presets)) S.layoutPresets = data.presets; else if (!S.layoutPresets?.length) S.needDefaultPreset = true;
@@ -6490,8 +6486,8 @@ function openPhotos(view = 'sets') {
    Sam: "every week he would give like feedback… a kind of retrospective of how the week has gone… typical coach style
    advice… to set you up for the next week", with "an icon in the top right… a little exclamation point or a number
    based on how many messages are there unread". The worker writes each review (weekly.js: Sunday 19:00 by itself,
-   /review in Telegram, or coach_review from Review now) and keeps the last 26 in the 'coach' config document; this
-   page shows them. What has been read is one time stamp, layout.coachSeen, so it's the same on the phone and the Mac.
+   /review in Telegram, or coach_review from Review now) and keeps the last 26 in the 'coach' config document; the
+   popup behind the whistle at the top right shows them. What has been read is one time stamp, layout.coachSeen, so it's the same on the phone and the Mac.
    Functional first, by his order: the mascot and its pop-out hello come later. */
 const coachMsgs = () => (S.coach?.msgs || []).slice().sort((a, b) => a.end < b.end ? -1 : a.end > b.end ? 1 : a.at - b.at);
 const coachUnread = () => coachMsgs().filter(m => +m.at > (+S.coachSeen || 0)).length;
@@ -6507,34 +6503,44 @@ function coachHtml(html) {
     else if (n.nodeType === 1) { if (keep.has(n.tagName)) { const e = document.createElement(n.tagName.toLowerCase()); walk(n, e); to.append(e); } else walk(n, to); } } };
   walk(t.content, out); return out;
 }
-const COACH_I = new Map();   // which review each widget (or the sheet) is showing; none = the latest
-function coachCard(b, inst) {
-  const key = inst ? inst.id : 'sheet', list = coachMsgs(), n = list.length;
-  if (!n) { b.innerHTML = `<div class="empty">No weekly review yet. The coach writes one every Sunday at 19:00${MCP ? ', or ask for one now' : ''}.${MCP ? '<div style="margin-top:10px"><button class="btn sm" data-ask>Review the last 7 days</button></div>' : ''}</div>`; const a = b.querySelector('[data-ask]'); if (a) a.onclick = () => coachAsk(a); return; }
-  const i = clamp(COACH_I.has(key) ? COACH_I.get(key) : n - 1, 0, n - 1), m = list[i], isNew = +m.at > (+S.coachSeen || 0);
-  b.innerHTML = `<div class="row between coach-nav"><span class="cap">${i === n - 1 ? 'Latest · ' : ''}${esc(m.title || (dShort(m.from) + ' – ' + dShort(m.end)))}${isNew ? ' <span class="coach-new">new</span>' : ''}</span><span class="row" style="gap:2px"><button class="icon-btn" data-cn="-1" title="The week before" ${i ? '' : 'disabled'}>‹</button><button class="icon-btn" data-cn="1" title="The week after" ${i < n - 1 ? '' : 'disabled'}>›</button></span></div><div class="coach-body" data-cb></div>`;
-  b.querySelector('[data-cb]').append(coachHtml(m.html));
-  b.querySelectorAll('[data-cn]').forEach(x => x.onclick = () => { COACH_I.set(key, clamp(i + +x.dataset.cn, 0, n - 1)); inst ? renderWidget(inst.id) : coachCard(b, null); });
-  // reading it in a widget counts as read once it's touched; the sheet marks it read on opening
-  if (inst) b.onpointerdown = () => coachMarkSeen();
+/* The popup is the coach's one home (27 Nov 2026, Sam: "I don't want to use the widget… just a little button at the
+   top… make this the centre"; the widget from earlier that day is gone). It opens on the latest review with
+   ‹ › for earlier weeks and Review now at the top, and a new review replaces the one on screen in place. */
+let COACH_I = null;   // which review the popup shows; null = the latest
+function coachCard(b) {
+  const list = coachMsgs(), n = list.length;
+  const ask = MCP ? '<button class="btn sm" data-ask title="The coach reviews the last 7 days now">Review now</button>' : '';
+  if (!n) { b.innerHTML = `<div class="row between coach-nav"><span class="cap">No weekly review yet</span>${ask}</div><div class="empty" style="text-align:left">The coach writes one every Sunday at 19:00 (it comes to Telegram too)${MCP ? ', or press Review now for the last 7 days' : ''}.</div>`; }
+  else {
+    const i = clamp(COACH_I ?? n - 1, 0, n - 1), m = list[i], isNew = +m.at > (+S.coachSeen || 0);
+    b.innerHTML = `<div class="row between coach-nav"><span class="row" style="gap:2px;align-items:center"><button class="icon-btn" data-cn="-1" title="The week before" ${i ? '' : 'disabled'}>‹</button><span class="cap">${i === n - 1 ? 'Latest · ' : ''}${esc(m.title || (dShort(m.from) + ' – ' + dShort(m.end)))}${isNew ? ' <span class="coach-new">new</span>' : ''}</span><button class="icon-btn" data-cn="1" title="The week after" ${i < n - 1 ? '' : 'disabled'}>›</button></span>${ask}</div><div class="coach-body" data-cb></div>`;
+    b.querySelector('[data-cb]').append(coachHtml(m.html));
+    b.querySelectorAll('[data-cn]').forEach(x => x.onclick = () => { COACH_I = clamp(i + +x.dataset.cn, 0, n - 1); coachCard(b); });
+  }
+  const a = b.querySelector('[data-ask]'); if (a) a.onclick = () => coachAsk(a, b);
 }
 function openCoach() {
-  openSheet('Coach', b => { const box = document.createElement('div'); box.className = 'coach-wrap'; b.append(box); coachCard(box, null);
-    if (MCP) { const r = document.createElement('div'); r.className = 'row'; r.style.cssText = 'gap:8px;margin-top:12px'; r.innerHTML = '<button class="btn sm ghost" data-ask>Review the last 7 days now</button>'; box.append(r); r.querySelector('[data-ask]').onclick = e => coachAsk(e.currentTarget); } }, {wide: true});
+  COACH_I = null;
+  openSheet('Coach', b => { const box = document.createElement('div'); box.className = 'coach-wrap'; b.append(box); coachCard(box); }, {wide: true});
   coachMarkSeen();
 }
-async function coachAsk(btn) {
+async function coachAsk(btn, box) {
   if (!MCP) return toast('Reviews need Health DB: open this page in Claude with the connector.');
   if (btn) { btn.disabled = true; btn.textContent = 'The coach is writing…'; }
   try {
     /* coach_review first; if the connector doesn't list it yet (it keeps the tool list it read for a while after a
-       deploy: "Tool is not available on this connector", 27 Nov 2026), the same review through put_config, which it has */
-    try { await MCP.callTool(SRV, 'coach_review', {}, {cache: false}); }
-    catch (e1) { await MCP.callTool(SRV, 'put_config', {id: 'coach', doc: {ask: true}}, {cache: false}); }
+       deploy: "Tool is not available on this connector", 27 Nov 2026), the same review through put_config, which it
+       has. Either answer must carry the review's HTML: an older worker took {ask: true} as a document to store and
+       answered without one, which is what made "written" appear with nothing to show (27 Nov 2026, 18:45). */
+    let r1;
+    try { r1 = await MCP.callTool(SRV, 'coach_review', {}, {cache: false}); }
+    catch (e1) { r1 = await MCP.callTool(SRV, 'put_config', {id: 'coach', doc: {ask: true}}, {cache: false}); }
+    if (!r1?.payload?.html) throw new Error('Health DB answered without a review: it may still be deploying, try again in a minute');
     const r = await MCP.callTool(SRV, 'get_snapshot', {since: S.rev}, {cache: false}); applySnapshot(r.payload || {}, false);
-    COACH_I.clear(); renderAll(); if (!$('#sheet').hidden && $('#sheet-t').textContent === 'Coach') openCoach();
+    COACH_I = null; coachMarkSeen(); renderAll();
+    if (box && box.isConnected) coachCard(box);
     toast('The coach has reviewed the last 7 days');
-  } catch (e) { toast('The coach couldn’t write a review: ' + (e?.message || 'try again')); if (btn) { btn.disabled = false; btn.textContent = 'Review the last 7 days'; } }
+  } catch (e) { toast('The coach couldn’t write a review: ' + (e?.message || 'try again')); if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = 'Review now'; } }
 }
 
 /* ============================================================
@@ -6614,7 +6620,7 @@ function openHelp(tab = 'why') {
           if (!wk.length) return '';
           const now = cardioWeek(cur);
           return ` Yours, full weeks, in equivalent minutes: ${wk.map(x => B(fmt(x.c.min)) + (x.away ? ' (' + x.away + ' day' + (x.away === 1 ? '' : 's') + ' away)' : '')).join(', ')} minutes, week of ${dShort(wk[0].m)} on; ${wk.filter(x => x.c.min >= CARDIO_TARGET).length} of ${wk.length} at ${CARDIO_TARGET}. This week so far: ${fmt(now.min)}. With 5–6 gym sessions a week, 25–30 minutes after each one gets there at a steady pace, or 15 if it’s vigorous.`; })()}</p>
-        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 72.4) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 72.4, 0)} kg: both vigorous, as long as you don’t hold the rails.</p>
+        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 75) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 75, 0)} kg: both vigorous, as long as you don’t hold the rails.</p>
         <p>${B('How the page counts it (27 Nov 2026, your choice: one number in the WHO’s terms).')} Every session gets an intensity, from the first of these it has: average watts on a bike; speed and incline on a treadmill or run; how it felt (“easy”, “could chat”, “hard”, “out of breath”, or How hard in the cardio sheet); the kind (football and runs vigorous, golf light, the rest moderate). Light (under 3 METs) shows but doesn’t count; moderate counts once; vigorous counts twice. So the meter reads equivalent minutes: 45 minutes at 110 W is 90 towards the 150. On the Training log a vigorous session stands twice as tall in a deeper blue, and hovering a day gives each session’s basis (“110 W ≈ 6.7 METs, vigorous ×2”). Tell the bot the watts, the speed and incline, or how hard it was; with nothing to go on, a session counts as moderate.</p>
         <p>For a recomp the limit is practical, not medical. A 2022 meta-analysis of 43 studies found cardio alongside lifting did ${B('not')} reduce muscle growth or maximal strength. It did blunt explosive power, mainly when both were done in the same session, and not when they were 3+ hours apart (Schumann et al. 2022). An older one found the interference grows with how often and how long the cardio is, and with running more than cycling (Wilson et al. 2012). Past about ${CARDIO_CEIL} minutes, recovery and the extra calories start to compete with muscle gain.</p>
         <p>So: mostly steady cardio (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>

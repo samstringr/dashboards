@@ -6,7 +6,7 @@
    sticking to the plan and doing it correctly, that I'd like the coach to be able to say in his weekly updates."
 
    So the review now works out what the numbers MEAN, not only what they were:
-   - energy balance: two weeks of intake against the 7-day weight trend. Steady weight on the target = maintenance,
+   - energy balance: four weeks of intake against the weight trend (see energyBalance). Steady weight on the target = maintenance,
      which a recomp runs on, so the plan is being executed; a trend outside the phase's zone gives the size of the gap
      (1 kg of body tissue taken as about 7,700 kcal, an approximation);
    - which planned sessions were missed this week, not only how many;
@@ -26,15 +26,22 @@ export const CARDIO_TARGET = 150, STEP_TARGET = 10000;
 // kg per week each phase aims for (the dashboard's PHASES zones, per 4 weeks, divided by 4)
 const ZONE = { recomp: [-0.125, 0.25], gain: [0.125, 0.375], cut: [-0.375, -0.125] };
 
-/* Energy balance over the 14 days to `end`: mean intake on full, non-away days, and the 7-day average weight at each
-   end. Needs 7 such days and a weigh-in in both weeks. */
+/* Energy balance over the 28 days to `end` (27 Nov 2026, second version). The first compared two 7-day averages two
+   weeks apart, and one high weigh-in standing alone in its week made a month that was really flat read as a large
+   deficit. Now: the trend is the median of the slopes between every pair
+   of weigh-ins in four weeks (Theil–Sen), which one odd reading can't swing, and it needs 6 weigh-ins spanning 14 days;
+   intake is the mean of the full, non-away days in the same four weeks (10 at least). Four weeks also matches the
+   dashboard's 4-week check in Targets. */
 export function energyBalance(ctx, end) {
-  const from = addDays(end, -13), td = today(), wl = weighins(ctx.days).filter(x => x.w);
+  const from = addDays(end, -27), td = today(), wl = weighins(ctx.days).filter(x => x.w && x.date >= from && x.date <= end).sort((p, q) => p.date < q.date ? -1 : 1);
   const food = ctx.days.filter(d => d.date >= from && d.date <= end && d.date < td && !awayOn(ctx, d.date)).map(d => dayTotals(d)).filter(t => t && t.kcal != null && !t.void && !t.partial);
-  const w1 = rollAvg(wl, end, 'w'), w0 = rollAvg(wl, addDays(end, -14), 'w');
-  if (food.length < 7 || w0 == null || w1 == null) return null;
-  const intake = mean(food.map(t => t.kcal)), slope = (w1 - w0) / 2, phase = ZONE[ctx.settings?.phase] ? ctx.settings.phase : 'recomp', z = ZONE[phase];
-  return { intake, n: food.length, w0, w1, slope, maint: intake - slope * 7700 / 7, phase, verdict: slope < z[0] ? 'below' : slope > z[1] ? 'above' : 'in' };
+  if (food.length < 10 || wl.length < 6 || diffDays(wl[0].date, wl[wl.length - 1].date) < 14) return null;
+  const sl = [];
+  for (let i = 0; i < wl.length; i++) for (let j = i + 1; j < wl.length; j++) { const dx = diffDays(wl[i].date, wl[j].date); if (dx) sl.push((wl[j].w - wl[i].w) / dx); }
+  sl.sort((p, q) => p - q);
+  const mid = sl.length >> 1, perDay = sl.length % 2 ? sl[mid] : (sl[mid - 1] + sl[mid]) / 2;
+  const intake = mean(food.map(t => t.kcal)), slope = perDay * 7, phase = ZONE[ctx.settings?.phase] ? ctx.settings.phase : 'recomp', z = ZONE[phase];
+  return { intake, n: food.length, weighins: wl.length, slope, maint: intake - slope * 7700 / 7, phase, verdict: slope < z[0] ? 'below' : slope > z[1] ? 'above' : 'in' };
 }
 function creatineDays(ctx, end) {
   const first = ctx.days.filter(d => d.supps?.creatine).map(d => d.date).sort()[0];
@@ -81,17 +88,17 @@ export function weeklyFacts(ctx, end) {
 }
 // what the energy balance means, in a sentence (null when there isn't enough to say)
 export function balanceLine(F) {
-  const b = F.eb; if (!b) return null;
-  const kgw = v => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 2)} kg a week`, trend = `7-day average ${fmt(b.w0, 2)} → ${fmt(b.w1, 2)} kg over two weeks`;
+  const b = F.eb; if (!b) return null;   // not enough weigh-ins or logged days in four weeks: say nothing rather than guess
+  const kgw = v => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 2)} kg a week`, trend = `${kgw(b.slope)} over four weeks, ${b.weighins} weigh-ins`;
   const cr = F.creatine && F.creatine <= 28 && b.slope >= -0.05 ? ` Creatine (day ${F.creatine}) holds a little extra water at first, so a steady scale can hide some fat loss.` : '';
   // steady weight says maintenance is what he ATE; that only vouches for the target when he ate about the target
   const off = F.T?.ok ? b.intake - F.T.kcal : 0;
-  if (b.verdict === 'in' && b.phase === 'recomp' && Math.abs(off) > 150) return { good: true, text: `Weight steady on ${fmt(b.intake)} kcal a day (${trend}): that's your maintenance, about ${fmt(Math.round(Math.abs(off) / 10) * 10)} ${off < 0 ? 'under' : 'over'} the ${fmt(F.T.kcal)} target. A recomp runs on maintenance, so either eat to the target or let the 4-week check in Targets move it.${cr}` };
+  if (b.verdict === 'in' && b.phase === 'recomp' && Math.abs(off) > 150) return { good: true, text: `Weight steady (${trend}) on ${fmt(b.intake)} kcal a day: that's your maintenance, about ${fmt(Math.round(Math.abs(off) / 10) * 10)} ${off < 0 ? 'under' : 'over'} the ${fmt(F.T.kcal)} target. A recomp runs on maintenance, so either eat to the target or let the 4-week check in Targets move it.${cr}` };
   if (b.verdict === 'in') return { good: true, text: b.phase === 'recomp'
-    ? `Weight steady on ${fmt(b.intake)} kcal a day (${trend}): that's your maintenance, which is exactly what a recomp runs on. The calorie target is right and you're executing the plan.${cr}`
-    : `Weight ${kgw(b.slope)} on ${fmt(b.intake)} kcal a day (${trend}): inside the ${b.phase === 'gain' ? 'lean-gain' : 'cut'} zone, so the target is doing its job.${cr}` };
+    ? `Weight steady (${trend}) on ${fmt(b.intake)} kcal a day: that's your maintenance, which is exactly what a recomp runs on. The calorie target is right and you're executing the plan.${cr}`
+    : `Weight ${trend}, on ${fmt(b.intake)} kcal a day: inside the ${b.phase === 'gain' ? 'lean-gain' : 'cut'} zone, so the target is doing its job.${cr}` };
   const gap = Math.round(Math.abs(b.intake - b.maint) / 10) * 10;
-  return { good: false, text: `Weight ${kgw(b.slope)} on ${fmt(b.intake)} kcal a day (${trend}): about ${fmt(gap)} kcal a day ${b.slope < 0 ? 'under' : 'over'} maintenance (≈ ${fmt(Math.round(b.maint / 10) * 10)}), ${b.verdict === 'below' ? 'more of a deficit' : 'more of a surplus'} than ${b.phase === 'recomp' ? 'a recomp wants' : 'this phase wants'}.${F.T.ok ? ` Aim for the full ${fmt(F.T.kcal)}.` : ''}${cr}` };
+  return { good: false, text: `Weight ${trend}, on ${fmt(b.intake)} kcal a day: about ${fmt(gap)} kcal a day ${b.slope < 0 ? 'under' : 'over'} maintenance (≈ ${fmt(Math.round(b.maint / 10) * 10)}), ${b.verdict === 'below' ? 'more of a deficit' : 'more of a surplus'} than ${b.phase === 'recomp' ? 'a recomp wants' : 'this phase wants'}.${F.T.ok ? ` Aim for the full ${fmt(F.T.kcal)}.` : ''}${cr}` };
 }
 export function weeklyHtml(F) {
   const good = [], fix = [], bl = balanceLine(F), short = F.cT - F.cardioEq;
@@ -125,14 +132,15 @@ export const joinWeekly = (H, note) => [H.head, H.stats, H.good, H.fix, `<blockq
 const WEEKLY_SYSTEM = `You are Sam's coach writing the retrospective at the bottom of his weekly review; the numbers are listed above it, so don't repeat them line by line. British English, plain text only (no markdown, lists or emoji), four to six sentences. Open with a one-line verdict on the week. Then say what the numbers MEAN, picking the one or two that matter most: for example weight steady on the target calories means maintenance is confirmed and he is executing the recomp correctly; lifts going up means progressive overload is working; missed sessions mean those muscles got less than the plan needs. Then what to do next week and why, and end with one short line of encouragement, like a good coach: direct, warm, never gushing. Use ONLY the facts given: never state a number, load or target that is not in them, and never contradict them. Sam's aim is muscle growth with strength rising, at about 12% body fat.`;
 export async function weeklyReview(env, ctx, end, { store = true } = {}) {
   const F = weeklyFacts(ctx, end), H = weeklyHtml(F);
-  const note = await coachNote(env, 'weekly review', [H.stats, H.good, H.fix, 'Focus: ' + H.focus].join('\n').replace(/<[^>]+>/g, ''), WEEKLY_SYSTEM);
+  const note = await coachNote(env, 'weekly review', [H.stats, H.good, H.fix, 'Focus: ' + H.focus].join('\n').replace(/<[^>]+>/g, ''), WEEKLY_SYSTEM, 25000);
   const html = joinWeekly(H, note);
   if (store && env.DB) await saveCoach(env, { kind: 'weekly', from: F.from, end: F.end, title: `${dLong(F.from)} – ${dLong(F.end)}`, html, note, focus: H.focus.replace(/<[^>]+>/g, '') });
   return html;
 }
 // the 'coach' config document: the last 26 reviews, newest last; a new review of the same week replaces the old one
 export async function saveCoach(env, msg) {
-  const doc = (await getConfig(env, 'coach')) || { msgs: [] };
+  // { ask } is a request, never part of the document (an older worker once stored it, 27 Nov 2026)
+  const { ask, ...doc } = (await getConfig(env, 'coach')) || { msgs: [] };
   const msgs = (doc.msgs || []).filter(m => !(m.kind === msg.kind && m.end === msg.end));
   msgs.push({ id: uid(), at: Date.now(), ...msg });
   msgs.sort((a, b) => a.end < b.end ? -1 : a.end > b.end ? 1 : a.at - b.at);
