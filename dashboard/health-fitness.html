@@ -56,8 +56,11 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .icon-btn{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:var(--r-sm);border:1px solid transparent;background:none;color:var(--muted);transition:.18s var(--ease)}
 /* the coach's whistle and its unread count (27 Nov 2026) */
 .coach-btn{position:relative}
+.prof-btn{margin-left:4px;gap:4px;color:var(--muted)}.prof-btn .i{width:12px;height:12px}
+.prof-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.prof-row:last-child{border-bottom:0}
+.prof-row .nm{flex:1;min-width:0;color:var(--ink)}
 .cbadge{position:absolute;top:0;right:-2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--ink);color:var(--s1);font-size:9.5px;font-weight:600;line-height:15px;text-align:center;font-variant-numeric:tabular-nums}
-.coach-nav{margin-bottom:6px}.coach-nav .icon-btn{width:24px;height:24px}
+.coach-nav{margin-bottom:10px;gap:8px}.coach-nav .icon-btn{width:24px;height:24px}
 .coach-new{color:var(--ink);font-weight:600}
 .coach-body{white-space:pre-line;font-size:13px;line-height:1.5;color:var(--muted);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}
 #sheet .coach-wrap{max-width:760px}#sheet .coach-body{flex:none;overflow:visible}
@@ -551,6 +554,7 @@ select.inp{padding-right:6px}
     <div class="brand">
       <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="#e07b45" stroke-width="1.5"/><path d="M10 1.5v5M10 13.5v5M1.5 10h5M13.5 10h5" stroke="#e07b45" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="1.6" fill="#e8e6e1"/></svg>
       <b>Health &amp; Fitness</b>
+      <button class="btn ghost sm prof-btn" data-act="profiles" id="prof-btn" title="Profiles: you and the people you write plans for"><span id="prof-name">Sam</span><svg class="i" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></button>
     </div>
     <div class="datenav">
       <button class="icon-btn" id="d-prev" aria-label="Previous day"><svg class="i" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5"/></svg></button>
@@ -4151,7 +4155,8 @@ function cardioIntensity(w, kg = cardioKg()) {
   if (!mph && ['run', 'walk'].includes(w.kind) && +w.km > 0 && +w.min > 0) mph = w.km / w.min * 60 / 1.609;   // distance and time give the speed
   const grade = w.incline_pct != null ? +w.incline_pct : (num(/(\d+(?:\.\d+)?)\s*%/) ?? num(/incline\s*(\d+(?:\.\d+)?)/i) ?? 0);
   let met = null, basis;
-  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 72.4) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
+  // (75 kg stands in only until there's a weigh-in)
+  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 75) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
   else if (mph > 0) { const v = mph * 26.8, g = grade / 100; met = (mph <= 3.7 ? .1 * v + 1.8 * v * g + 3.5 : .2 * v + .9 * v * g + 3.5) / 3.5; basis = (grade ? fmt(grade, grade % 1 ? 1 : 0) + '% at ' : '') + fmt(mph, 1) + ' mph'; }
   const kindBand = LIGHT_KINDS.includes(w.kind) ? 'light' : ['football', 'run'].includes(w.kind) ? 'vigorous' : 'moderate';
   const band = met != null ? (met < 3 ? 'light' : met < 6 ? 'moderate' : 'vigorous') : ['light', 'moderate', 'vigorous'].includes(w.effort) ? w.effort : kindBand;
@@ -4729,11 +4734,6 @@ const WT = {
       if (inst.w < 11 || b.clientWidth && b.clientWidth < 380) { card.classList.add('narrow'); fitText(card, card.querySelector('.tt'), 13, 11); }
     }
   },
-  coach: {
-    title: 'Coach · weekly review', cat: 'train', desc: 'The coach’s retrospective of each week: the numbers, what they mean (is the weight trend saying the calories are right, which sessions were missed, which lifts went up or are ready for more load, cardio and steps), and the focus for next week, with a short note from the coach. A new one arrives every Sunday at 19:00 (also in Telegram); Review now writes one for the last 7 days. ◀ ▶ for earlier weeks. The whistle at the top right counts the ones you haven’t read.', def: [12, 12], min: [7, 5],
-    add: {label: 'Review now', title: 'The coach reviews the last 7 days now', run: () => coachAsk()},
-    render(b, inst) { coachCard(b, inst); }
-  },
   quote: {
     title: 'Daily thought', cat: 'misc', desc: 'One quote a day from philosophers, anime and manga, and athletes. Click for another. Choose which kinds in settings.', def: [8, 5], min: [6, 3],
     render(b, inst) {
@@ -4979,7 +4979,7 @@ function fitWidget(node) {
 const FIT_RO = window.ResizeObserver ? new ResizeObserver(es => { for (const e of es) { const n = e.target.closest('.widget'); if (!n) continue; cancelAnimationFrame(n._fr); n._fr = requestAnimationFrame(() => fitWidget(n)); } }) : null;
 function renderWidget(id) { const inst = S.layout.find(w => w.id === id), node = nodes.get(id); if (inst && node) { placeWidget(node, inst); renderBody(node, inst); } }
 function renderAll() {
-  TG_MEMO.clear(); coachBadge();
+  TG_MEMO.clear(); coachBadge(); profileBtn();
   renderTop();
   const host = S.layoutMode === 'canvas' ? world : stack;
   const list = S.layoutMode === 'canvas' ? S.layout : stackOrder(S.layout);   // phone: one column at a time, left to right
@@ -5271,7 +5271,8 @@ function applyConfigDoc(id, data) {
   else if (id === 'plan') S.plan = Array.isArray(data.sessions) && data.sessions.length ? data : null;
   else if (id === 'supplements') S.supps = Array.isArray(data.items) ? data : null;
   else if (id === 'away') S.away = Array.isArray(data.ranges) ? data : {ranges: []};
-  else if (id === 'coach') { S.coach = Array.isArray(data.msgs) ? data : {msgs: []}; coachBadge(); return 'coach'; }
+  else if (id === 'coach') { S.coach = {msgs: Array.isArray(data.msgs) ? data.msgs : []}; coachBadge(); return 'coach'; }
+  else if (id === 'profiles') { S.profiles = profilesNorm(data); return 'profiles'; }
   if (id === 'layout' && +data.coachSeen > (+S.coachSeen || 0)) { S.coachSeen = +data.coachSeen; coachBadge(); }   // what's been read, on every device
   if (id === 'layout' && Array.isArray(data.widgets) && !S.dragging) {
     if (Array.isArray(data.presets)) S.layoutPresets = data.presets; else if (!S.layoutPresets?.length) S.needDefaultPreset = true;
@@ -5321,7 +5322,7 @@ async function init() {
 }
 
 /* ---------- Health DB (Sam's Cloudflare database, through the custom connector) ---------- */
-function remoteConfig(id) { return id === 'settings' ? S.settings : id === 'library' ? {items: S.library} : id === 'plan' ? S.plan : id === 'layout' ? {widgets: S.layout} : id === 'supplements' ? S.supps : id === 'away' ? S.away : null; }
+function remoteConfig(id) { return id === 'settings' ? S.settings : id === 'library' ? {items: S.library} : id === 'plan' ? S.plan : id === 'layout' ? {widgets: S.layout} : id === 'supplements' ? S.supps : id === 'away' ? S.away : id === 'profiles' ? S.profiles : null; }
 function applySnapshot(p, full) {
   if (full) S.days = new Map();
   for (const d of (p.days || [])) if (d && d.date) S.days.set(d.date, d);
@@ -5481,7 +5482,7 @@ $('#sheet-x').onclick = closeSheet; $('#scrim').onclick = closeSheet;
 document.querySelector('.actions').addEventListener('click', e => {
   const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
   if (a === 'food') openFood(); else if (a === 'weigh') openWeigh(); else if (a === 'session') openSession({}); else if (a === 'cardio') openCardio({});
-  else if (a === 'widgets') openPalette(); else if (a === 'photos') openPhotos(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp(); else if (a === 'coach') openCoach();
+  else if (a === 'widgets') openPalette(); else if (a === 'photos') openPhotos(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp(); else if (a === 'coach') openCoach(); else if (a === 'profiles') openProfiles();
   else if (a === 'mode') setLayoutMode(S.layoutMode === 'canvas' ? 'stack' : 'canvas');
 });
 const field = (label, html) => `<label class="field"><span>${label}</span>${html}</label>`;
@@ -5814,7 +5815,8 @@ function openSettings() {
   openSheet('Settings & targets', b => {
     const st = S.settings;
     const daysN = S.days.size, logged = [...S.days.keys()].filter(d => dayTotals(d)?.kcal != null).length;
-    b.innerHTML = `<div class="sec"><h5>You</h5><div class="grid2">${field('Height, cm', numIn('st-h', st.height, '0.5'))}${field('Date of birth', `<input class="inp" type="date" id="st-dob" value="${st.dob || ''}">`)}</div></div>
+    b.innerHTML = `<div class="sec"><h5>Profiles</h5><div class="row between"><span class="cap">${esc(profilesList().map(p => p.name).join(', '))}</span><button class="btn sm" type="button" id="st-prof">Manage profiles</button></div></div>
+      <div class="sec"><h5>You</h5><div class="grid2">${field('Height, cm', numIn('st-h', st.height, '0.5'))}${field('Date of birth', `<input class="inp" type="date" id="st-dob" value="${st.dob || ''}">`)}</div></div>
       <div class="sec"><h5>Goal</h5><div class="grid2">${field('Goal weight, kg', numIn('st-gw', st.goalW, '0.5'))}${field('Goal body fat, %', numIn('st-gbf', st.goalBf, '0.5'))}</div></div>
       <div class="sec"><h5>Phase</h5><div class="seg" id="st-phase">${Object.entries(PHASES).map(([k, p]) => `<button type="button" data-v="${k}" class="${st.phase === k ? 'on' : ''}">${p.label}</button>`).join('')}</div><div class="cap" id="st-phdesc"></div></div>
       <div class="sec"><h5>Engine</h5><div class="grid2">${field('Activity multiplier', numIn('st-mult', st.mult, '0.01'))}${field('Correction, kcal', numIn('st-adj', st.adjust || 0, '10'))}
@@ -5835,6 +5837,7 @@ function openSettings() {
     };
     b.querySelectorAll('#st-phase button').forEach(x => x.onclick = () => { phase = x.dataset.v; b.querySelectorAll('#st-phase button').forEach(y => y.classList.toggle('on', y === x)); prev(); });
     b.querySelectorAll('input').forEach(i => i.addEventListener('input', prev)); prev();
+    b.querySelector('#st-prof').onclick = () => openProfiles();
     b.querySelector('#st-save').onclick = () => writeConfig('settings', read()).then(() => { toast('Settings saved'); closeSheet(); }).catch(() => {});
     b.querySelector('#st-reset').onclick = () => { const notes = S.layout.filter(w => w.type === 'note'); S.layout = clone(DEFAULT_LAYOUT); const nn = S.layout.find(w => w.type === 'note'); if (nn && notes[0]) nn.cfg.text = notes[0].cfg.text; renderAll(); saveLayout(false); if (S.layoutMode === 'canvas') fit(); closeSheet(); };
     b.querySelector('#st-csv').onclick = exportCsv;
@@ -6271,13 +6274,14 @@ function scorePlan(P) {
   const parts = rows.map(r => r.sc).concat(cardio ? [cardio.sc] : []);
   return {rows, cardio, reps: all ? fit / all : 0, score: mean(parts), ok: rows.filter(r => r.state === 'ok').length, unmapped: [...unmapped], perSession: k, G};
 }
-function openPlanEditor() {
-  const base = S.plan ? clone(S.plan) : {name: 'New plan', sessions: [{code: 'A', name: 'Full body', ex: []}], start: today(), status: 'draft'};
+// o.plan / o.save / o.who: edit another profile's plan (27 Nov 2026); without them, your own plan in Health DB
+function openPlanEditor(o = {}) {
+  const base = o.plan ? clone(o.plan) : S.plan ? clone(S.plan) : {name: 'New plan', sessions: [{code: 'A', name: 'Full body', ex: []}], start: today(), status: 'draft'};
   const P = {goal: 'hypertrophy', perWeek: 4.5, priority: {}, cardioMin: 0, ...base};
   P.priority = {...DEFAULT_PRIORITY, ...(P.priority || {})};
   if (!GOALS[P.goal]) P.goal = 'hypertrophy';
   let openS = P.sessions[0]?.code;
-  openSheet('Split builder', b => {
+  openSheet('Split builder' + (o.who ? ' · ' + o.who : ''), b => {
     b.innerHTML = `<div class="sec"><h5>${term('focus', 'Mesocycle focus')}</h5><div class="seg wrap" id="pe-goal">${Object.entries(GOALS).map(([k, g]) => `<button type="button" data-g="${k}" class="${P.goal === k ? 'on' : ''}">${g.label}</button>`).join('')}</div><div class="cap" id="pe-gwhy"></div></div>
       <div class="sec"><h5>Presets</h5><div class="row wrap" style="gap:6px">${PRESETS.map(p => `<button type="button" class="btn sm" data-preset="${p.id}">${esc(p.label)}</button>`).join('')}</div><div class="cap">Replaces the sessions below and keeps your Grow/Keep choices. Nothing is saved until you press Save plan.</div></div>
       <div class="grid2">${field('Sessions per week', `<div class="row" style="gap:6px"><button class="icon-btn" data-pw="-0.5" aria-label="Fewer">−</button><b class="num" id="pe-pw" style="min-width:32px;text-align:center"></b><button class="icon-btn" data-pw="0.5" aria-label="More">+</button></div>`)}<div id="pe-cardio"></div></div>
@@ -6351,7 +6355,7 @@ function openPlanEditor() {
     b.querySelector('#pe-save').onclick = () => {
       const codes = P.sessions.map(s => s.code); if (new Set(codes).size !== codes.length) { toast('Two sessions share a code. Give each its own.', {err: true}); return; }
       P.sessions.forEach(s => { s.ex = s.ex.filter(e => String(e.n || '').trim()).map(e => ({...e, n: e.n.trim()})); });
-      writeConfig('plan', P).then(() => { toast('Plan saved'); closeSheet(); }).catch(() => {});
+      (o.save ? o.save(P) : writeConfig('plan', P)).then(() => { toast('Plan saved'); closeSheet(); if (o.after) o.after(); }).catch(() => {});
     };
     sessions(); score();
   }, {wide: true});
@@ -6485,13 +6489,99 @@ function openPhotos(view = 'sets') {
 }
 
 /* ============================================================
+   PROFILES (27 Nov 2026)
+   ============================================================
+   Sam: "add profiles to the dashboard… add a profile for [a friend]… make the main profile here Sam… the option to add
+   and remove and delete profiles". He chose: another person's profile holds their plan only (no food, weigh-ins or
+   logs), and only he sees it. So everything on the canvas stays his; a profile is opened in its own full-screen
+   page with the plan, edited in the same split builder, and kept in Health DB's 'profiles' document as
+   {list: [{id, name, main?, about?, doc?, plan?}]}. Nothing about another person is in this file: their details and
+   plan live in Health DB only. The main profile (Sam) can be renamed but not deleted.
+   New profiles can start from a plan template (generic exercises, sets and reps, no one's data). */
+const PROFILE_TEMPLATES = [
+  {id: 'fullbody-ab', label: 'Full body A/B, 3 days (beginner)', plan: {name: 'Full body A/B', goal: 'hypertrophy', perWeek: 3,
+    note: 'Three full-body sessions a week, A and B alternating (A B A, then B A B). New to lifting: weeks 1–4 leave 2–3 reps in the tank, from week 5 1–2. Every 9th week an easy week at half the sets. Plus 8,000–10,000 steps a day and two 20–30 min cardio sessions.',
+    rule: 'Every set inside the rep range. Add weight when the first set reaches the top of the range and the others are still inside it; next time the next weight up, back at the bottom of the range. Dumbbells +1 kg, machines one plate, cables the smallest step.',
+    sessions: [
+      {code: 'A', name: 'Full body A', rest: '2′ on the big lifts, 60–90″ on the small ones. A leg lift, then an upper-body lift, so each muscle rests while another works.',
+        ex: [['Leg press', 3, '10-12', 7, 2], ['Lat pulldown', 3, '10-12', 7, 2], ['Dumbbell Romanian deadlift', 3, '10-12', 7, 2], ['Seated dumbbell shoulder press', 2, '10-12', 7, 1.5], ['Hip thrust', 3, '10-12', 7, 2], ['Cable lateral raise', 2, '12-15', 8, 1], ['Plank (seconds)', 3, '30-45', 7, 1]]},
+      {code: 'B', name: 'Full body B', rest: '2′ on the big lifts, 60–90″ on the small ones.',
+        ex: [['Goblet squat', 3, '10-12', 7, 2], ['Seated cable row', 3, '10-12', 7, 2], ['Bulgarian split squat (each leg)', 2, '10', 7, 2], ['Incline dumbbell press', 3, '10-12', 7, 2], ['Seated leg curl', 2, '10-12', 8, 1.5], ['Hip abductor machine', 2, '12-15', 8, 1], ['Cable curl', 2, '12-15', 8, 1], ['Tricep pushdown', 2, '12-15', 8, 1], ['Dead bug (each side)', 2, '10', 7, 1]]}
+    ].map(x => ({...x, ex: x.ex.map(([n, sets, reps, rpe, rest]) => ({n, sets, reps, rpe, rest, opener: 'calibrate'}))}))}}
+];
+function profilesNorm(d) {
+  const list = (Array.isArray(d?.list) ? d.list : []).filter(p => p && p.id && p.name);
+  if (!list.some(p => p.main)) list.unshift({id: 'sam', name: 'Sam', main: true});
+  return {list};
+}
+const profilesList = () => (S.profiles || profilesNorm(null)).list;
+const mainProfile = () => profilesList().find(p => p.main);
+function profileBtn() { const el = $('#prof-name'); if (el) el.textContent = mainProfile()?.name || 'Sam'; }
+async function saveProfiles(list) {
+  const prev = S.profiles; S.profiles = {list};
+  try { await writeConfig('profiles', {list}); profileBtn(); }
+  catch (e) { S.profiles = prev; toast('Couldn’t save profiles: Health DB may need its latest update (the profiles PR).', {err: true}); throw e; }
+}
+function openProfiles() {
+  openSheet('Profiles', b => {
+    const draw = () => {
+      const list = profilesList();
+      b.innerHTML = `<div class="cap" style="margin-bottom:6px">You are the main profile: the canvas is yours. Anyone else's profile holds a plan you write for them, private to you.</div>
+        <div class="sec">${list.map(p => `<div class="prof-row" data-pid="${esc(p.id)}"><span class="nm">${esc(p.name)}${p.main ? ' <span class="cap">· main</span>' : ''}</span>${p.main ? '' : '<button class="btn sm" data-open>Open</button>'}<button class="btn sm ghost" data-ren>Rename</button>${p.main ? '' : '<button class="btn sm ghost" data-del>Delete</button>'}</div>`).join('')}</div>
+        <div class="sec"><h5>Add a profile</h5><div class="grid2">${field('Name', '<input class="inp" id="pf-name" placeholder="e.g. a friend you train">')}${field('Start from', `<select class="inp" id="pf-tpl"><option value="">An empty plan</option>${PROFILE_TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join('')}</select>`)}</div><button class="btn primary sm" id="pf-add">Add profile</button></div>`;
+      b.querySelectorAll('[data-pid]').forEach(row => {
+        const id = row.dataset.pid, p = profilesList().find(x => x.id === id);
+        row.querySelector('[data-open]')?.addEventListener('click', () => openProfile(id));
+        row.querySelector('[data-ren]').onclick = () => {
+          const nm = row.querySelector('.nm'); nm.innerHTML = `<input class="inp" value="${esc(p.name)}" style="max-width:220px">`; const inp = nm.querySelector('input'); inp.focus(); inp.select();
+          const done = () => { const v = inp.value.trim(); if (!v || v === p.name) return draw(); saveProfiles(profilesList().map(x => x.id === id ? {...x, name: v} : x)).then(draw, draw); };
+          inp.onkeydown = e => { if (e.key === 'Enter') done(); if (e.key === 'Escape') draw(); }; inp.onblur = done;
+        };
+        // delete asks twice in the row itself (no browser dialog): Delete → "Delete <name>? Yes"
+        const del = row.querySelector('[data-del]'); if (del) del.onclick = () => {
+          if (del.dataset.sure) return saveProfiles(profilesList().filter(x => x.id !== id)).then(() => { toast(`Deleted ${p.name}`); draw(); }, draw);
+          del.dataset.sure = 1; del.textContent = `Delete ${p.name}? Yes`; del.classList.remove('ghost');
+        };
+      });
+      b.querySelector('#pf-add').onclick = () => {
+        const name = b.querySelector('#pf-name').value.trim(); if (!name) return b.querySelector('#pf-name').focus();
+        const tpl = PROFILE_TEMPLATES.find(t => t.id === b.querySelector('#pf-tpl').value);
+        const id = normName(name).slice(0, 20) + '-' + uid().slice(-4);
+        saveProfiles([...profilesList(), {id, name, about: '', plan: tpl ? {...clone(tpl.plan), start: today(), status: 'active'} : {name: name + "'s plan", sessions: [{code: 'A', name: 'Full body', ex: []}], start: today(), status: 'draft'}}]).then(() => openProfile(id), () => {});
+      };
+    };
+    draw();
+  });
+}
+function openProfile(id) {
+  const p = profilesList().find(x => x.id === id); if (!p) return openProfiles();
+  const P = p.plan || {sessions: []};
+  let cur = P.sessions?.[0]?.code;
+  openSheet(p.name, b => {
+    const draw = () => {
+      const s = (P.sessions || []).find(x => x.code === cur) || P.sessions?.[0];
+      b.innerHTML = `<div class="row between" style="flex-wrap:wrap;gap:8px"><span class="cap">${esc(P.name || 'Plan')}${P.perWeek ? ` · ${fmt(P.perWeek, P.perWeek % 1 ? 1 : 0)} sessions a week` : ''}</span><span class="row" style="gap:6px">${p.doc ? `<a class="btn sm ghost" href="${esc(p.doc)}" target="_blank" rel="noopener">Their plan doc</a>` : ''}<button class="btn sm" data-edit>Edit plan</button><button class="btn sm ghost" data-back>All profiles</button></span></div>
+        <div class="sec">${field('About', `<textarea class="inp" id="pr-about" rows="2" placeholder="Height, goal, experience, anything the plan should respect">${esc(p.about || '')}</textarea>`)}</div>
+        ${P.sessions?.length ? `<div class="seg wrap" style="margin:6px 0 10px">${P.sessions.map(x => `<button type="button" data-tab="${esc(x.code)}" class="${x.code === s?.code ? 'on' : ''}">${esc(x.code)} · ${esc(x.name)}</button>`).join('')}</div>` : '<div class="empty">No sessions yet: Edit plan to build them.</div>'}
+        ${s ? `${s.rest ? `<div class="cap" style="margin-bottom:6px">Rest: ${esc(restLine(s))}</div>` : ''}<table class="extab"><tbody>${s.ex.map((e, i) => `<tr><td>${i + 1}. ${esc(e.n)}</td><td class="r">${e.sets}×${esc(e.reps)}${e.rpe ? ' @' + e.rpe : ''}<span class="dim"> · ${fmt(restMin(e), restMin(e) % 1 ? 1 : 0)}′</span></td></tr>`).join('')}</tbody></table>` : ''}
+        ${P.rule ? `<div class="sec"><h5>How to progress</h5><p class="cap">${esc(P.rule)}</p></div>` : ''}${P.note ? `<div class="sec"><h5>Notes</h5><p class="cap">${esc(P.note)}</p></div>` : ''}`;
+      b.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => { cur = x.dataset.tab; draw(); });
+      b.querySelector('[data-back]').onclick = () => openProfiles();
+      b.querySelector('[data-edit]').onclick = () => openPlanEditor({plan: P, who: p.name, save: plan => saveProfiles(profilesList().map(x => x.id === id ? {...x, plan} : x)), after: () => openProfile(id)});
+      const ab = b.querySelector('#pr-about'); let t; ab.oninput = () => { clearTimeout(t); t = setTimeout(() => saveProfiles(profilesList().map(x => x.id === id ? {...x, about: ab.value} : x)).catch(() => {}), 800); };
+    };
+    draw();
+  }, {wide: true});
+}
+
+/* ============================================================
    COACH: the weekly reviews (27 Nov 2026)
    ============================================================
    Sam: "every week he would give like feedback… a kind of retrospective of how the week has gone… typical coach style
    advice… to set you up for the next week", with "an icon in the top right… a little exclamation point or a number
    based on how many messages are there unread". The worker writes each review (weekly.js: Sunday 19:00 by itself,
-   /review in Telegram, or coach_review from Review now) and keeps the last 26 in the 'coach' config document; this
-   page shows them. What has been read is one time stamp, layout.coachSeen, so it's the same on the phone and the Mac.
+   /review in Telegram, or coach_review from Review now) and keeps the last 26 in the 'coach' config document; the
+   popup behind the whistle at the top right shows them. What has been read is one time stamp, layout.coachSeen, so it's the same on the phone and the Mac.
    Functional first, by his order: the mascot and its pop-out hello come later. */
 const coachMsgs = () => (S.coach?.msgs || []).slice().sort((a, b) => a.end < b.end ? -1 : a.end > b.end ? 1 : a.at - b.at);
 const coachUnread = () => coachMsgs().filter(m => +m.at > (+S.coachSeen || 0)).length;
@@ -6507,34 +6597,44 @@ function coachHtml(html) {
     else if (n.nodeType === 1) { if (keep.has(n.tagName)) { const e = document.createElement(n.tagName.toLowerCase()); walk(n, e); to.append(e); } else walk(n, to); } } };
   walk(t.content, out); return out;
 }
-const COACH_I = new Map();   // which review each widget (or the sheet) is showing; none = the latest
-function coachCard(b, inst) {
-  const key = inst ? inst.id : 'sheet', list = coachMsgs(), n = list.length;
-  if (!n) { b.innerHTML = `<div class="empty">No weekly review yet. The coach writes one every Sunday at 19:00${MCP ? ', or ask for one now' : ''}.${MCP ? '<div style="margin-top:10px"><button class="btn sm" data-ask>Review the last 7 days</button></div>' : ''}</div>`; const a = b.querySelector('[data-ask]'); if (a) a.onclick = () => coachAsk(a); return; }
-  const i = clamp(COACH_I.has(key) ? COACH_I.get(key) : n - 1, 0, n - 1), m = list[i], isNew = +m.at > (+S.coachSeen || 0);
-  b.innerHTML = `<div class="row between coach-nav"><span class="cap">${i === n - 1 ? 'Latest · ' : ''}${esc(m.title || (dShort(m.from) + ' – ' + dShort(m.end)))}${isNew ? ' <span class="coach-new">new</span>' : ''}</span><span class="row" style="gap:2px"><button class="icon-btn" data-cn="-1" title="The week before" ${i ? '' : 'disabled'}>‹</button><button class="icon-btn" data-cn="1" title="The week after" ${i < n - 1 ? '' : 'disabled'}>›</button></span></div><div class="coach-body" data-cb></div>`;
-  b.querySelector('[data-cb]').append(coachHtml(m.html));
-  b.querySelectorAll('[data-cn]').forEach(x => x.onclick = () => { COACH_I.set(key, clamp(i + +x.dataset.cn, 0, n - 1)); inst ? renderWidget(inst.id) : coachCard(b, null); });
-  // reading it in a widget counts as read once it's touched; the sheet marks it read on opening
-  if (inst) b.onpointerdown = () => coachMarkSeen();
+/* The popup is the coach's one home (27 Nov 2026, Sam: "I don't want to use the widget… just a little button at the
+   top… make this the centre"; the widget from earlier that day is gone). It opens on the latest review with
+   ‹ › for earlier weeks and Review now at the top, and a new review replaces the one on screen in place. */
+let COACH_I = null;   // which review the popup shows; null = the latest
+function coachCard(b) {
+  const list = coachMsgs(), n = list.length;
+  const ask = MCP ? '<button class="btn sm" data-ask title="The coach reviews the last 7 days now">Review now</button>' : '';
+  if (!n) { b.innerHTML = `<div class="row between coach-nav"><span class="cap">No weekly review yet</span>${ask}</div><div class="empty" style="text-align:left">The coach writes one every Sunday at 19:00 (it comes to Telegram too)${MCP ? ', or press Review now for the last 7 days' : ''}.</div>`; }
+  else {
+    const i = clamp(COACH_I ?? n - 1, 0, n - 1), m = list[i], isNew = +m.at > (+S.coachSeen || 0);
+    b.innerHTML = `<div class="row between coach-nav"><span class="row" style="gap:2px;align-items:center"><button class="icon-btn" data-cn="-1" title="The week before" ${i ? '' : 'disabled'}>‹</button><span class="cap">${i === n - 1 ? 'Latest · ' : ''}${esc(m.title || (dShort(m.from) + ' – ' + dShort(m.end)))}${isNew ? ' <span class="coach-new">new</span>' : ''}</span><button class="icon-btn" data-cn="1" title="The week after" ${i < n - 1 ? '' : 'disabled'}>›</button></span>${ask}</div><div class="coach-body" data-cb></div>`;
+    b.querySelector('[data-cb]').append(coachHtml(m.html));
+    b.querySelectorAll('[data-cn]').forEach(x => x.onclick = () => { COACH_I = clamp(i + +x.dataset.cn, 0, n - 1); coachCard(b); });
+  }
+  const a = b.querySelector('[data-ask]'); if (a) a.onclick = () => coachAsk(a, b);
 }
 function openCoach() {
-  openSheet('Coach', b => { const box = document.createElement('div'); box.className = 'coach-wrap'; b.append(box); coachCard(box, null);
-    if (MCP) { const r = document.createElement('div'); r.className = 'row'; r.style.cssText = 'gap:8px;margin-top:12px'; r.innerHTML = '<button class="btn sm ghost" data-ask>Review the last 7 days now</button>'; box.append(r); r.querySelector('[data-ask]').onclick = e => coachAsk(e.currentTarget); } }, {wide: true});
+  COACH_I = null;
+  openSheet('Coach', b => { const box = document.createElement('div'); box.className = 'coach-wrap'; b.append(box); coachCard(box); }, {wide: true});
   coachMarkSeen();
 }
-async function coachAsk(btn) {
+async function coachAsk(btn, box) {
   if (!MCP) return toast('Reviews need Health DB: open this page in Claude with the connector.');
   if (btn) { btn.disabled = true; btn.textContent = 'The coach is writing…'; }
   try {
     /* coach_review first; if the connector doesn't list it yet (it keeps the tool list it read for a while after a
-       deploy: "Tool is not available on this connector", 27 Nov 2026), the same review through put_config, which it has */
-    try { await MCP.callTool(SRV, 'coach_review', {}, {cache: false}); }
-    catch (e1) { await MCP.callTool(SRV, 'put_config', {id: 'coach', doc: {ask: true}}, {cache: false}); }
+       deploy: "Tool is not available on this connector", 27 Nov 2026), the same review through put_config, which it
+       has. Either answer must carry the review's HTML: an older worker took {ask: true} as a document to store and
+       answered without one, which is what made "written" appear with nothing to show (27 Nov 2026, 18:45). */
+    let r1;
+    try { r1 = await MCP.callTool(SRV, 'coach_review', {}, {cache: false}); }
+    catch (e1) { r1 = await MCP.callTool(SRV, 'put_config', {id: 'coach', doc: {ask: true}}, {cache: false}); }
+    if (!r1?.payload?.html) throw new Error('Health DB answered without a review: it may still be deploying, try again in a minute');
     const r = await MCP.callTool(SRV, 'get_snapshot', {since: S.rev}, {cache: false}); applySnapshot(r.payload || {}, false);
-    COACH_I.clear(); renderAll(); if (!$('#sheet').hidden && $('#sheet-t').textContent === 'Coach') openCoach();
+    COACH_I = null; coachMarkSeen(); renderAll();
+    if (box && box.isConnected) coachCard(box);
     toast('The coach has reviewed the last 7 days');
-  } catch (e) { toast('The coach couldn’t write a review: ' + (e?.message || 'try again')); if (btn) { btn.disabled = false; btn.textContent = 'Review the last 7 days'; } }
+  } catch (e) { toast('The coach couldn’t write a review: ' + (e?.message || 'try again')); if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = 'Review now'; } }
 }
 
 /* ============================================================
@@ -6614,7 +6714,7 @@ function openHelp(tab = 'why') {
           if (!wk.length) return '';
           const now = cardioWeek(cur);
           return ` Yours, full weeks, in equivalent minutes: ${wk.map(x => B(fmt(x.c.min)) + (x.away ? ' (' + x.away + ' day' + (x.away === 1 ? '' : 's') + ' away)' : '')).join(', ')} minutes, week of ${dShort(wk[0].m)} on; ${wk.filter(x => x.c.min >= CARDIO_TARGET).length} of ${wk.length} at ${CARDIO_TARGET}. This week so far: ${fmt(now.min)}. With 5–6 gym sessions a week, 25–30 minutes after each one gets there at a steady pace, or 15 if it’s vigorous.`; })()}</p>
-        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 72.4) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 72.4, 0)} kg: both vigorous, as long as you don’t hold the rails.</p>
+        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 75) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 75, 0)} kg: both vigorous, as long as you don’t hold the rails.</p>
         <p>${B('How the page counts it (27 Nov 2026, your choice: one number in the WHO’s terms).')} Every session gets an intensity, from the first of these it has: average watts on a bike; speed and incline on a treadmill or run; how it felt (“easy”, “could chat”, “hard”, “out of breath”, or How hard in the cardio sheet); the kind (football and runs vigorous, golf light, the rest moderate). Light (under 3 METs) shows but doesn’t count; moderate counts once; vigorous counts twice. So the meter reads equivalent minutes: 45 minutes at 110 W is 90 towards the 150. On the Training log a vigorous session stands twice as tall in a deeper blue, and hovering a day gives each session’s basis (“110 W ≈ 6.7 METs, vigorous ×2”). Tell the bot the watts, the speed and incline, or how hard it was; with nothing to go on, a session counts as moderate.</p>
         <p>For a recomp the limit is practical, not medical. A 2022 meta-analysis of 43 studies found cardio alongside lifting did ${B('not')} reduce muscle growth or maximal strength. It did blunt explosive power, mainly when both were done in the same session, and not when they were 3+ hours apart (Schumann et al. 2022). An older one found the interference grows with how often and how long the cardio is, and with running more than cycling (Wilson et al. 2012). Past about ${CARDIO_CEIL} minutes, recovery and the extra calories start to compete with muscle gain.</p>
         <p>So: mostly steady cardio (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>

@@ -29,7 +29,7 @@ export const TOOLS = [
       const doc = await putDay(env, { ...a.doc, date: a.date, updated: Math.max(cur?.updated || 0, a.doc.updated || 0) });
       return { ok: true, doc, rev: await getRev(env) };
     } },
-  { name: 'put_config', description: 'Replace a config document: settings, library, plan, layout, supplements, away or coach. For coach, doc {ask: true} writes the weekly review (as coach_review) instead of replacing the reviews.',
+  { name: 'put_config', description: 'Replace a config document: settings, library, plan, layout, supplements, away, coach or profiles (other people Sam writes plans for: {list:[{id, name, main?, about?, doc?, plan?}]}). For coach, doc {ask: true} writes the weekly review (as coach_review) instead of replacing the reviews.',
     inputSchema: { type: 'object', properties: { id: { type: 'string', enum: CONFIG_IDS }, doc: { type: 'object' } }, required: ['id', 'doc'] },
     run: async (env, a) => {
       if (!CONFIG_IDS.includes(a.id)) throw new Error('unknown config id');

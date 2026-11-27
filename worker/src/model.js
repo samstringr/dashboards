@@ -80,7 +80,8 @@ export function cardioIntensity(w, kg) {
   if (!mph && ['run', 'walk'].includes(w.kind) && +w.km > 0 && +w.min > 0) mph = w.km / w.min * 60 / 1.609;   // distance and time give the speed
   const grade = w.incline_pct != null ? +w.incline_pct : (num(/(\d+(?:\.\d+)?)\s*%/) ?? num(/incline\s*(\d+(?:\.\d+)?)/i) ?? 0);
   let met = null, basis;
-  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 72.4) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
+  // (75 kg stands in only until there's a weigh-in)
+  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 75) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
   else if (mph > 0) { const v = mph * 26.8, g = grade / 100; met = (mph <= 3.7 ? .1 * v + 1.8 * v * g + 3.5 : .2 * v + .9 * v * g + 3.5) / 3.5; basis = (grade ? r1(grade) + '% at ' : '') + r1(mph) + ' mph'; }
   const kindBand = w.kind === 'golf' ? 'light' : ['football', 'run'].includes(w.kind) ? 'vigorous' : 'moderate';
   const band = met != null ? (met < 3 ? 'light' : met < 6 ? 'moderate' : 'vigorous') : ['light', 'moderate', 'vigorous'].includes(w.effort) ? w.effort : kindBand;

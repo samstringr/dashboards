@@ -26,11 +26,11 @@ check('remove: whole words match', matchScore('chocolate', 'Milk chocolate, 2 sq
 check('remove: a 4+ letter start counts half, unrelated words none', matchScore('choc', 'Milk chocolate') === .5 && matchScore('banana', 'Test apple, made up') === 0 && matchScore('', 'Cheddar') === 0);
 // 27 Nov 2026: cardio intensity. Vigorous minutes count twice, light ones not at all (WHO: 150 moderate = 75 vigorous)
 import { cardioIntensity } from '../src/model.js';
-{ const walk = cardioIntensity({ kind: 'walk', label: 'Cardio: incline walk 12% at 3 mph', note: 'Incline 12, 3 mph', min: 21 }, 72.4);
-  const bike = cardioIntensity({ kind: 'cycle', label: 'Cycling', note: 'Average 110 W', min: 45 }, 72.4);
-  const easyBike = cardioIntensity({ kind: 'cycle', label: 'Cycling', watts: 50, min: 30 }, 72.4);
+{ const walk = cardioIntensity({ kind: 'walk', label: 'Cardio: incline walk 12% at 3 mph', note: 'Incline 12, 3 mph', min: 21 }, 75);
+  const bike = cardioIntensity({ kind: 'cycle', label: 'Cycling', note: 'Average 110 W', min: 45 }, 75);
+  const easyBike = cardioIntensity({ kind: 'cycle', label: 'Cycling', watts: 50, min: 30 }, 75);
   check('intensity: 12% at 3 mph ≈ 8.3 METs, vigorous, 21 min counts 42', walk.met === 8.3 && walk.band === 'vigorous' && walk.eq === 42 && walk.basis === '12% at 3 mph', JSON.stringify(walk));
-  check('intensity: 110 W at 72.4 kg ≈ 6.7 METs, vigorous; 50 W moderate', bike.met === 6.7 && bike.band === 'vigorous' && bike.eq === 90 && easyBike.band === 'moderate' && easyBike.eq === 30, JSON.stringify([bike, easyBike]));
+  check('intensity: 110 W at 75 kg ≈ 6.5 METs, vigorous; 50 W moderate', bike.met === 6.5 && bike.band === 'vigorous' && bike.eq === 90 && easyBike.band === 'moderate' && easyBike.eq === 30, JSON.stringify([bike, easyBike]));
   const felt = cardioIntensity({ kind: 'swim', min: 30, effort: 'vigorous' }), none = cardioIntensity({ kind: 'swim', min: 30 }), golf = cardioIntensity({ kind: 'golf', min: 120 }), ball = cardioIntensity({ kind: 'football', min: 60 }), kmh = cardioIntensity({ kind: 'run', label: 'Run', note: '10 km/h, flat', min: 30 });
   check('intensity: by feel, by kind, golf light, km/h converted', felt.eq === 60 && none.band === 'moderate' && none.eq === 30 && golf.eq === 0 && golf.band === 'light' && ball.eq === 120 && kmh.band === 'vigorous' && kmh.met > 9, JSON.stringify({ felt, none, golf, ball, kmh }));
 }
@@ -42,6 +42,11 @@ import { energyBalance, balanceLine } from '../src/weekly.js';
   check('weekly: steady weight on the target = maintenance, said as the plan working', bf.verdict === 'in' && lf.good && /that's your maintenance/.test(lf.text) && /executing the plan/.test(lf.text), lf.text);
   const lo = balanceLine({ eb: energyBalance({ settings: { phase: 'recomp' }, config: {}, days: mk(() => 72.5, 2200) }, T0), T: { ok: true, kcal: 2600 } });
   check('weekly: steady weight well under the target = maintenance is lower than the target, said so', lo.good && /400 under the 2,600 target/.test(lo.text), lo.text);
+  // the 27 Nov case: one high weigh-in alone in an early week doesn't make a flat month read as a deficit
+  // made-up weights
+  const spike = { settings: { phase: 'recomp' }, config: {}, days: Array.from({ length: 26 }, (_, i) => ({ date: D(i + 1), items: [{ kcal: 2600, p: 155 }], body: i % 2 ? undefined : { w: i === 18 ? 81.2 : [80.1, 79.7, 79.9, 80.3, 80.0, 79.6][i % 6] } })) };
+  const bs = energyBalance(spike, T0);
+  check('weekly: one odd weigh-in can\'t swing the four-week trend', bs && bs.verdict === 'in' && Math.abs(bs.slope) < 0.125, JSON.stringify(bs && { slope: bs.slope, v: bs.verdict, n: bs.weighins }));
   check('weekly: weight falling on a recomp = a deficit, with its size and the target', bd.verdict === 'below' && !ld.good && /under maintenance/.test(ld.text) && /Aim for the full 2,600/.test(ld.text), ld.text);
 }
 // double progression with sets to failure
