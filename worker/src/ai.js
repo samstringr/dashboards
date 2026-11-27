@@ -73,7 +73,9 @@ export function exerciseNames(ctx) {
   return [...m.values()];
 }
 const ITEM = `{"name":str,"qty":num,"unit":"g"|"ml"|"serving","kcal":num,"p":num,"c":num,"f":num,"libId":str|null,"ref":str|null,"estimated":bool,"research":bool}`;
-export const SCHEMA = `{"intent":"food"|"weight"|"workout"|"recipe"|"preset"|"howmuch"|"supps"|"away"|"photo"|"answer",
+export const SCHEMA = `{"intent":"food"|"weight"|"workout"|"recipe"|"preset"|"howmuch"|"supps"|"away"|"photo"|"day"|"remove"|"answer",
+ "day":{"date":"YYYY-MM-DD"},
+ "remove":{"date":"YYYY-MM-DD","what":str|null},
  "photo":{"pose":"front"|"side"|"back"|"frontflex"|"backflex"|null},
  "food":{"date":"YYYY-MM-DD","items":[${ITEM}],"assumptions":[str],"ask":str|null},
  "weight":{"date":"YYYY-MM-DD","weight_kg":num|null,"bf_pct":num|null,"smm_kg":num|null,"smm_pct":num|null,"waist_cm":num|null,"extra":{"muscle_kg":num,"ffm_kg":num,"visceral":num,"water_pct":num,"bone_kg":num,"bmr_kcal":num,"bmi":num,"metabolic_age":num,"protein_pct":num,"subq_pct":num}},
@@ -108,6 +110,8 @@ Rules:
 - workout: golf of any kind (driving range, range session, hitting balls, putting or chipping practice, a round) → kind "golf", label "Golf: driving range" for range practice, "Golf: round" for a round, "Golf" otherwise; minutes from the message (2 hours = 120); what he practised (irons, driver, putting) goes in the note.
 - supps: whenever Sam says he took supplements, add "supps" with the SUPPLEMENT ids he named: "all supplements taken", "took all my supps", "took my vitamins", "had everything" = all of them; "creatine taken", "took my magnesium" = just that one; "all except magnesium" = the rest. Include it alongside the main intent if the message also logs food etc. A message only about supplements has intent "supps"; "what have I taken?" is intent "supps" with taken [].
 - away: going on holiday or away ("away until the 28th", "on holiday for a week" = to is today+6) → from/to dates, note like "Holiday". "I'm back" → back true.
+- day: asking to see a day ("summary of today", "what did I eat yesterday", "show me Wednesday", "how did Monday go") → date. A question about how much is left or what to eat is howmuch or answer, not day.
+- remove: taking something already logged back out ("remove the chocolate from Wednesday", "delete the golf", "I didn't actually have the second coffee", "scrap yesterday's burger") → date of the day it was logged on and what = his words for it ("chocolate", "golf"). "I want to remove some things from yesterday" → what null. If a PENDING PROPOSAL is shown and he means an item in it, that is a correction of the proposal, not remove.
 - Messages are typed fast or come from voice notes: expect typos and odd spellings ("boineless" = boneless, "hines" = Heinz, "thge" = the) and spoken numbers.
 - answer: for other questions or chat. Max 80 words, numbers first, British English, direct. Use CONTEXT only.
 - Dates: "yesterday", weekday names etc. are relative to today. Default date is today.

@@ -20,6 +20,10 @@ import { restMin, restLine } from '../src/model.js';
 check('rest: plan value wins', restMin({ reps: '8-12', rest: 3 }) === 3 && restMin({ reps: '6-10', rest: 2 }) === 2);
 check('rest: rule without one', restMin({ reps: '6-10' }) === 3 && restMin({ reps: '8-12' }) === 2 && restMin({}) === 2);
 check('rest: one-liner is the first sentence', restLine({ rest: '3′ on the press, 2′ on everything else. Why it is so.' }) === '3′ on the press, 2′ on everything else.' && restLine({}) === '');
+// 27 Nov 2026: "remove the chocolate": which logged thing his words point at
+import { matchScore } from '../src/edit.js';
+check('remove: whole words match', matchScore('chocolate', 'Milk chocolate, 2 squares') === 1 && matchScore('the golf', 'Golf: driving range') === 1);
+check('remove: a 4+ letter start counts half, unrelated words none', matchScore('choc', 'Milk chocolate') === .5 && matchScore('banana', 'Test apple, made up') === 0 && matchScore('', 'Cheddar') === 0);
 // double progression with sets to failure
 import { addLoadDue } from '../src/model.js';
 const pe9 = { reps: '8-12', rpe: 9 }, pe10 = { reps: '10-15', rpe: 10 };

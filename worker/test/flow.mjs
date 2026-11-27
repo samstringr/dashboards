@@ -58,7 +58,7 @@ await reset();
 const u = { update_id: 777777, message: { message_id: 1, from: { id: 5016806156 }, chat: { id: 5016806156 }, text: '/today' } };
 for (let i = 0; i < 2; i++) await fetch(W + '/telegram', { method: 'POST', headers: { 'x-telegram-bot-api-secret-token': secret, 'content-type': 'application/json' }, body: JSON.stringify(u) });
 check('duplicate update processed once', (await calls()).filter(c => c.method === 'sendMessage').length === 1);
-check('/today replies', /Protein|Nothing logged yet/.test((await lastMsg()).text), (await lastMsg()).text.split('\n').slice(0, 2).join(' | '));
+check('/today replies', /Protein|No food logged/.test((await lastMsg()).text), (await lastMsg()).text.split('\n').slice(0, 2).join(' | '));
 
 // --- unknown dish → research → proposal → correction → confirm
 await reset();
@@ -424,6 +424,34 @@ check('backup writes json + csv to GitHub', bk.ok && cs.filter(c => c.api === 'g
 await reset();
 const bk2 = await (await fetch(W + '/__test/backup')).json();
 check('backup skips when unchanged', bk2.skipped === true);
+// 27 Nov 2026: the day card. Summary, Edit, ✕ to remove, Put back, and "remove X" by words. Made-up foods.
+{ const kbTxt = x => (x?.reply_markup?.inline_keyboard || []).flat().map(b => b.text + '=' + b.callback_data);
+  const lastEdit = async () => (await calls()).filter(c => c.api === 'tg' && c.method === 'editMessageText').pop()?.body;
+  const items = async () => ((await tool('get_day', { date: TD })).day?.items || []).map(i => i.n);
+  await tool('log_food', { date: TD, items: [{ name: 'Test quince paste, made up', qty: 30, unit: 'g', kcal: 75, p: 0, c: 18, f: 0 }, { name: 'Test apple, made up', qty: 1, unit: 'serving', kcal: 80, p: 0, c: 20, f: 0 }] });
+  await reset(); await tgSend({ text: '/today' });
+  let m = await lastMsg();
+  check('/today: a day card listing the food, with ◀ and ✏️ Edit', /Test quince/.test(m.text) && kbTxt(m).some(x => /^✏️ Edit=de:/.test(x)) && kbTxt(m).some(x => /^◀=dv:/.test(x)) && !kbTxt(m).some(x => /^▶/.test(x)), kbTxt(m).join(' '));
+  await reset(); await tgCb('de:' + TD);
+  let ed = await lastEdit(); const rm = kbTxt(ed).find(x => /^✕ Test apple/.test(x));
+  check('✏️ Edit: the same message turns into one ✕ per item', !!rm && kbTxt(ed).some(x => /^✕ Test quince/.test(x)) && kbTxt(ed).some(x => /^✓ Done=dv:/.test(x)), kbTxt(ed).slice(-3).join(' | '));
+  await reset(); await tgCb(rm.split('=')[1]);
+  ed = await lastEdit();
+  check('✕ removes at once; the card says so and offers Put back', !(await items()).some(n => /Test apple/.test(n)) && /Removed: <b>Test apple/.test(ed?.text || '') && kbTxt(ed).some(x => /^↩ Put back=pb:/.test(x)), (ed?.text || '').split('\n')[1]);
+  await reset(); await tgCb(kbTxt(ed).find(x => /^↩ Put back/.test(x)).split('=')[1]);
+  check('↩ Put back restores it', (await items()).some(n => /Test apple/.test(n)), (await lastEdit())?.text.split('\n')[1]);
+  await reset(); await tgSend({ text: 'remove the quince test' });
+  m = await lastMsg();
+  check('"remove the quince": the one clear match goes, shown with Put back', !(await items()).some(n => /Test quince/.test(n)) && /Removed: <b>Test quince/.test(m.text) && kbTxt(m).some(x => /^↩ Put back/.test(x)), m.text.split('\n')[1]);
+  await reset(); await tgSend({ text: '/undo' });
+  check('/undo puts a removal back too', (await items()).some(n => /Test quince/.test(n)) && /Undone/.test((await lastMsg())?.text || ''), (await lastMsg())?.text);
+  await reset(); await tgSend({ text: 'remove the banana test' });
+  m = await lastMsg(); const n0 = (await items()).length;
+  check('no match: nothing removed, the ✕ list opens to pick from', /Which one\?/.test(m.text) && kbTxt(m).some(x => /^✕ /.test(x)) && (await items()).length === n0, m.text.split('\n')[1]);
+  await reset(); await tgSend({ text: 'summary of today test' });
+  m = await lastMsg();
+  check('"summary of today": the day card', /Test quince/.test(m.text) && kbTxt(m).some(x => /^✏️ Edit/.test(x)), m.text.split('\n')[0]);
+}
 // setup page
 const st = await fetch(W + '/setup?key=testkey'); const stt = await st.text();
 check('setup registers webhook', st.status === 200 && /connected/.test(stt));

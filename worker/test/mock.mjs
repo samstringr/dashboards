@@ -42,6 +42,12 @@ const claudeReply = (body) => {
     else if (/protein shake plus/i.test(txt)) out = { intent: 'food', food: { date: td, items: [{ name: 'Overnight oats', qty: 1, unit: 'serving', libId: 'oats', ref: null, estimated: false, research: false }, { name: 'Protein powder', qty: 30, unit: 'g', libId: 'powder', ref: null, estimated: false, research: false }] } };
     else if (/how much/i.test(txt)) out = { intent: 'howmuch', howmuch: { date: td, food: { name: 'pork belly', libId: null, ref: recent(/pork belly/i), per: null }, aim: 'close', have: { qty: 300, unit: 'g' } } };
   }
+  // 27 Nov 2026: the day card. Made-up phrases so they can't clash with real messages.
+  if (!/You estimate nutrition/.test(sys)) {
+    if (/remove the quince test/i.test(first)) out = { intent: 'remove', remove: { date: td, what: 'quince' } };
+    else if (/remove the banana test/i.test(first)) out = { intent: 'remove', remove: { date: td, what: 'banana' } };
+    else if (/summary of today test/i.test(first)) out = { intent: 'day', day: { date: td } };
+  }
   if (out) return { content: [{ type: 'text', text: JSON.stringify(out) }], stop_reason: 'end_turn' };
   if (/You estimate nutrition/.test(sys)) {
     const beef = /beef/i.test(txt);
