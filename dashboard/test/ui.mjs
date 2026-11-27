@@ -501,6 +501,34 @@ if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part o
   check('coach: an answer without a review says so instead of "written"', /answered without a review/.test(t4), t4);
   await page.evaluate(() => { window.__blockTools = []; window.__stripHtml = false; }); await page.click('#sheet-x');
 }
+// 27 Nov 2026: profiles. Add one from the template (made-up name), open it, rename, delete; the main profile stays
+{ await page.evaluate(() => document.querySelector('[data-act=settings]').click()); await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector('#st-prof').click()); await page.waitForTimeout(400);
+  const p0 = await page.evaluate(() => ({ t: document.querySelector('#sheet-t')?.textContent, rows: [...document.querySelectorAll('#sheet-b [data-pid]')].map(r => r.innerText.replace(/\s+/g, ' ')) }));
+  await page.fill('#pf-name', 'Test Friend'); await page.selectOption('#pf-tpl', 'fullbody-ab');
+  await page.evaluate(() => document.querySelector('#pf-add').click()); await page.waitForTimeout(1200);
+  const p1 = await page.evaluate(() => ({ t: document.querySelector('#sheet-t')?.textContent, tabs: [...document.querySelectorAll('#sheet-b [data-tab]')].map(x => x.textContent), rows: document.querySelectorAll('#sheet-b .extab tr').length, first: document.querySelector('#sheet-b .extab tr')?.innerText.replace(/\s+/g, ' ') }));
+  let prof = (await mcpNode('get_snapshot', {})).structuredContent.config.profiles?.list || [];
+  check('profiles: main profile Sam; a new one from the template opens on its plan (A and B), saved in Health DB', p0.t === 'Profiles' && /Sam · main/.test(p0.rows.join('|')) && p1.t === 'Test Friend' && p1.tabs.length === 2 && p1.rows === 7 && /Leg press 3×10-12 @7 · 2′/.test(p1.first) && prof.length === 2 && prof.some(x => x.main && x.name === 'Sam') && prof.some(x => x.name === 'Test Friend' && x.plan?.sessions?.length === 2), JSON.stringify({ p0, p1, n: prof.length }));
+  await page.fill('#pr-about', 'Made-up: 170 cm, new to lifting'); await page.waitForTimeout(1500);
+  await page.evaluate(() => document.querySelector('#sheet-b [data-tab="B"]').click()); await page.waitForTimeout(200);
+  const pb = await page.evaluate(() => document.querySelectorAll('#sheet-b .extab tr').length);
+  prof = (await mcpNode('get_snapshot', {})).structuredContent.config.profiles?.list || [];
+  check('profiles: About saves; session B has its 9 lifts', pb === 9 && prof.find(x => x.name === 'Test Friend')?.about === 'Made-up: 170 cm, new to lifting', JSON.stringify({ pb, about: prof.find(x => x.name === 'Test Friend')?.about }));
+  const ownPlan0 = JSON.stringify((await mcpNode('get_snapshot', {})).structuredContent.config.plan);
+  await page.evaluate(() => document.querySelector('#sheet-b [data-edit]').click()); await page.waitForTimeout(500);
+  const et = await page.evaluate(() => document.querySelector('#sheet-t')?.textContent);
+  await page.evaluate(() => document.querySelector('#pe-save').click()); await page.waitForTimeout(1500);
+  const snap2 = (await mcpNode('get_snapshot', {})).structuredContent.config, back = await page.evaluate(() => document.querySelector('#sheet-t')?.textContent);
+  check('profiles: Edit plan opens the split builder for them; saving changes their plan, never yours', et === 'Split builder · Test Friend' && back === 'Test Friend' && JSON.stringify(snap2.plan) === ownPlan0 && snap2.profiles.list.find(x => x.name === 'Test Friend')?.plan?.sessions?.length === 2, JSON.stringify({ et, back }));
+  await page.evaluate(() => document.querySelector('#sheet-b [data-back]').click()); await page.waitForTimeout(300);
+  await page.evaluate(() => { const r = [...document.querySelectorAll('#sheet-b [data-pid]')].find(x => /Test Friend/.test(x.innerText)); r.querySelector('[data-del]').click(); }); await page.waitForTimeout(200);
+  const mid = (await mcpNode('get_snapshot', {})).structuredContent.config.profiles?.list.length;
+  await page.evaluate(() => { const r = [...document.querySelectorAll('#sheet-b [data-pid]')].find(x => /Test Friend/.test(x.innerText)); r.querySelector('[data-del]').click(); }); await page.waitForTimeout(1200);
+  prof = (await mcpNode('get_snapshot', {})).structuredContent.config.profiles?.list || [];
+  check('profiles: Delete asks once in the row, then deletes; Sam has no Delete', mid === 2 && prof.length === 1 && prof[0].main && await page.evaluate(() => !document.querySelector('#sheet-b [data-pid=sam] [data-del]')), JSON.stringify({ mid, after: prof.map(x => x.name) }));
+  await page.click('#sheet-x');
+}
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();
 console.log(out.join('\n')); console.log(fails ? fails + ' FAILED' : 'ALL PASSED');

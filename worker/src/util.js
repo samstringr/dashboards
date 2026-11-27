@@ -2,7 +2,7 @@
 import { tg } from './bot.js';
 
 export const TZ = 'Europe/London';
-export const CONFIG_IDS = ['settings', 'library', 'plan', 'layout', 'supplements', 'away', 'coach'];   // coach: the weekly reviews (weekly.js, 27 Nov 2026)
+export const CONFIG_IDS = ['settings', 'library', 'plan', 'layout', 'supplements', 'away', 'coach', 'profiles'];   // coach: the weekly reviews (weekly.js, 27 Nov 2026)
 /* ============================================================ helpers */
 export const text = (s, status = 200) => new Response(s, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 export const json = (o, status = 200, headers = {}) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', ...headers } });
