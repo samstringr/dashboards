@@ -29,9 +29,15 @@ export const TOOLS = [
       const doc = await putDay(env, { ...a.doc, date: a.date, updated: Math.max(cur?.updated || 0, a.doc.updated || 0) });
       return { ok: true, doc, rev: await getRev(env) };
     } },
-  { name: 'put_config', description: 'Replace a config document: settings, library, plan, layout, supplements or away.',
+  { name: 'put_config', description: 'Replace a config document: settings, library, plan, layout, supplements, away or coach. For coach, doc {ask: true} writes the weekly review (as coach_review) instead of replacing the reviews.',
     inputSchema: { type: 'object', properties: { id: { type: 'string', enum: CONFIG_IDS }, doc: { type: 'object' } }, required: ['id', 'doc'] },
-    run: async (env, a) => { if (!CONFIG_IDS.includes(a.id)) throw new Error('unknown config id'); await putConfig(env, a.id, a.doc); return { ok: true, rev: await getRev(env) }; } },
+    run: async (env, a) => {
+      if (!CONFIG_IDS.includes(a.id)) throw new Error('unknown config id');
+      /* {id: 'coach', doc: {ask: true}} asks for a review instead of replacing the reviews (27 Nov 2026). WHY: a
+         connector keeps the tool list it read for a while after a deploy, so the dashboard's Review now got "Tool is not
+         available on this connector" for the new coach_review; put_config is a tool every connector already has. */
+      if (a.id === 'coach' && a.doc?.ask) return { ok: true, html: await weeklyReview(env, await loadCtx(env), validDate(a.doc.end, today())), rev: await getRev(env) };
+      await putConfig(env, a.id, a.doc); return { ok: true, rev: await getRev(env) }; } },
   { name: 'import_data', description: 'Bulk import day and config documents (used once, to move data in). mode "missing" only adds what is not already stored.',
     inputSchema: { type: 'object', properties: { days: { type: 'array', items: { type: 'object' } }, config: { type: 'object' }, mode: { type: 'string', enum: ['missing', 'replace'] } }, required: ['days'] },
     run: async (env, a) => {

@@ -468,6 +468,8 @@ check('backup skips when unchanged', bk2.skipped === true);
   const r = await tool('coach_review', {}), snap = await tool('get_snapshot', {}), msgs = snap.config.coach?.msgs || [];
   check('coach_review: writes the week, keeps it in config.coach, not sent to Telegram', /Your week/.test(r.html) && /🏃 <b>\d+<\/b> \/ 150 min cardio/.test(r.html) && msgs.length >= 1 && msgs[msgs.length - 1].end === TD && !(await calls()).some(c => c.api === 'tg' && c.method === 'sendMessage' && /Your week/.test(c.body.text)), JSON.stringify({ n: msgs.length, end: msgs[msgs.length - 1]?.end }));
   await tool('coach_review', {});
+  const viaPut = await tool('put_config', { id: 'coach', doc: { ask: true } }), after = (await tool('get_snapshot', {})).config.coach;
+  check('put_config coach {ask}: writes the review the same way and never stores {ask}', /Your week/.test(viaPut.html || '') && Array.isArray(after?.msgs) && after.msgs.length >= 1 && !after.ask, JSON.stringify({ n: after?.msgs?.length, ask: after?.ask }));
   check('coach_review: the same week again replaces, not duplicates', ((await tool('get_snapshot', {})).config.coach?.msgs || []).filter(m => m.end === TD).length === 1);
 }
 // setup page

@@ -41,6 +41,7 @@ await page.addInitScript(mode => { window.__F3D_STATIC = true;
   localStorage.setItem('hf.mode', JSON.stringify(mode));
   const call = async (server, tool, input) => {
     window.__calls = (window.__calls || []).concat(tool);
+    if ((window.__blockTools || []).includes(tool)) throw { code: 'tool_unavailable', message: 'Tool is not available on this connector or is blocked by your organization' };   // a connector with a stale tool list
     const r = JSON.parse(await window.__mcp(tool, input || {}));
     if (r.isError) throw { code: 'tool_error', message: r.content[0].text };
     return { content: r.content, structuredContent: r.structuredContent, payload: r.structuredContent };
@@ -478,6 +479,13 @@ if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part o
   await page.waitForTimeout(1200); const seen = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.coachSeen;
   check('coach: the whistle opens the review; reading it clears the count and saves the read time', c2.t === 'Coach' && /Your week/.test(c2.body) && c2.badge === true && +seen > 0, JSON.stringify({ t: c2.t, badge: c2.badge, seen }));
   await page.click('#sheet-x');
+  // 27 Nov 2026: Review now when the connector doesn't list coach_review yet goes through put_config, and still works
+  await mcpNode('put_config', { id: 'coach', doc: { msgs: [] } }); await page.reload(); await page.waitForTimeout(3500);
+  await page.evaluate(() => { window.__blockTools = ['coach_review']; window.__calls = []; document.querySelector('.widget[data-id=coach] [data-ask]').click(); });
+  await page.waitForTimeout(3000);
+  const c3 = await page.evaluate(() => ({ calls: window.__calls, widget: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerText || '', toast: document.querySelector('#toast')?.innerText || '' }));
+  const stored = ((await mcpNode('get_snapshot', {})).structuredContent.config.coach?.msgs || []).length;
+  check('coach: Review now with coach_review blocked falls back to put_config and the review appears', c3.calls.includes('coach_review') && c3.calls.includes('put_config') && /Your week/.test(c3.widget) && stored === 1, JSON.stringify({ calls: c3.calls, stored, toast: c3.toast }));
 }
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();

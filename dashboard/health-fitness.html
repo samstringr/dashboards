@@ -6527,7 +6527,10 @@ async function coachAsk(btn) {
   if (!MCP) return toast('Reviews need Health DB: open this page in Claude with the connector.');
   if (btn) { btn.disabled = true; btn.textContent = 'The coach is writing…'; }
   try {
-    await MCP.callTool(SRV, 'coach_review', {}, {cache: false});
+    /* coach_review first; if the connector doesn't list it yet (it keeps the tool list it read for a while after a
+       deploy: "Tool is not available on this connector", 27 Nov 2026), the same review through put_config, which it has */
+    try { await MCP.callTool(SRV, 'coach_review', {}, {cache: false}); }
+    catch (e1) { await MCP.callTool(SRV, 'put_config', {id: 'coach', doc: {ask: true}}, {cache: false}); }
     const r = await MCP.callTool(SRV, 'get_snapshot', {since: S.rev}, {cache: false}); applySnapshot(r.payload || {}, false);
     COACH_I.clear(); renderAll(); if (!$('#sheet').hidden && $('#sheet-t').textContent === 'Coach') openCoach();
     toast('The coach has reviewed the last 7 days');
