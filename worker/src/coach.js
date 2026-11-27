@@ -37,6 +37,7 @@ import { esc, fmt, mean, addDays, diffDays, dLong, normName, today } from './uti
 import { dayTotals, targets, weighins, rollAvg, allWorkouts, lastPerf, recentPerf, setsText, planState } from './model.js';
 import { claude } from './ai.js';
 import { awayOn } from './extras.js';
+import { logError } from './bot.js';
 /* Light activity (23 Nov 2026): golf, e.g. two hours at the driving range. Measured at 2.3-2.6 MET (Wolkodoff
    2024, range practice), under the 3.0 that counts as moderate, so it is shown and reported but never counted as
    cardio: an hour would otherwise cover 40% of the 150-minute week. */
@@ -146,15 +147,19 @@ export const joinReview = (H, note, next) => [H.head + '\n' + H.sum, H.lines.joi
 
 /* A short opening in plain words. Claude gets the worked-out lines and nothing else, and is told to add no
    numbers of its own. Returns '' on any failure: the review never depends on it. */
-export async function coachNote(env, kind, facts, systemOverride) {
+/* A note that fails is logged (MCP get_bot_errors) instead of vanishing (27 Nov 2026: the first weekly review came
+   back with no coach's note and nothing said why; the next try had one). The weekly one gets 25 s, not 12. */
+export async function coachNote(env, kind, facts, systemOverride, budget = 12000) {
   if (!env.ANTHROPIC_API_KEY) return '';
   try {
     // 15 Nov 2026: the note is now the coach's feedback at the bottom of the message (Sam: "the actual coach's
     // feedback… concise, but with the necessary detail so it's worthwhile")
     const system = `You are Sam's strength coach, writing your feedback at the bottom of a ${kind} in a Telegram message; the numbers are listed above it, so don't repeat them line by line. British English. Three or four short sentences, plain text only (no markdown, no lists, no emoji): how it went overall, what stood out (good and bad), the reasoning behind the main next targets, and anything to change (rest, load, form, order). Honest, direct and encouraging, like a good coach. Use ONLY the facts given: never state a number, load or target that is not in them, and never contradict them. Sam's aim is muscle growth with strength going up session to session.`;
-    const t = await claude(env, { model: env.MODEL_FAST || 'claude-haiku-5-5', system: systemOverride || system, max_tokens: 700, budget: 12000, messages: [{ role: 'user', content: facts.replace(/<[^>]+>/g, '') }] });
-    return finishNote(t);
-  } catch { return ''; }
+    const t = await claude(env, { model: env.MODEL_FAST || 'claude-haiku-5-5', system: systemOverride || system, max_tokens: 700, budget, messages: [{ role: 'user', content: facts.replace(/<[^>]+>/g, '') }] });
+    const out = finishNote(t);
+    if (!out) await logError(env, { message: `coach note (${kind}) dropped: ${String(t || '').length} characters, ${String(t || '').trim() ? 'no full sentence or too long' : 'empty'}`, detail: String(t || '').slice(0, 300) });
+    return out;
+  } catch (e) { await logError(env, { message: `coach note (${kind}) failed: ${e?.message || e}` }).catch(() => {}); return ''; }
 }
 
 /* 24 Nov 2026 (Sam: the note ended "…the clear MI" mid-word): it had 320 tokens and was sent as it came. Now 700,
@@ -163,7 +168,7 @@ export function finishNote(t) {
   let s = String(t || '').trim();
   if (!s || /^[{\[]/.test(s)) return '';
   if (!/[.!?…]["')\]]?$/.test(s)) { const m = s.match(/^[\s\S]*[.!?…]["')\]]?(?=\s|$)/); s = m ? m[0].trim() : ''; }
-  return s.length <= 1400 ? s : '';
+  return s.length <= 2000 ? s : '';
 }
 
 /* the weekly review moved to weekly.js (27 Nov 2026); re-exported here for the callers and tests that import it from coach.js */

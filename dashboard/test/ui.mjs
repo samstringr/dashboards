@@ -42,6 +42,7 @@ await page.addInitScript(mode => { window.__F3D_STATIC = true;
   const call = async (server, tool, input) => {
     window.__calls = (window.__calls || []).concat(tool);
     if ((window.__blockTools || []).includes(tool)) throw { code: 'tool_unavailable', message: 'Tool is not available on this connector or is blocked by your organization' };   // a connector with a stale tool list
+    if (window.__stripHtml && tool === 'put_config') { const r0 = JSON.parse(await window.__mcp(tool, input || {})); return { payload: { ok: true, rev: r0.structuredContent?.rev } }; }   // an older worker's answer
     const r = JSON.parse(await window.__mcp(tool, input || {}));
     if (r.isError) throw { code: 'tool_error', message: r.content[0].text };
     return { content: r.content, structuredContent: r.structuredContent, payload: r.structuredContent };
@@ -467,25 +468,38 @@ if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part o
     check('Training plan: 9 exercises on back day fit 19 × 11 with nothing to scroll', fit.all === 9 && fit.rows === 9 && fit.over <= 1, JSON.stringify(fit));
   }
 }
-// 27 Nov 2026: the coach. A review written by the worker shows in the Coach widget and the sheet, with an unread count on the whistle
+// 27 Nov 2026: the coach lives in the popup behind the whistle (no widget). A review written by the worker shows there with an unread count
 { await mcpNode('coach_review', {});
   const lay = (await mcpNode('get_snapshot', {})).structuredContent.config.layout;
-  await mcpNode('put_config', { id: 'layout', doc: { ...lay, coachSeen: 0, widgets: [...lay.widgets.filter(w => w.type !== 'coach'), { id: 'coach', type: 'coach', x: 0, y: 40, w: 14, h: 12, cfg: {} }] } });
+  await mcpNode('put_config', { id: 'layout', doc: { ...lay, coachSeen: 0 } });
   await page.reload(); await page.waitForTimeout(3500);
-  const c1 = await page.evaluate(() => ({ badge: document.querySelector('#coach-badge')?.hidden ? '' : document.querySelector('#coach-badge')?.textContent, widget: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerText || '', html: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerHTML || '' }));
-  check('coach: the review shows in the widget, unread count 1 on the whistle', c1.badge === '1' && /Your week/.test(c1.widget) && /To improve|Went well/.test(c1.widget) && /<blockquote>/.test(c1.html) && !/<script|<img|onerror/i.test(c1.html), JSON.stringify({ b: c1.badge, w: c1.widget.slice(0, 80) }));
+  const pal = await page.evaluate(() => typeof WT !== 'undefined' ? !!WT.coach : null);
+  check('coach: no widget any more (the popup is its home)', pal === false || pal === null, String(pal));
+  const b1 = await page.evaluate(() => document.querySelector('#coach-badge')?.hidden ? '' : document.querySelector('#coach-badge')?.textContent);
   await page.evaluate(() => document.querySelector('[data-act=coach]').click()); await page.waitForTimeout(500);
-  const c2 = await page.evaluate(() => ({ t: document.querySelector('#sheet-t')?.textContent, body: document.querySelector('#sheet-b')?.innerText || '', badge: document.querySelector('#coach-badge')?.hidden }));
+  const c2 = await page.evaluate(() => ({ t: document.querySelector('#sheet-t')?.textContent, body: document.querySelector('#sheet-b')?.innerText || '', html: document.querySelector('#sheet-b [data-cb]')?.innerHTML || '', ask: !!document.querySelector('#sheet-b .coach-nav [data-ask]'), badge: document.querySelector('#coach-badge')?.hidden }));
   await page.waitForTimeout(1200); const seen = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.coachSeen;
-  check('coach: the whistle opens the review; reading it clears the count and saves the read time', c2.t === 'Coach' && /Your week/.test(c2.body) && c2.badge === true && +seen > 0, JSON.stringify({ t: c2.t, badge: c2.badge, seen }));
+  check('coach: unread 1 on the whistle; the popup opens on the review with Review now at the top; reading clears the count', b1 === '1' && c2.t === 'Coach' && /Your week/.test(c2.body) && /<blockquote>/.test(c2.html) && !/<script|<img|onerror/i.test(c2.html) && c2.ask && c2.badge === true && +seen > 0, JSON.stringify({ b1, t: c2.t, ask: c2.ask, badge: c2.badge, seen }));
   await page.click('#sheet-x');
-  // 27 Nov 2026: Review now when the connector doesn't list coach_review yet goes through put_config, and still works
-  await mcpNode('put_config', { id: 'coach', doc: { msgs: [] } }); await page.reload(); await page.waitForTimeout(3500);
-  await page.evaluate(() => { window.__blockTools = ['coach_review']; window.__calls = []; document.querySelector('.widget[data-id=coach] [data-ask]').click(); });
-  await page.waitForTimeout(3000);
-  const c3 = await page.evaluate(() => ({ calls: window.__calls, widget: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerText || '', toast: document.querySelector('#toast')?.innerText || '' }));
-  const stored = ((await mcpNode('get_snapshot', {})).structuredContent.config.coach?.msgs || []).length;
-  check('coach: Review now with coach_review blocked falls back to put_config and the review appears', c3.calls.includes('coach_review') && c3.calls.includes('put_config') && /Your week/.test(c3.widget) && stored === 1, JSON.stringify({ calls: c3.calls, stored, toast: c3.toast }));
+  // the state Sam hit at 18:45: an older worker had stored {ask: true} as the document. The popup copes, and Review now
+  // (coach_review not yet on the connector) goes through put_config, and the new review appears in the open popup
+  await fetch(W + '/mcp', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'import_data', arguments: { days: [], config: { coach: { ask: true } }, mode: 'replace' } } }) });
+  await page.reload(); await page.waitForTimeout(3500);
+  await page.evaluate(() => document.querySelector('[data-act=coach]').click()); await page.waitForTimeout(400);
+  const e0 = await page.evaluate(() => document.querySelector('#sheet-b')?.innerText || '');
+  await page.evaluate(() => { window.__blockTools = ['coach_review']; window.__calls = []; document.querySelector('#sheet-b [data-ask]').click(); });
+  // writing a review calls Claude for the coach's note: a few seconds, so wait for the toast that ends it
+  await page.waitForFunction(() => document.querySelector('.toast'), null, { timeout: 25000 }).catch(() => {}); await page.waitForTimeout(500);
+  const c3 = await page.evaluate(() => ({ calls: window.__calls, body: document.querySelector('#sheet-b')?.innerText || '', open: !document.querySelector('#sheet').hidden, toast: [...document.querySelectorAll('.toast')].map(x => x.innerText).join(' | ') }));
+  const doc = (await mcpNode('get_snapshot', {})).structuredContent.config.coach;
+  check('coach: from a stray {ask} document, Review now falls back to put_config and the review appears in the open popup', /No weekly review yet/.test(e0) && c3.calls.includes('coach_review') && c3.calls.includes('put_config') && c3.open && /Your week/.test(c3.body) && (doc?.msgs || []).length === 1 && !('ask' in (doc || {})), JSON.stringify({ e0: e0.slice(0, 40), calls: c3.calls, open: c3.open, n: doc?.msgs?.length, ask: doc && 'ask' in doc, toast: c3.toast }));
+  // and an answer with no review in it (an older worker) is reported, not shown as written
+  await page.evaluate(() => document.querySelectorAll('.toast').forEach(x => x.remove()));
+  await page.evaluate(() => { window.__stripHtml = true; window.__calls = []; document.querySelector('#sheet-b [data-ask]').click(); });
+  await page.waitForFunction(() => document.querySelector('.toast'), null, { timeout: 25000 }).catch(() => {});
+  const t4 = await page.evaluate(() => [...document.querySelectorAll('.toast')].map(x => x.innerText).join(' | '));
+  check('coach: an answer without a review says so instead of "written"', /answered without a review/.test(t4), t4);
+  await page.evaluate(() => { window.__blockTools = []; window.__stripHtml = false; }); await page.click('#sheet-x');
 }
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();
