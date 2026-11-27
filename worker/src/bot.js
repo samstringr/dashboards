@@ -8,6 +8,7 @@ import { photoRoute, rememberImages, isProgressNote, moveRemembered, photoSessio
 import { normaliseItems, allKnown, presetEntry, savePreset, foodsHtml, howMuch, howMuchHtml } from './food.js';
 import { closeDay, closeHtml, singleExtras } from './close.js';
 import { sendSupps, tickSupps, onSuppCallback, suppList, setAway, endAway, welcomeBack, parseAwayArgs, transcribe } from './extras.js';
+import { onEditCallback, sendDayCard, removeByWords, putBack } from './edit.js';
 
 /* ============================================================ Telegram */
 export async function tg(env, method, body) {
@@ -101,6 +102,7 @@ export async function tgImage(env, fileId, mime) {
 export async function onCallback(env, cq) {
   await tg(env, 'answerCallbackQuery', { callback_query_id: cq.id });
   const [act, token, opt] = String(cq.data || '').split(':');
+  if (['dv', 'de', 'rf', 'rw', 'pb'].includes(act) && await onEditCallback(env, cq, act, String(cq.data).split(':').slice(1))) return;   // the day card (edit.js)
   const strip = () => tg(env, 'editMessageReplyMarkup', { chat_id: chatId(env), message_id: cq.message?.message_id, reply_markup: { inline_keyboard: [] } });
   if (act === 'ok' || act === 'no') {
     const pending = await getKV(env, 'pending');
@@ -179,6 +181,9 @@ export async function handleParsed(env, ctx, r, pending) {
     await send(env, '💊 Ticked: ' + sp.map(id => esc(suppList(ctx).items.find(s => s.id === id).n)).join(', '));
   }
   if (r.intent === 'supps') return sendSupps(env, ctx, validDate(r.supps?.date, td));
+  // 27 Nov 2026: "summary of Wednesday" and "remove the chocolate from Wednesday" (edit.js)
+  if (r.intent === 'day') return sendDayCard(env, validDate(r.day?.date, td));
+  if (r.intent === 'remove') return removeByWords(env, validDate(r.remove?.date, td), String(r.remove?.what || '').trim());
   if (r.intent === 'away' && r.away) {
     if (r.away.back) return (await endAway(env, ctx, td)) || send(env, 'You weren’t marked as away. Carry on.');
     const from = /^\d{4}-\d{2}-\d{2}$/.test(r.away.from || '') ? r.away.from : td, to = /^\d{4}-\d{2}-\d{2}$/.test(r.away.to || '') ? r.away.to : null;
@@ -340,6 +345,7 @@ export async function undoLast(env, token) {
   if (last.kind === 'food') await mutateDay(env, last.date, d => { d.items = (d.items || []).filter(i => !last.ids.includes(i.id)); });
   if (last.kind === 'workout') await mutateDay(env, last.date, d => { d.workouts = (d.workouts || []).filter(w => w.id !== last.id); });
   if (last.kind === 'weight') await mutateDay(env, last.date, d => { if (last.prev) d.body = last.prev; else delete d.body; });
+  if (last.kind === 'removed' && !(await putBack(env, last.token))) return send(env, 'That’s already back.');
   await delKV(env, 'last');
   return send(env, '↩️ Undone.');
 }
@@ -358,7 +364,8 @@ Just tell me things:
 • <i>“ran 5 km in 28 min”</i>, <i>“football, 60 min”</i>, or a filled-in /workout
 • <i>“took creatine and zinc”</i> or <i>“all supplements taken”</i>
 • a 🎙 voice note saying any of the above
-/today · where you are vs targets
+/today · today’s summary vs targets; ◀ ▶ for other days, ✏️ Edit to remove things. Or ask: <i>“summary of Wednesday”</i>, <i>“remove the chocolate from yesterday”</i>
+/edit · today, ready to remove things
 /workout · the next session in your plan
 /supps · today’s supplements checklist
 /week · the last 7 days
@@ -367,7 +374,8 @@ Just tell me things:
 /photos · progress photos (front, side, back). When a set is due, just send them: no caption, no /done
 /away · pause reminders (<i>/away 7</i> or <i>/away 2026-12-28</i>); /back to end
 /undo · undo the last thing logged`);
-  if (c === '/today') return send(env, await todayHtml(env));
+  if (c === '/today') return sendDayCard(env, today());
+  if (c === '/edit') return sendDayCard(env, today(), 'edit', 'Tap ✕ on anything to remove it.');
   if (c === '/workout') return sendWorkout(env, rest[0] || null);
   if (c === '/review') return send(env, await weeklyReview(env, await loadCtx(env), today()));
   if (c === '/week') return send(env, await weekHtml(env));
@@ -383,12 +391,6 @@ Just tell me things:
     return handleParsed(env, ctx, await parseMessage(env, ctx, 'I am away: ' + rest.join(' '), null, null), null);
   }
   return send(env, 'I don’t know that command. Try /help.');
-}
-export async function todayHtml(env) {
-  const ctx = await loadCtx(env), td = today(), d = ctx.days.find(x => x.date === td), t = dayTotals(d), T = targets(ctx);
-  if (!t) return `📅 ${dLong(td)}\nNothing logged yet.${T.ok ? `\nTargets: ${fmt(T.kcal)} kcal · ${T.protein} g protein.` : ''}`;
-  const bar = (v, of) => { const n = clamp(Math.round(v / of * 10), 0, 10); return '▓'.repeat(n) + '░'.repeat(10 - n); };
-  return `📅 <b>${dLong(td)}</b>\nProtein <b>${fmt(t.p)}</b> / ${T.protein} g <code>${bar(t.p, T.protein)}</code>\nCalories <b>${fmt(t.kcal)}</b> / ${fmt(T.kcal)} <code>${bar(t.kcal, T.kcal)}</code>\nCarbs ${fmt(t.c)} g · Fat ${fmt(t.f)} g` + (await remainingLine(env, ctx, td)).replace(/^\n\n[^\n]*\n?/, '\n');
 }
 export async function weekHtml(env) {
   const ctx = await loadCtx(env), td = today(), T = targets(ctx);
