@@ -5,6 +5,7 @@ import { dayTotals, targets, loadCtx } from './model.js';
 import { sendWorkout } from './bot.js';
 import { claude } from './ai.js';
 import { photoSets, getPhoto, putPhoto, deletePhotos, photoDue } from './photos.js';
+import { weeklyReview } from './weekly.js';
 
 /* ============================================================ MCP (the dashboard + Claude chats) */
 export const TOOLS = [
@@ -72,6 +73,10 @@ export const TOOLS = [
     run: async (env, a) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date || '')) throw new Error('date must be YYYY-MM-DD'); return putPhoto(env, { ...a, src: 'dashboard' }); } },
   { name: 'delete_photos', description: 'Delete one progress photo (id) or a whole set (date). Permanent.',
     inputSchema: { type: 'object', properties: { id: { type: 'string' }, date: { type: 'string' } } }, run: async (env, a) => deletePhotos(env, a) },
+  // 27 Nov 2026: the dashboard's Coach asks for a review on demand; the Sunday one comes from cron.js
+  { name: 'coach_review', description: 'Write the coach’s weekly review now for the seven days ending on `end` (default today), keep it in the coach config document (replacing any review of the same week) and return its HTML. Not sent to Telegram.',
+    inputSchema: { type: 'object', properties: { end: { type: 'string' } } },
+    run: async (env, a) => ({ ok: true, html: await weeklyReview(env, await loadCtx(env), validDate(a.end, today())), rev: await getRev(env) }) },
   { name: 'get_bot_errors', description: 'The Telegram bot’s last 20 failures (newest first): when, the error, and the message that failed. Use it to work out why the bot said “That didn’t work”.', readOnly: true,
     inputSchema: { type: 'object', properties: {} },
     run: async env => ({ errors: (await getKV(env, 'errlog')) || [] }) },
@@ -91,12 +96,12 @@ export const TOOLS = [
       const d = await mutateDay(env, date, doc => { doc.body = { ...(doc.body || {}), ...body, src: 'claude' }; });
       return { ok: true, date, body: d.body };
     } },
-  { name: 'log_workout', description: 'Save a session: kind (gym|run|swim|football|cycle|walk|golf|other; golf is light activity, never cardio), label, planCode, minutes, distance_km, exercises [{name, sets:[{kg, reps, rpe}]}], note.',
-    inputSchema: { type: 'object', properties: { date: { type: 'string' }, kind: { type: 'string' }, label: { type: 'string' }, planCode: { type: 'string' }, minutes: { type: 'number' }, distance_km: { type: 'number' }, exercises: { type: 'array', items: { type: 'object' } }, note: { type: 'string' } }, required: ['kind'] },
+  { name: 'log_workout', description: 'Save a session: kind (gym|run|swim|football|cycle|walk|golf|other; golf is light activity, never cardio), label, planCode, minutes, distance_km, exercises [{name, sets:[{kg, reps, rpe}]}], note; for cardio the intensity: watts (bike), speed_mph and incline_pct (treadmill, run), effort (light|moderate|vigorous, from how it felt). Vigorous minutes count double towards the 150-minute week.',
+    inputSchema: { type: 'object', properties: { date: { type: 'string' }, kind: { type: 'string' }, label: { type: 'string' }, planCode: { type: 'string' }, minutes: { type: 'number' }, distance_km: { type: 'number' }, exercises: { type: 'array', items: { type: 'object' } }, note: { type: 'string' }, watts: { type: 'number' }, speed_mph: { type: 'number' }, incline_pct: { type: 'number' }, effort: { type: 'string', enum: ['light', 'moderate', 'vigorous'] } }, required: ['kind'] },
     run: async (env, a) => {
       const date = validDate(a.date, today());
       const ex = (a.exercises || []).map(e => ({ n: String(e.name || ''), sets: (e.sets || []).map(s => ({ kg: s.kg ?? null, r: s.reps ?? null, ...(s.rpe != null ? { rpe: s.rpe } : {}) })) })).filter(e => e.n && e.sets.length);
-      const rec = { id: uid(), kind: a.kind, label: a.label || a.kind, ...(a.planCode ? { planCode: a.planCode } : {}), ...(a.minutes ? { min: a.minutes } : {}), ...(a.distance_km ? { km: a.distance_km } : {}), ...(ex.length ? { ex } : {}), ...(a.note ? { note: a.note } : {}), src: 'claude' };
+      const rec = { id: uid(), kind: a.kind, label: a.label || a.kind, ...(a.planCode ? { planCode: a.planCode } : {}), ...(a.minutes ? { min: a.minutes } : {}), ...(a.distance_km ? { km: a.distance_km } : {}), ...(ex.length ? { ex } : {}), ...(a.note ? { note: a.note } : {}), ...(+a.watts > 0 ? { watts: +a.watts } : {}), ...(+a.speed_mph > 0 ? { speed_mph: +a.speed_mph } : {}), ...(a.incline_pct != null ? { incline_pct: +a.incline_pct } : {}), ...(['light', 'moderate', 'vigorous'].includes(a.effort) ? { effort: a.effort } : {}), src: 'claude' };
       await mutateDay(env, date, doc => { (doc.workouts ||= []).push(rec); });
       return { ok: true, date, session: rec };
     } }

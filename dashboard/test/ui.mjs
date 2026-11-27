@@ -97,7 +97,7 @@ const wkLine = await page.locator('#c-week').innerText();
 await page.click('#c-save'); await page.waitForTimeout(1200);
 const dayNow = (await mcpNode('get_day', {})).structuredContent.day, runRec = (dayNow.workouts || []).find(w => w.kind === 'run');
 const cn2 = await kpi('cardio');
-check('cardio sheet: run 45 min 8 km saved, cardio meter goes up by 45', /Log cardio or sport/.test(ct) && wkLine.includes(`${cardio0} → ${cardio0 + 45}`) && runRec?.min === 45 && runRec?.km === 8 && cn2.startsWith(`Cardio ${cardio0 + 45} / 150`), JSON.stringify(runRec) + ' | ' + cn2);
+check('cardio sheet: run 45 min 8 km saved; 10.7 km/h is vigorous, so the meter goes up by 90 (27 Nov 2026: vigorous ×2)', /Log cardio or sport/.test(ct) && wkLine.includes(`${cardio0} → ${cardio0 + 90}`) && /vigorous ×2/.test(wkLine) && runRec?.min === 45 && runRec?.km === 8 && cn2.startsWith(`Cardio ${cardio0 + 90} / 150`), JSON.stringify(runRec) + ' | ' + cn2);
 // the session sheet hands football to the cardio sheet; the Training log button opens it too
 await page.click('[data-act=session]'); await page.waitForTimeout(200); await page.selectOption('#s-kind', 'football'); await page.waitForTimeout(150);
 const sw = await page.locator('#sheet-t').innerText(), onK = await page.evaluate(() => document.querySelector('#c-kind .on')?.dataset.k);
@@ -465,6 +465,19 @@ if (process.env.SHOTS) {   // one-off screenshots for a visual check; not part o
     await page.locator('.widget[data-id=plan]').screenshot({ path: `${OUT}v12-plan-bb-${vp.width}.png` });
     check('Training plan: 9 exercises on back day fit 19 × 11 with nothing to scroll', fit.all === 9 && fit.rows === 9 && fit.over <= 1, JSON.stringify(fit));
   }
+}
+// 27 Nov 2026: the coach. A review written by the worker shows in the Coach widget and the sheet, with an unread count on the whistle
+{ await mcpNode('coach_review', {});
+  const lay = (await mcpNode('get_snapshot', {})).structuredContent.config.layout;
+  await mcpNode('put_config', { id: 'layout', doc: { ...lay, coachSeen: 0, widgets: [...lay.widgets.filter(w => w.type !== 'coach'), { id: 'coach', type: 'coach', x: 0, y: 40, w: 14, h: 12, cfg: {} }] } });
+  await page.reload(); await page.waitForTimeout(3500);
+  const c1 = await page.evaluate(() => ({ badge: document.querySelector('#coach-badge')?.hidden ? '' : document.querySelector('#coach-badge')?.textContent, widget: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerText || '', html: document.querySelector('.widget[data-id=coach] [data-cb]')?.innerHTML || '' }));
+  check('coach: the review shows in the widget, unread count 1 on the whistle', c1.badge === '1' && /Your week/.test(c1.widget) && /To improve|Went well/.test(c1.widget) && /<blockquote>/.test(c1.html) && !/<script|<img|onerror/i.test(c1.html), JSON.stringify({ b: c1.badge, w: c1.widget.slice(0, 80) }));
+  await page.evaluate(() => document.querySelector('[data-act=coach]').click()); await page.waitForTimeout(500);
+  const c2 = await page.evaluate(() => ({ t: document.querySelector('#sheet-t')?.textContent, body: document.querySelector('#sheet-b')?.innerText || '', badge: document.querySelector('#coach-badge')?.hidden }));
+  await page.waitForTimeout(1200); const seen = (await mcpNode('get_snapshot', {})).structuredContent.config.layout.coachSeen;
+  check('coach: the whistle opens the review; reading it clears the count and saves the read time', c2.t === 'Coach' && /Your week/.test(c2.body) && c2.badge === true && +seen > 0, JSON.stringify({ t: c2.t, badge: c2.badge, seen }));
+  await page.click('#sheet-x');
 }
 check('no page errors', !errors.length, JSON.stringify(errors).slice(0, 400));
 await browser.close();

@@ -54,6 +54,15 @@ svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .datenav .lbl:hover{background:var(--s2)}
 .datenav .lbl small{font-weight:400;color:var(--muted)}
 .icon-btn{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:var(--r-sm);border:1px solid transparent;background:none;color:var(--muted);transition:.18s var(--ease)}
+/* the coach's whistle and its unread count (27 Nov 2026) */
+.coach-btn{position:relative}
+.cbadge{position:absolute;top:0;right:-2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--ink);color:var(--s1);font-size:9.5px;font-weight:600;line-height:15px;text-align:center;font-variant-numeric:tabular-nums}
+.coach-nav{margin-bottom:6px}.coach-nav .icon-btn{width:24px;height:24px}
+.coach-new{color:var(--ink);font-weight:600}
+.coach-body{white-space:pre-line;font-size:13px;line-height:1.5;color:var(--muted);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}
+#sheet .coach-wrap{max-width:760px}#sheet .coach-body{flex:none;overflow:visible}
+.coach-body b{color:var(--ink);font-weight:600}
+.coach-body blockquote{margin:2px 0 0;padding:8px 10px;border-left:2px solid var(--line);background:var(--s2);border-radius:0 var(--r-sm) var(--r-sm) 0;color:var(--ink);white-space:pre-line}
 .icon-btn:hover{background:var(--s2);color:var(--ink)}
 .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--s1);color:var(--ink);font-size:12.5px;white-space:nowrap;transition:.18s var(--ease)}
 .btn:hover{background:var(--s2);border-color:var(--line-2)}
@@ -331,6 +340,8 @@ select.inp{padding-right:6px}
 @media (max-width:560px){
   #top{gap:8px}
   .brand b{display:none}
+  /* the coach's whistle (27 Nov 2026) needs a slot in the top bar: on a phone the logo, which does nothing, makes room */
+  .brand{display:none}
   .datenav .lbl{min-width:0;max-width:88px;overflow:hidden;text-overflow:ellipsis}
   .datenav .lbl small{display:none}
   .actions{gap:2px}
@@ -566,6 +577,7 @@ select.inp{padding-right:6px}
       <button class="btn" data-act="cardio" title="Log cardio or sport"><svg class="i" viewBox="0 0 16 16"><path d="M1.5 8.5h3l1.5-3.5 3 7 1.5-3.5h4"/></svg><span class="lbl-txt">Cardio</span></button>
       <button class="btn ghost" data-act="photos" title="Progress photos (private)"><svg class="i" viewBox="0 0 16 16"><rect x="1.8" y="4" width="12.4" height="9" rx="2"/><circle cx="8" cy="8.5" r="2.4"/><path d="M5.5 4l1-1.6h3L10.5 4"/></svg><span class="lbl-txt">Photos</span></button>
       <button class="btn ghost" data-act="widgets" title="Add a widget"><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><path d="M11.25 9v4.5M9 11.25h4.5"/></svg><span class="lbl-txt">Widgets</span></button>
+      <button class="icon-btn coach-btn" data-act="coach" id="coach-btn" title="Coach: weekly reviews" aria-label="Coach"><svg class="i" viewBox="0 0 16 16"><circle cx="6.5" cy="9.5" r="4"/><path d="M9.6 7h4.2v2.4h-2.6M6.5 5.5V3.2M4.8 3.2h3.4"/></svg><b class="cbadge" id="coach-badge" hidden>0</b></button>
       <button class="icon-btn" data-act="mode" id="mode-btn" title="Switch between canvas and list"><svg class="i" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10"/></svg></button>
       <button class="icon-btn" data-act="help" title="How this works (?)" aria-label="How this works"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 1 1 2.6 1.6c-.6.3-.9.7-.9 1.3v.3"/><circle cx="8" cy="11.4" r=".4"/></svg></button>
       <button class="icon-btn" data-act="settings" title="Settings and targets"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M3.6 12.4l1.2-1.2M11.2 4.8l1.2-1.2"/></svg></button>
@@ -3545,7 +3557,7 @@ const S = {
 };
 let DB = null, SAMPLE = null, DOWNLOADS = null, IMG_OK = false, MCP = null;
 const SRV = 'Health DB';   // must match the custom connector's display name in Claude settings
-const REMOTE_TOOLS = ['get_rev', 'get_snapshot', 'put_day', 'put_config', 'import_data', 'send_workout'];
+const REMOTE_TOOLS = ['get_rev', 'get_snapshot', 'put_day', 'put_config', 'import_data', 'send_workout', 'coach_review'];
 
 /* ============================================================
    DERIVED DATA
@@ -4117,6 +4129,39 @@ function suppList() { return S.supps?.items?.length ? S.supps : DEFAULT_SUPPS; }
    sessions-a-week figure or the blue cardio dot: an hour would otherwise cover 40% of the 150-minute week. */
 const LIGHT_KINDS = ['golf'];
 function kindGroup(k) { return k === 'gym' ? 'gym' : LIGHT_KINDS.includes(k) ? 'light' : ['run', 'swim', 'cycle', 'walk'].includes(k) ? 'cardio' : 'sport'; }
+/* Cardio intensity (27 Nov 2026, Sam: "when I log cardio… an average watt value, or… describe its intensity, and then
+   you can work out whether that should be considered light or intense cardio, and then count it accordingly towards
+   the goal"; he chose option A, one number in the WHO's terms). The WHO counts a vigorous minute as two moderate ones
+   (150 min moderate = 75 vigorous), so the meter, the bars and the weekly review count EQUIVALENT minutes: light
+   (under 3 METs) shows but doesn't count, moderate (3 to 6) counts once, vigorous (6 or more) twice. METs, from the
+   first of these a session has (the worker's model.js has the same rule):
+   1. watts on a bike (w.watts, or "110 W" in its label or note): ACSM leg cycling, VO2 = 1.8 × (W × 6 kgm/min) ÷ kg + 7;
+   2. speed and incline (w.speed_mph, w.incline_pct, or "12% at 3 mph", "Incline 12, 3 mph", "10 km/h", or a run's km ÷ time): ACSM walking
+      up to 3.7 mph, VO2 = 0.1 × m/min + 1.8 × m/min × grade + 3.5; running above it, 0.2 and 0.9 in their place;
+   3. how it felt (w.effort, read from his words: "easy", "could chat" moderate; "hard", "out of breath" vigorous);
+   4. the kind: football and runs vigorous, golf light (see LIGHT_KINDS), the rest moderate.
+   METs = VO2 ÷ 3.5; weight for cycling is the 7-day average. Estimates, and only without leaning on the rails or bars. */
+let CI_KG = {at: 0, kg: null};
+function cardioKg() { if (Date.now() - CI_KG.at > 5000) { const T = targets(); CI_KG = {at: Date.now(), kg: T.ok ? T.w : null}; } return CI_KG.kg; }
+function cardioIntensity(w, kg = cardioKg()) {
+  const txt = [w.label, w.note].join(' '), num = re => { const m = txt.match(re); return m ? parseFloat(m[1]) : null; };
+  const watts = +w.watts || (w.kind === 'cycle' || /bike|cycl|spin|watt/i.test(txt) ? num(/(\d{2,4})\s*(?:w|watts?)\b/i) : null);
+  let mph = +w.speed_mph || num(/(\d+(?:\.\d+)?)\s*mph\b/i);
+  if (!mph) { const k = num(/(\d+(?:\.\d+)?)\s*(?:km\/?h|kph)\b/i); if (k) mph = k / 1.609; }
+  if (!mph && ['run', 'walk'].includes(w.kind) && +w.km > 0 && +w.min > 0) mph = w.km / w.min * 60 / 1.609;   // distance and time give the speed
+  const grade = w.incline_pct != null ? +w.incline_pct : (num(/(\d+(?:\.\d+)?)\s*%/) ?? num(/incline\s*(\d+(?:\.\d+)?)/i) ?? 0);
+  let met = null, basis;
+  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 72.4) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
+  else if (mph > 0) { const v = mph * 26.8, g = grade / 100; met = (mph <= 3.7 ? .1 * v + 1.8 * v * g + 3.5 : .2 * v + .9 * v * g + 3.5) / 3.5; basis = (grade ? fmt(grade, grade % 1 ? 1 : 0) + '% at ' : '') + fmt(mph, 1) + ' mph'; }
+  const kindBand = LIGHT_KINDS.includes(w.kind) ? 'light' : ['football', 'run'].includes(w.kind) ? 'vigorous' : 'moderate';
+  const band = met != null ? (met < 3 ? 'light' : met < 6 ? 'moderate' : 'vigorous') : ['light', 'moderate', 'vigorous'].includes(w.effort) ? w.effort : kindBand;
+  if (met == null) basis = w.effort ? 'felt ' + w.effort : LIGHT_KINDS.includes(w.kind) ? 'golf' : ['football', 'run'].includes(w.kind) ? w.kind : 'no detail, so moderate';
+  const factor = band === 'light' ? 0 : band === 'vigorous' ? 2 : 1;
+  return {met: met == null ? null : Math.round(met * 10) / 10, band, basis, factor, eq: (+w.min || 0) * factor};
+}
+// a session's group for counting: gym, light (golf, or anything under 3 METs), or cardio/sport
+function wGroup(w) { const g = kindGroup(w.kind); return g === 'gym' ? 'gym' : cardioIntensity(w).band === 'light' ? 'light' : g; }
+const intensityTxt = (w, I = cardioIntensity(w)) => w.kind === 'gym' ? '' : `${I.basis}${I.met ? ' ≈ ' + fmt(I.met, 1) + ' METs' : ''}, ${I.band}${I.factor === 2 ? ' ×2' : I.factor === 0 ? ', not counted' : ''}`;
 /* Cardio target: 150 minutes a week. WHY: the WHO 2020 guideline is 150–300 min of moderate activity a week
    (or 75–150 vigorous) on top of lifting twice a week, with no upper limit for health. 150 is the floor that
    buys the health benefit. Past ~300 min, the interference with muscle and power grows with how often and how
@@ -4152,8 +4197,8 @@ function logKpis(L, c) {
   const lt = c.lmin ? ` · +${fmt(c.lmin)}′ light` : '';
   const items = [
     {k: 'cardio', lab: 'Cardio', col: 'var(--cardio)', v: fmt(c.cmin), of: `/ ${fmt(cT)} min`, pc: c.cmin / cT, hit,
-      sub: (n ? n + ' session' + (n === 1 ? '' : 's') : 'no sessions') + (hit ? ' · hit' : cur ? ' · ' + fmt(cT - c.cmin) + ' to go' : '') + lt,
-      title: `Cardio and sport that week, Mon–Sun, against ${fmt(cT)} min (WHO: 150–300 moderate).${c.lmin ? ' Light cardio such as golf (' + fmt(c.lmin) + ' min) shows but doesn’t count.' : ''}`},
+      sub: (n ? n + ' session' + (n === 1 ? '' : 's') : 'no sessions') + (c.vmin ? ` · ${fmt(c.vmin)} vigorous ×2` : '') + (hit ? ' · hit' : cur ? ' · ' + fmt(cT - c.cmin) + ' to go' : '') + lt,
+      title: `Cardio and sport that week, Mon–Sun, in moderate-equivalent minutes against ${fmt(cT)} (WHO: 150 moderate or 75 vigorous; a vigorous minute counts twice).${c.vmin ? ' Vigorous: ' + fmt(c.vmin) + ' min, counted as ' + fmt(c.vmin * 2) + '.' : ''}${c.lmin ? ' Light cardio such as golf (' + fmt(c.lmin) + ' min) shows but doesn’t count.' : ''}`},
     {k: 'steps', lab: 'Steps a day', col: 'var(--ink)', v: c.st ? fmt(c.st.avg) : sd ? fmt(sd.n) : '–', of: `/ ${ks(stT)}`, pc: c.st ? c.st.avg / stT : 0, hit: !!c.st && c.st.avg >= stT,
       sub: c.st ? `${c.st.hit} of ${c.st.n} day${c.st.n === 1 ? '' : 's'} ≥${ks(stT)}` : sd ? 'today so far' : 'no steps',
       title: 'Average of the full days that week (today counts from tomorrow), against ' + fmt(stT) + ' a day.'},
@@ -4171,7 +4216,7 @@ function logReadout(L, d, weekly) {
   if (weekly) { L.rd.innerHTML = `<b style="color:var(--ink)">${logWeekName(c, td)}</b> · ${c.list.length ? c.list.slice().reverse().map(w => WD[parse(w.date).getDay()] + ' ' + esc(sessionLine(w))).join(' · ') : 'nothing logged'}`; return; }
   const x = stepsOn(d), list = L.byDay.get(d) || [];
   const bits = [d > td ? 'still to come' : x ? fmt(x.n) + ' steps' + (x.partial ? ' so far' : x.n >= stT ? ' ✓' : '') : 'no steps'];
-  for (const w of list) bits.push(esc(sessionLine(w)));
+  for (const w of list) bits.push(esc(sessionLine(w)) + (w.kind !== 'gym' ? ` <span class="dim">(${esc(intensityTxt(w))})</span>` : ''));
   if (awayOn(d)) bits.push(`<span style="color:var(--away)">away, ${esc(awayLabel(d))}</span>`);
   L.rd.innerHTML = `<span>${logWeekName(c, td)}</span> · <b style="color:var(--ink)">${WD[parse(d).getDay()]} ${dShort(d)}</b> ${bits.join(' · ')}`;
 }
@@ -4189,9 +4234,10 @@ function drawLog(host, inst, o) {
   cols.forEach((c, i) => {
     const g = Math.min(5, wkW * .14), x0 = X(7 * i) + g, w = Math.max(2, wkW - 2 * g), hit = c.cmin >= cT, cur = c.mon === curMon;
     let y = yb;
-    for (const ss of c.list.filter(x => !['gym', 'light'].includes(kindGroup(x.kind)) && +x.min > 0).sort((a, b) => a.date < b.date ? -1 : 1)) {
-      const h = yb - YM(+ss.min); y -= h;
-      svg.append(sv('rect', {x: x0, y: y + .5, width: w, height: Math.max(1, h - 1), rx: 1.5, 'data-wk': hit ? 'hit' : 'short', style: `fill:var(--cardio);fill-opacity:${hit ? .8 : cur ? .32 : .4}`}));
+    // a segment per session at its equivalent minutes: a vigorous one stands twice as tall, in a deeper shade (27 Nov 2026)
+    for (const ss of c.list.filter(x => !['gym', 'light'].includes(wGroup(x)) && +x.min > 0).sort((a, b) => a.date < b.date ? -1 : 1)) {
+      const I = cardioIntensity(ss), h = yb - YM(I.eq); y -= h;
+      svg.append(sv('rect', {x: x0, y: y + .5, width: w, height: Math.max(1, h - 1), rx: 1.5, 'data-wk': hit ? 'hit' : 'short', ...(I.factor === 2 ? {'data-vig': 1} : {}), style: `fill:var(--cardio);fill-opacity:${(hit ? .8 : cur ? .32 : .4) + (I.factor === 2 ? .18 : 0)}`}));
     }
     if (c.cmin && H >= 50 && wkW >= 18) { const t = sv('text', {x: x0 + w / 2, y: y - 3, 'text-anchor': 'middle', 'data-wkv': 1, class: 'halo', style: hit ? 'fill:var(--ink)' : ''}); t.textContent = fmt(c.cmin); svg.append(t); }
   });
@@ -4236,9 +4282,10 @@ function drawLog(host, inst, o) {
 }
 function cardioTarget(inst) { return +inst?.cfg?.cardio > 0 ? +inst.cfg.cardio : +S.plan?.cardioMin > 0 ? +S.plan.cardioMin : CARDIO_TARGET; }
 function cardioWeek(mon) {
-  const sun = addDays(mon, 6), ws = allWorkouts().filter(w => w.date >= mon && w.date <= sun && !['gym', 'light'].includes(kindGroup(w.kind)));
-  // blank is not zero: a session without minutes is counted as a session, never as 0 min
-  return {n: ws.length, min: ws.reduce((a, w) => a + (+w.min || 0), 0), untimed: ws.filter(w => !(+w.min > 0)).length};
+  const sun = addDays(mon, 6), ws = allWorkouts().filter(w => w.date >= mon && w.date <= sun && !['gym', 'light'].includes(wGroup(w)));
+  // blank is not zero: a session without minutes is counted as a session, never as 0 min. min is equivalent minutes
+  // (vigorous ×2, 27 Nov 2026); raw is the minutes as logged
+  return {n: ws.length, min: ws.reduce((a, w) => a + cardioIntensity(w).eq, 0), raw: ws.reduce((a, w) => a + (+w.min || 0), 0), vig: ws.filter(w => cardioIntensity(w).factor === 2).reduce((a, w) => a + (+w.min || 0), 0), untimed: ws.filter(w => !(+w.min > 0)).length};
 }
 function awayOn(date) { return (S.away?.ranges || []).find(r => r.from <= date && (!r.to || date <= r.to)) || null; }
 /* Away days in the widgets (23 Nov 2026, Sam, after Cambridge: "nice to see that in the widgets too… not able to hit
@@ -4555,12 +4602,15 @@ const WT = {
     }
   },
   workouts: {
-    title: 'Training log', cat: 'train', desc: 'At a glance: three meters for the week, cardio minutes against 150, steps a day against 10k, gym sessions against the plan, with the chart below. A blue bar a week is your cardio minutes (the number on top), one segment per session, solid once the week reaches its target. The line is your steps a day (from Apple Health, sent whenever you open Telegram), with a dot on days at 10k. Both targets share the one dotted line, so anything above it hit. A magenta bracket under the axis marks days away. Light cardio such as golf isn’t in the bars, because it doesn’t count: hover its day to see it (the cardio meter notes its minutes when the widget is tall enough). Hover a day: the meters switch to its week and the line under them gives the day. Click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget the chart switches to weekly totals with average steps a day.', def: [12, 8], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
+    title: 'Training log', cat: 'train', desc: 'At a glance: three meters for the week, cardio minutes against 150 (a vigorous minute counts twice, as the WHO counts it), steps a day against 10k, gym sessions against the plan, with the chart below. A blue bar a week is your cardio minutes (the number on top), one segment per session, solid once the week reaches its target; a vigorous session is twice as tall, in a deeper blue. The line is your steps a day (from Apple Health, sent whenever you open Telegram), with a dot on days at 10k. Both targets share the one dotted line, so anything above it hit. A magenta bracket under the axis marks days away. Light cardio such as golf isn’t in the bars, because it doesn’t count: hover its day to see it (the cardio meter notes its minutes when the widget is tall enough). Hover a day: the meters switch to its week and the line under them gives the day. Click it to show it in every widget, with the sets you hit in the Training plan (click again for another session that day). On a long range or a narrow widget the chart switches to weekly totals with average steps a day.', def: [12, 8], min: [7, 4], ranges: [28, 56, 84, 182, 364], range: 84,
     add: {label: '+ Cardio', title: 'Log cardio or sport', run: () => openCardio({})},
     render(b, inst) {
       const R = inst.cfg.range || 84, weeks = Math.round(R / 7), E = weekEnd(weeks), start = addDays(monday(E), -7 * (weeks - 1)), at = asOf(), td = today(), stT = stepTarget(inst);
-      const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, light: 0, cmin: 0, lmin: 0, list: []})), byDay = new Map();
-      for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; const g = kindGroup(w.kind); c[g]++; c.list.push(w); if (g === 'light') c.lmin += +w.min || 0; else if (g !== 'gym') c.cmin += +w.min || 0; (byDay.get(w.date) || byDay.set(w.date, []).get(w.date)).push(w); }
+      // cmin: equivalent minutes (vigorous ×2, 27 Nov 2026); vmin: vigorous minutes as logged; lmin: light, not counted
+      const cols = Array.from({length: weeks}, (_, i) => ({mon: addDays(start, 7 * i), gym: 0, cardio: 0, sport: 0, light: 0, cmin: 0, vmin: 0, lmin: 0, list: []})), byDay = new Map();
+      for (const w of allWorkouts()) { if (w.date < start || w.date > E) continue; const c = cols[Math.floor(diffDays(start, w.date) / 7)]; if (!c) continue; const g = wGroup(w); c[g]++; c.list.push(w);
+        if (g === 'light') c.lmin += +w.min || 0; else if (g !== 'gym') { const I = cardioIntensity(w); c.cmin += I.eq; if (I.factor === 2) c.vmin += +w.min || 0; }
+        (byDay.get(w.date) || byDay.set(w.date, []).get(w.date)).push(w); }
       for (const c of cols) { const v = []; for (let k = 0; k < 7; k++) { const x = stepsOn(addDays(c.mon, k)); if (x && !x.partial) v.push(x.n); } c.st = v.length ? {avg: mean(v), n: v.length, hit: v.filter(n => n >= stT).length} : null; }
       const hasSteps = cols.some(c => c.st) || !!stepsOn(td), tot = cols.reduce((a, c) => a + c.gym + c.cardio + c.sport + c.light, 0);
       // the meters and the hover line take about 65 px; under 170 px of body the meters fold into one line so the chart
@@ -4580,7 +4630,7 @@ const WT = {
     title: 'Consistency', cat: 'misc', desc: 'Every day in the range: food logged, protein floor hit, gym sessions (green dot, top), cardio or sport (blue dot, bottom right), supplements (violet dot, bottom left: filled = all taken, ring = some), days away. Today has the dark outline, the selected day the amber one. Click a day to show it in every widget; double-click for its summary.', def: [14, 6], min: [8, 4], ranges: [56, 84, 182, 364], range: 182,
     render(b, inst) {
       const R = inst.cfg.range || 182, T = targets(), td = today();
-      const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) { const g = kindGroup(w.kind); if (g !== 'light') (g === 'gym' ? gymD : cardD).add(w.date); }
+      const gymD = new Set(), cardD = new Set(); for (const w of allWorkouts()) { const g = wGroup(w); if (g !== 'light') (g === 'gym' ? gymD : cardD).add(w.date); }
       b.innerHTML = '<div class="cal" data-cal></div><div class="row between" style="flex-wrap:wrap;gap:4px 10px"><span class="cap" data-sum>' + (asOf() ? '00 Nov selected ' + backBtn() + ' · ' : '') + '000 of 000 days logged · 000 floor hit · 000 gym · 000 cardio</span><span class="pl"><span class="sw" style="background:var(--cat-food)"></span>floor hit <span class="sw" style="background:var(--food-dim)"></span>logged <span class="sw" style="background:repeating-linear-gradient(45deg,var(--food-dim) 0 2px,transparent 2px 4px)"></span>partial <span class="sw" style="background:var(--cat-train);border-radius:50%"></span>gym <span class="sw" style="background:var(--cardio);border-radius:50%"></span>cardio <span class="sw" style="background:var(--supp);border-radius:50%"></span>supplements <span class="sw" style="background:var(--s3);outline:1.25px solid var(--away);outline-offset:-1.25px"></span>away</span></div>';
       const cal = b.querySelector('[data-cal]');   // (the summary placeholder above carries the ↩ Today button too: the grid is sized from that row's measured height)
       /* Square cells that use the box (14 Nov 2026). First they stretched to fill it and Sam didn't like the
@@ -4678,6 +4728,11 @@ const WT = {
       card.onclick = () => { TIPS.idx.set(inst.id, i + 1); renderWidget(inst.id); };
       if (inst.w < 11 || b.clientWidth && b.clientWidth < 380) { card.classList.add('narrow'); fitText(card, card.querySelector('.tt'), 13, 11); }
     }
+  },
+  coach: {
+    title: 'Coach · weekly review', cat: 'train', desc: 'The coach’s retrospective of each week: the numbers, what they mean (is the weight trend saying the calories are right, which sessions were missed, which lifts went up or are ready for more load, cardio and steps), and the focus for next week, with a short note from the coach. A new one arrives every Sunday at 19:00 (also in Telegram); Review now writes one for the last 7 days. ◀ ▶ for earlier weeks. The whistle at the top right counts the ones you haven’t read.', def: [12, 12], min: [7, 5],
+    add: {label: 'Review now', title: 'The coach reviews the last 7 days now', run: () => coachAsk()},
+    render(b, inst) { coachCard(b, inst); }
   },
   quote: {
     title: 'Daily thought', cat: 'misc', desc: 'One quote a day from philosophers, anime and manga, and athletes. Click for another. Choose which kinds in settings.', def: [8, 5], min: [6, 3],
@@ -4924,7 +4979,7 @@ function fitWidget(node) {
 const FIT_RO = window.ResizeObserver ? new ResizeObserver(es => { for (const e of es) { const n = e.target.closest('.widget'); if (!n) continue; cancelAnimationFrame(n._fr); n._fr = requestAnimationFrame(() => fitWidget(n)); } }) : null;
 function renderWidget(id) { const inst = S.layout.find(w => w.id === id), node = nodes.get(id); if (inst && node) { placeWidget(node, inst); renderBody(node, inst); } }
 function renderAll() {
-  TG_MEMO.clear();
+  TG_MEMO.clear(); coachBadge();
   renderTop();
   const host = S.layoutMode === 'canvas' ? world : stack;
   const list = S.layoutMode === 'canvas' ? S.layout : stackOrder(S.layout);   // phone: one column at a time, left to right
@@ -5205,7 +5260,8 @@ let layoutTmr;
 function saveLayout(debounced) {
   clearTimeout(layoutTmr);
   // presets ride in the same document; until they've loaded from Health DB they're left out, never written as empty
-  const go = () => writeConfig('layout', S.layoutPresets ? {widgets: clone(S.layout), presets: clone(S.layoutPresets)} : {widgets: clone(S.layout)}).catch(() => {});
+  const extra = S.coachSeen ? {coachSeen: S.coachSeen} : {};   // read time of the coach's reviews (27 Nov 2026)
+  const go = () => writeConfig('layout', S.layoutPresets ? {widgets: clone(S.layout), presets: clone(S.layoutPresets), ...extra} : {widgets: clone(S.layout), ...extra}).catch(() => {});
   if (debounced) layoutTmr = setTimeout(go, 700); else go();
 }
 function applyConfigDoc(id, data) {
@@ -5215,7 +5271,9 @@ function applyConfigDoc(id, data) {
   else if (id === 'plan') S.plan = Array.isArray(data.sessions) && data.sessions.length ? data : null;
   else if (id === 'supplements') S.supps = Array.isArray(data.items) ? data : null;
   else if (id === 'away') S.away = Array.isArray(data.ranges) ? data : {ranges: []};
-  else if (id === 'layout' && Array.isArray(data.widgets) && !S.dragging) {
+  else if (id === 'coach') { S.coach = Array.isArray(data.msgs) ? data : {msgs: []}; coachBadge(); return 'coach'; }
+  if (id === 'layout' && +data.coachSeen > (+S.coachSeen || 0)) { S.coachSeen = +data.coachSeen; coachBadge(); }   // what's been read, on every device
+  if (id === 'layout' && Array.isArray(data.widgets) && !S.dragging) {
     if (Array.isArray(data.presets)) S.layoutPresets = data.presets; else if (!S.layoutPresets?.length) S.needDefaultPreset = true;
     const incoming = JSON.stringify(data.widgets);
     if (incoming !== JSON.stringify(S.layout)) { S.layout = clone(data.widgets); S.layoutFromStore = true; return 'layout'; }
@@ -5423,7 +5481,7 @@ $('#sheet-x').onclick = closeSheet; $('#scrim').onclick = closeSheet;
 document.querySelector('.actions').addEventListener('click', e => {
   const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
   if (a === 'food') openFood(); else if (a === 'weigh') openWeigh(); else if (a === 'session') openSession({}); else if (a === 'cardio') openCardio({});
-  else if (a === 'widgets') openPalette(); else if (a === 'photos') openPhotos(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp();
+  else if (a === 'widgets') openPalette(); else if (a === 'photos') openPhotos(); else if (a === 'settings') openSettings(); else if (a === 'help') openHelp(); else if (a === 'coach') openCoach();
   else if (a === 'mode') setLayoutMode(S.layoutMode === 'canvas' ? 'stack' : 'canvas');
 });
 const field = (label, html) => `<label class="field"><span>${label}</span>${html}</label>`;
@@ -5555,7 +5613,7 @@ function removeWorkout(date, id) {
    reps, which is why cardio was hard to find. Minutes are what the weekly target counts; distance is optional. */
 const CARDIO_KINDS = [['football', 'Football'], ['run', 'Run'], ['cycle', 'Cycle'], ['swim', 'Swim'], ['walk', 'Walk'], ['golf', 'Golf'], ['other', 'Other']];   // golf: light, shown but not counted (23 Nov 2026)
 function openCardio(pre = {}) {
-  const last = allWorkouts().find(w => kindGroup(w.kind) !== 'gym');
+  const last = allWorkouts().find(w => kindGroup(w.kind) !== 'gym');   // kind only: the type to preselect
   let kind = CARDIO_KINDS.some(([k]) => k === pre.kind) ? pre.kind : last?.kind || 'football';
   const inst = S.layout.find(w => w.type === 'workouts'), tg = cardioTarget(inst);
   openSheet('Log cardio or sport', b => {
@@ -5563,30 +5621,38 @@ function openCardio(pre = {}) {
       <div class="grid2">${field('Minutes', numIn('c-min', pre.min ?? '', '1', 'inputmode="numeric" placeholder="e.g. 45"'))}<span id="c-kmf">${field('Distance (km)', numIn('c-km', pre.km ?? '', '0.1', 'placeholder="optional"'))}</span></div>
       <div class="row" style="gap:6px;flex-wrap:wrap">${[20, 30, 45, 60, 90].map(m => `<button type="button" class="btn sm ghost" data-m="${m}">${m} min</button>`).join('')}</div>
       <div class="grid2">${field('Day', `<input class="inp" type="date" id="c-date" value="${pre.date || S.sel}" max="${today()}">`)}${field('Label', `<input class="inp" id="c-label" value="${esc(pre.label || '')}" placeholder="">`)}</div>
-      ${field('Notes', `<input class="inp" id="c-note" value="${esc(pre.note || '')}" placeholder="optional, e.g. intervals, 5-a-side">`)}
+      <div class="grid2">${field('How hard', `<div class="seg" id="c-eff" role="radiogroup" aria-label="How hard">${[['', 'Auto'], ['light', 'Easy'], ['moderate', 'Steady'], ['vigorous', 'Hard']].map(([e, l]) => `<button type="button" role="radio" data-e="${e}" title="${e ? (e === 'light' ? 'Under 3 METs: shows, not counted' : e === 'moderate' ? 'You could talk in sentences: counts once' : 'A few words at a time: counts twice') : 'From the watts, speed and incline, or the kind'}">${l}</button>`).join('')}</div>`)}<span id="c-wf">${field('Average watts', numIn('c-w', pre.watts ?? '', '1', 'inputmode="numeric" placeholder="bike, e.g. 110"'))}</span></div>
+      ${field('Notes', `<input class="inp" id="c-note" value="${esc(pre.note || '')}" placeholder="optional, e.g. 12% at 3 mph, intervals, 5-a-side">`)}
       <div class="cap" id="c-week"></div>
       <div class="row" style="gap:8px"><button class="btn primary" id="c-save">Save</button><button class="btn ghost" id="c-gym" type="button">Gym session instead</button></div>`;
-    const $c = id => b.querySelector(id), minIn = $c('#c-min'), kmIn = $c('#c-km'), dateIn = $c('#c-date');
+    const $c = id => b.querySelector(id), minIn = $c('#c-min'), kmIn = $c('#c-km'), dateIn = $c('#c-date'), wIn = $c('#c-w'), noteIn = $c('#c-note');
+    let eff = ['light', 'moderate', 'vigorous'].includes(pre.effort) ? pre.effort : '';
+    // the session as it stands in the sheet, for its intensity (27 Nov 2026)
+    const draft = () => ({kind, label: $c('#c-label').value.trim() || label(), note: noteIn.value, min: +minIn.value || 0, ...(+wIn.value > 0 && kind === 'cycle' ? {watts: +wIn.value} : {}), ...(eff ? {effort: eff} : {})});
     const label = () => kind === 'golf' ? 'Golf: driving range' : CARDIO_KINDS.find(([k]) => k === kind)[1];
     const sync = () => {
       b.querySelectorAll('#c-kind [data-k]').forEach(x => { const on = x.dataset.k === kind; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
       $c('#c-kmf').style.display = ['run', 'cycle', 'swim', 'walk'].includes(kind) ? '' : 'none';
+      $c('#c-wf').style.display = kind === 'cycle' ? '' : 'none';
+      b.querySelectorAll('#c-eff [data-e]').forEach(x => { const on = x.dataset.e === eff; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
       $c('#c-label').placeholder = label();
       const mon = monday(dateIn.value || S.sel), wk = cardioWeek(mon), add = +minIn.value || 0, cur = mon === monday(today());
-      if (kindGroup(kind) === 'light') { $c('#c-week').innerHTML = 'Light cardio: it shows on the Training log but doesn’t count towards your weekly cardio minutes.'; return; }
-      $c('#c-week').innerHTML = `Cardio ${cur ? 'this week' : 'week of ' + dShort(mon)}: <b style="color:var(--ink)">${fmt(wk.min)}${add ? ' → ' + fmt(wk.min + add) : ''}</b> / ${fmt(tg)} min${add ? '' : ' · no minutes means it counts as a session, not as 0 min'}`;
+      const dw = draft(), I = cardioIntensity(dw);
+      if (I.band === 'light') { $c('#c-week').innerHTML = `Light cardio (${esc(intensityTxt(dw, I))}): it shows on the Training log but doesn’t count towards your weekly cardio minutes.`; return; }
+      $c('#c-week').innerHTML = `Cardio ${cur ? 'this week' : 'week of ' + dShort(mon)}: <b style="color:var(--ink)">${fmt(wk.min)}${add ? ' → ' + fmt(wk.min + I.eq) : ''}</b>${add ? ` <span class="dim">(${esc(intensityTxt(dw, I))})</span>` : ''} / ${fmt(tg)} min${add ? '' : ' · no minutes means it counts as a session, not as 0 min'}`;
     };
     b.querySelectorAll('#c-kind [data-k]').forEach(x => x.onclick = () => { kind = x.dataset.k; sync(); });
     b.querySelectorAll('[data-m]').forEach(x => x.onclick = () => { minIn.value = x.dataset.m; sync(); });
-    minIn.oninput = sync; dateIn.onchange = sync;
+    minIn.oninput = sync; dateIn.onchange = sync; wIn.oninput = sync; noteIn.oninput = sync;
+    b.querySelectorAll('#c-eff [data-e]').forEach(x => x.onclick = () => { eff = x.dataset.e; sync(); });
     $c('#c-gym').onclick = () => openSession({kind: 'gym', date: dateIn.value});
     sync(); setTimeout(() => minIn.focus(), 50);
     $c('#c-save').onclick = () => {
       const min = +minIn.value, km = +kmIn.value, date = dateIn.value || S.sel, note = $c('#c-note').value.trim();
-      const w = {id: uid(), kind, label: $c('#c-label').value.trim() || label(), ...(min > 0 ? {min} : {}), ...(km > 0 && $c('#c-kmf').style.display !== 'none' ? {km} : {}), ...(note ? {note} : {})};
+      const w = {id: uid(), kind, label: $c('#c-label').value.trim() || label(), ...(min > 0 ? {min} : {}), ...(km > 0 && $c('#c-kmf').style.display !== 'none' ? {km} : {}), ...(note ? {note} : {}), ...(kind === 'cycle' && +wIn.value > 0 ? {watts: +wIn.value} : {}), ...(eff ? {effort: eff} : {})};
       writeDay(date, x => { (x.workouts ||= []).push(w); }).then(() => {
         const wk = cardioWeek(monday(date));
-        toast(`Saved · ${w.label}${min > 0 ? ' ' + min + ' min' : ''}` + (kindGroup(kind) === 'light' ? ' · light cardio, not counted towards your minutes' : ` · cardio ${fmt(wk.min)} / ${fmt(tg)} min`)); closeSheet();
+        toast(`Saved · ${w.label}${min > 0 ? ' ' + min + ' min' : ''}` + (cardioIntensity(w).band === 'light' ? ' · light cardio, not counted towards your minutes' : ` · ${cardioIntensity(w).band} · cardio ${fmt(wk.min)} / ${fmt(tg)} min`)); closeSheet();
       }).catch(() => {});
     };
   });
@@ -6419,6 +6485,56 @@ function openPhotos(view = 'sets') {
 }
 
 /* ============================================================
+   COACH: the weekly reviews (27 Nov 2026)
+   ============================================================
+   Sam: "every week he would give like feedback… a kind of retrospective of how the week has gone… typical coach style
+   advice… to set you up for the next week", with "an icon in the top right… a little exclamation point or a number
+   based on how many messages are there unread". The worker writes each review (weekly.js: Sunday 19:00 by itself,
+   /review in Telegram, or coach_review from Review now) and keeps the last 26 in the 'coach' config document; this
+   page shows them. What has been read is one time stamp, layout.coachSeen, so it's the same on the phone and the Mac.
+   Functional first, by his order: the mascot and its pop-out hello come later. */
+const coachMsgs = () => (S.coach?.msgs || []).slice().sort((a, b) => a.end < b.end ? -1 : a.end > b.end ? 1 : a.at - b.at);
+const coachUnread = () => coachMsgs().filter(m => +m.at > (+S.coachSeen || 0)).length;
+function coachBadge() { const n = coachUnread(), el = $('#coach-badge'); if (!el) return; el.hidden = !n; el.textContent = n > 9 ? '9+' : String(n); $('#coach-btn').title = n ? `Coach: ${n} new weekly review${n === 1 ? '' : 's'}` : 'Coach: weekly reviews'; }
+function coachMarkSeen() { const last = Math.max(0, ...coachMsgs().map(m => +m.at || 0)); if (last > (+S.coachSeen || 0)) { S.coachSeen = last; coachBadge(); saveLayout(true); } }
+/* The review is Telegram HTML written by the worker (b, i, code, blockquote, line breaks). Only those tags are kept,
+   everything else becomes its text, so nothing in a food or exercise name can turn into markup here. */
+function coachHtml(html) {
+  const t = document.createElement('template'); t.innerHTML = String(html || '');
+  const out = document.createElement('div'), keep = new Set(['B', 'I', 'CODE', 'BLOCKQUOTE']);
+  const walk = (from, to) => { for (const n of from.childNodes) {
+    if (n.nodeType === 3) to.append(document.createTextNode(n.textContent));
+    else if (n.nodeType === 1) { if (keep.has(n.tagName)) { const e = document.createElement(n.tagName.toLowerCase()); walk(n, e); to.append(e); } else walk(n, to); } } };
+  walk(t.content, out); return out;
+}
+const COACH_I = new Map();   // which review each widget (or the sheet) is showing; none = the latest
+function coachCard(b, inst) {
+  const key = inst ? inst.id : 'sheet', list = coachMsgs(), n = list.length;
+  if (!n) { b.innerHTML = `<div class="empty">No weekly review yet. The coach writes one every Sunday at 19:00${MCP ? ', or ask for one now' : ''}.${MCP ? '<div style="margin-top:10px"><button class="btn sm" data-ask>Review the last 7 days</button></div>' : ''}</div>`; const a = b.querySelector('[data-ask]'); if (a) a.onclick = () => coachAsk(a); return; }
+  const i = clamp(COACH_I.has(key) ? COACH_I.get(key) : n - 1, 0, n - 1), m = list[i], isNew = +m.at > (+S.coachSeen || 0);
+  b.innerHTML = `<div class="row between coach-nav"><span class="cap">${i === n - 1 ? 'Latest · ' : ''}${esc(m.title || (dShort(m.from) + ' – ' + dShort(m.end)))}${isNew ? ' <span class="coach-new">new</span>' : ''}</span><span class="row" style="gap:2px"><button class="icon-btn" data-cn="-1" title="The week before" ${i ? '' : 'disabled'}>‹</button><button class="icon-btn" data-cn="1" title="The week after" ${i < n - 1 ? '' : 'disabled'}>›</button></span></div><div class="coach-body" data-cb></div>`;
+  b.querySelector('[data-cb]').append(coachHtml(m.html));
+  b.querySelectorAll('[data-cn]').forEach(x => x.onclick = () => { COACH_I.set(key, clamp(i + +x.dataset.cn, 0, n - 1)); inst ? renderWidget(inst.id) : coachCard(b, null); });
+  // reading it in a widget counts as read once it's touched; the sheet marks it read on opening
+  if (inst) b.onpointerdown = () => coachMarkSeen();
+}
+function openCoach() {
+  openSheet('Coach', b => { const box = document.createElement('div'); box.className = 'coach-wrap'; b.append(box); coachCard(box, null);
+    if (MCP) { const r = document.createElement('div'); r.className = 'row'; r.style.cssText = 'gap:8px;margin-top:12px'; r.innerHTML = '<button class="btn sm ghost" data-ask>Review the last 7 days now</button>'; box.append(r); r.querySelector('[data-ask]').onclick = e => coachAsk(e.currentTarget); } }, {wide: true});
+  coachMarkSeen();
+}
+async function coachAsk(btn) {
+  if (!MCP) return toast('Reviews need Health DB: open this page in Claude with the connector.');
+  if (btn) { btn.disabled = true; btn.textContent = 'The coach is writing…'; }
+  try {
+    await MCP.callTool(SRV, 'coach_review', {}, {cache: false});
+    const r = await MCP.callTool(SRV, 'get_snapshot', {since: S.rev}, {cache: false}); applySnapshot(r.payload || {}, false);
+    COACH_I.clear(); renderAll(); if (!$('#sheet').hidden && $('#sheet-t').textContent === 'Coach') openCoach();
+    toast('The coach has reviewed the last 7 days');
+  } catch (e) { toast('The coach couldn’t write a review: ' + (e?.message || 'try again')); if (btn) { btn.disabled = false; btn.textContent = 'Review the last 7 days'; } }
+}
+
+/* ============================================================
    HELP: why it's built this way, and how it works
    ============================================================ */
 function openHelp(tab = 'why') {
@@ -6487,15 +6603,16 @@ function openHelp(tab = 'why') {
       <div class="sec"><h5>Cardio, and why ${CARDIO_TARGET} minutes</h5>
         <p>${B(CARDIO_TARGET + ' minutes a week')} is the Training log’s cardio meter. It is the World Health Organization’s floor for adults: 150–300 minutes of moderate activity a week (or 75–150 vigorous, or a mix where one vigorous minute counts as two), plus strength work on two or more days. There is no upper limit for health; more than 300 minutes still adds benefit.</p>
         <p>${B('Why 150, not more or less.')} The benefit curve is steepest at the start, so 150 is where each minute buys the most, not a pass mark. Pooled cohort studies put the risk of dying from any cause about 14% lower at 150 minutes a week and 26% lower at 300 (Samitz et al. 2011). The largest analysis so far (196 papers, about 30 million people) found most of the drop arrives by about 150, with smaller gains above it, and even 75 minutes a week buys a good share (Garcia et al. 2023).</p>
-        <p>${B('Is it attainable?')} For most people, yes: 64.6% of adults in England met it in 2024–25 (Sport England, Active Lives). That survey counts vigorous minutes double, as the guideline allows; this page doesn’t (below).${(() => {
+        <p>${B('Is it attainable?')} For most people, yes: 64.6% of adults in England met it in 2024–25 (Sport England, Active Lives). That survey counts vigorous minutes double, as the guideline allows, and so does this page (below).${(() => {
           // the last four full weeks from Health DB, so this paragraph stays true as the weeks go by (25 Nov 2026)
           const td = today(), cur = monday(td), first = [...S.days.keys()].filter(d => d <= td && (dayTotals(d)?.kcal != null || dayDoc(d)?.workouts?.length)).sort()[0];
           if (!first) return '';
           const wk = [4, 3, 2, 1].map(k => addDays(cur, -7 * k)).filter(m => addDays(m, 6) >= first).map(m => ({m, c: cardioWeek(m), away: [0, 1, 2, 3, 4, 5, 6].filter(k => awayOn(addDays(m, k))).length}));
           if (!wk.length) return '';
           const now = cardioWeek(cur);
-          return ` Yours, full weeks: ${wk.map(x => B(fmt(x.c.min)) + (x.away ? ' (' + x.away + ' day' + (x.away === 1 ? '' : 's') + ' away)' : '')).join(', ')} minutes, week of ${dShort(wk[0].m)} on; ${wk.filter(x => x.c.min >= CARDIO_TARGET).length} of ${wk.length} at ${CARDIO_TARGET}. This week so far: ${fmt(now.min)}. With 5–6 gym sessions a week, 25–30 minutes after each one gets there as logged.`; })()}</p>
-        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 72.4) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 72.4, 0)} kg: both vigorous, as long as you don’t hold the rails. The meter counts minutes as logged, not doubled, which is the stricter reading: 150 logged minutes clears the floor whatever the intensity.</p>
+          return ` Yours, full weeks, in equivalent minutes: ${wk.map(x => B(fmt(x.c.min)) + (x.away ? ' (' + x.away + ' day' + (x.away === 1 ? '' : 's') + ' away)' : '')).join(', ')} minutes, week of ${dShort(wk[0].m)} on; ${wk.filter(x => x.c.min >= CARDIO_TARGET).length} of ${wk.length} at ${CARDIO_TARGET}. This week so far: ${fmt(now.min)}. With 5–6 gym sessions a week, 25–30 minutes after each one gets there at a steady pace, or 15 if it’s vigorous.`; })()}</p>
+        <p>${B('Moderate or vigorous.')} Moderate is about 3–6 METs (brisk walking, easy cycling: you can talk in sentences), vigorous 6 or more (a few words at a time). By the ACSM equations, your incline walk at 12% and 3 mph is about 8.3 METs, and cycling at 110 W about ${fmt((1.8 * 110 * 6 / (T.ok ? T.w : 72.4) + 7) / 3.5, 1)} at ${fmt(T.ok ? T.w : 72.4, 0)} kg: both vigorous, as long as you don’t hold the rails.</p>
+        <p>${B('How the page counts it (27 Nov 2026, your choice: one number in the WHO’s terms).')} Every session gets an intensity, from the first of these it has: average watts on a bike; speed and incline on a treadmill or run; how it felt (“easy”, “could chat”, “hard”, “out of breath”, or How hard in the cardio sheet); the kind (football and runs vigorous, golf light, the rest moderate). Light (under 3 METs) shows but doesn’t count; moderate counts once; vigorous counts twice. So the meter reads equivalent minutes: 45 minutes at 110 W is 90 towards the 150. On the Training log a vigorous session stands twice as tall in a deeper blue, and hovering a day gives each session’s basis (“110 W ≈ 6.7 METs, vigorous ×2”). Tell the bot the watts, the speed and incline, or how hard it was; with nothing to go on, a session counts as moderate.</p>
         <p>For a recomp the limit is practical, not medical. A 2022 meta-analysis of 43 studies found cardio alongside lifting did ${B('not')} reduce muscle growth or maximal strength. It did blunt explosive power, mainly when both were done in the same session, and not when they were 3+ hours apart (Schumann et al. 2022). An older one found the interference grows with how often and how long the cardio is, and with running more than cycling (Wilson et al. 2012). Past about ${CARDIO_CEIL} minutes, recovery and the extra calories start to compete with muscle gain.</p>
         <p>So: mostly steady cardio (cycling, rowing, incline walking, swimming), plus one hard session a week (football counts). Lift first or keep them 3+ hours apart, and keep long or hard runs away from legs day. Every non-gym session counts toward the minutes. A session logged without minutes shows as “untimed” rather than zero. If the extra cardio pulls the weight trend down, the 4-week check in Targets will suggest more calories; the activity multiplier stays where it is.</p>
         <p class="note">Sources: WHO guidelines on physical activity and sedentary behaviour (2020; Bull FC et al., Br J Sports Med 2020;54:1451–1462); Samitz G et al., Int J Epidemiol 2011;40:1382–1400; Garcia L et al., Br J Sports Med 2023 (doi 10.1136/bjsports-2022-105669); Sport England, Active Lives Adult Survey, Nov 2024–Nov 2025; ACSM metabolic equations (walking: 0.1 × speed + 1.8 × speed × grade + 3.5 ml/kg/min; leg cycling: 1.8 × work rate ÷ body mass + 7); Schumann M et al., Sports Medicine 2022;52:601–612; Wilson JM et al., J Strength Cond Res 2012;26(8):2293–2307. Change the target in the Training log’s settings.</p></div>

@@ -47,6 +47,7 @@ const claudeReply = (body) => {
     if (/remove the quince test/i.test(first)) out = { intent: 'remove', remove: { date: td, what: 'quince' } };
     else if (/remove the banana test/i.test(first)) out = { intent: 'remove', remove: { date: td, what: 'banana' } };
     else if (/summary of today test/i.test(first)) out = { intent: 'day', day: { date: td } };
+    else if (/cycling test/i.test(first)) out = { intent: 'workout', workout: { date: td, kind: 'cycle', label: 'Cycling', minutes: 45, watts: 110, speed_mph: null, incline_pct: null, effort: null, exercises: [], note: 'Average 110 W', usual: false } };
   }
   if (out) return { content: [{ type: 'text', text: JSON.stringify(out) }], stop_reason: 'end_turn' };
   if (/You estimate nutrition/.test(sys)) {

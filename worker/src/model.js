@@ -1,5 +1,5 @@
 /* Health DB · model.js */
-import { fmt, mean, today, diffDays, normName } from './util.js';
+import { fmt, mean, r1, today, diffDays, normName } from './util.js';
 import { allDays, allConfig } from './store.js';
 
 /* ============================================================ the same maths as the dashboard */
@@ -61,6 +61,33 @@ export function recentPerf(days, name, n = 3, within = 42) {
    is the one-liner, the rest says why). Without one: 3 min when the rep range starts at 6 or fewer (the heavy
    compounds), else 2. WHY 3: 3-minute rests grew more muscle and strength than 1 minute in trained men (Schoenfeld
    et al. 2016). 2 minutes on isolation lifts is common practice, not a tested optimum. Same rule as the dashboard. */
+/* Cardio intensity (27 Nov 2026, Sam: "when I log cardio… an average watt value, or… describe its intensity, and then
+   you can work out whether that should be considered light or intense cardio, and then count it accordingly towards
+   the goal"; he chose one number in the WHO's terms). The WHO counts a vigorous minute as two moderate ones (150 min
+   moderate = 75 vigorous), so the target counts EQUIVALENT minutes: light (under 3 METs) shows but doesn't count,
+   moderate (3 to 6) counts once, vigorous (6 or more) twice. METs, from the first of these a session has:
+   1. watts on a bike (w.watts, or "110 W" in its label or note): ACSM leg cycling, VO2 = 1.8 × (W × 6 kgm/min) ÷ kg + 7;
+   2. speed and incline (w.speed_mph, w.incline_pct, or "12% at 3 mph", "Incline 12, 3 mph", "10 km/h", or a run's km ÷ time): ACSM walking
+      up to 3.7 mph, VO2 = 0.1 × m/min + 1.8 × m/min × grade + 3.5; running above it, 0.2 and 0.9 in their place;
+   3. how it felt (w.effort, read from his words: "easy", "could chat" moderate; "hard", "out of breath" vigorous);
+   4. the kind: football and runs vigorous, golf light (2.3–2.6 METs at the range, Wolkodoff 2024), the rest moderate.
+   METs = VO2 ÷ 3.5. Estimates, and only without leaning on the rails or the bars. The dashboard has the same rule. */
+export function cardioIntensity(w, kg) {
+  const txt = [w.label, w.note].join(' '), num = re => { const m = txt.match(re); return m ? parseFloat(m[1]) : null; };
+  const watts = +w.watts || (w.kind === 'cycle' || /bike|cycl|spin|watt/i.test(txt) ? num(/(\d{2,4})\s*(?:w|watts?)\b/i) : null);
+  let mph = +w.speed_mph || num(/(\d+(?:\.\d+)?)\s*mph\b/i);
+  if (!mph) { const k = num(/(\d+(?:\.\d+)?)\s*(?:km\/?h|kph)\b/i); if (k) mph = k / 1.609; }
+  if (!mph && ['run', 'walk'].includes(w.kind) && +w.km > 0 && +w.min > 0) mph = w.km / w.min * 60 / 1.609;   // distance and time give the speed
+  const grade = w.incline_pct != null ? +w.incline_pct : (num(/(\d+(?:\.\d+)?)\s*%/) ?? num(/incline\s*(\d+(?:\.\d+)?)/i) ?? 0);
+  let met = null, basis;
+  if (watts > 0) { met = (1.8 * watts * 6 / (kg || 72.4) + 7) / 3.5; basis = Math.round(watts) + ' W'; }
+  else if (mph > 0) { const v = mph * 26.8, g = grade / 100; met = (mph <= 3.7 ? .1 * v + 1.8 * v * g + 3.5 : .2 * v + .9 * v * g + 3.5) / 3.5; basis = (grade ? r1(grade) + '% at ' : '') + r1(mph) + ' mph'; }
+  const kindBand = w.kind === 'golf' ? 'light' : ['football', 'run'].includes(w.kind) ? 'vigorous' : 'moderate';
+  const band = met != null ? (met < 3 ? 'light' : met < 6 ? 'moderate' : 'vigorous') : ['light', 'moderate', 'vigorous'].includes(w.effort) ? w.effort : kindBand;
+  if (met == null) basis = w.effort ? 'felt ' + w.effort : w.kind === 'golf' ? 'golf' : ['football', 'run'].includes(w.kind) ? w.kind : 'no detail, so moderate';
+  const factor = band === 'light' ? 0 : band === 'vigorous' ? 2 : 1;
+  return { met: met == null ? null : r1(met), band, basis, factor, eq: (+w.min || 0) * factor };
+}
 export function restMin(e) { if (+e?.rest > 0) return +e.rest; const m = String(e?.reps || '').match(/^\s*(\d+)/); return m && +m[1] <= 6 ? 3 : 2; }
 export const restLine = s => String(s?.rest || '').split(/(?<=\.)\s+/)[0];
 export function setsText(sets) {

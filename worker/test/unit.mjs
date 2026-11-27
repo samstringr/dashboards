@@ -24,6 +24,26 @@ check('rest: one-liner is the first sentence', restLine({ rest: '3′ on the pre
 import { matchScore } from '../src/edit.js';
 check('remove: whole words match', matchScore('chocolate', 'Milk chocolate, 2 squares') === 1 && matchScore('the golf', 'Golf: driving range') === 1);
 check('remove: a 4+ letter start counts half, unrelated words none', matchScore('choc', 'Milk chocolate') === .5 && matchScore('banana', 'Test apple, made up') === 0 && matchScore('', 'Cheddar') === 0);
+// 27 Nov 2026: cardio intensity. Vigorous minutes count twice, light ones not at all (WHO: 150 moderate = 75 vigorous)
+import { cardioIntensity } from '../src/model.js';
+{ const walk = cardioIntensity({ kind: 'walk', label: 'Cardio: incline walk 12% at 3 mph', note: 'Incline 12, 3 mph', min: 21 }, 72.4);
+  const bike = cardioIntensity({ kind: 'cycle', label: 'Cycling', note: 'Average 110 W', min: 45 }, 72.4);
+  const easyBike = cardioIntensity({ kind: 'cycle', label: 'Cycling', watts: 50, min: 30 }, 72.4);
+  check('intensity: 12% at 3 mph ≈ 8.3 METs, vigorous, 21 min counts 42', walk.met === 8.3 && walk.band === 'vigorous' && walk.eq === 42 && walk.basis === '12% at 3 mph', JSON.stringify(walk));
+  check('intensity: 110 W at 72.4 kg ≈ 6.7 METs, vigorous; 50 W moderate', bike.met === 6.7 && bike.band === 'vigorous' && bike.eq === 90 && easyBike.band === 'moderate' && easyBike.eq === 30, JSON.stringify([bike, easyBike]));
+  const felt = cardioIntensity({ kind: 'swim', min: 30, effort: 'vigorous' }), none = cardioIntensity({ kind: 'swim', min: 30 }), golf = cardioIntensity({ kind: 'golf', min: 120 }), ball = cardioIntensity({ kind: 'football', min: 60 }), kmh = cardioIntensity({ kind: 'run', label: 'Run', note: '10 km/h, flat', min: 30 });
+  check('intensity: by feel, by kind, golf light, km/h converted', felt.eq === 60 && none.band === 'moderate' && none.eq === 30 && golf.eq === 0 && golf.band === 'light' && ball.eq === 120 && kmh.band === 'vigorous' && kmh.met > 9, JSON.stringify({ felt, none, golf, ball, kmh }));
+}
+// 27 Nov 2026: what the weekly review says the energy balance means (made-up weights and intakes)
+import { energyBalance, balanceLine } from '../src/weekly.js';
+{ const T0 = today(), D = n => addDaysU(T0, -n), mk = (w, k) => Array.from({ length: 15 }, (_, i) => ({ date: D(i + 1), items: [{ kcal: k, p: 150 }], body: i % 2 ? undefined : { w: w(i) } }));
+  const flat = { settings: { phase: 'recomp' }, config: {}, days: mk(() => 72.5, 2600) }, down = { settings: { phase: 'recomp' }, config: {}, days: mk(i => 72 + i * 0.07, 2300) };
+  const bf = energyBalance(flat, T0), bd = energyBalance(down, T0), lf = balanceLine({ eb: bf, T: { ok: true, kcal: 2600 } }), ld = balanceLine({ eb: bd, T: { ok: true, kcal: 2600 } });
+  check('weekly: steady weight on the target = maintenance, said as the plan working', bf.verdict === 'in' && lf.good && /that's your maintenance/.test(lf.text) && /executing the plan/.test(lf.text), lf.text);
+  const lo = balanceLine({ eb: energyBalance({ settings: { phase: 'recomp' }, config: {}, days: mk(() => 72.5, 2200) }, T0), T: { ok: true, kcal: 2600 } });
+  check('weekly: steady weight well under the target = maintenance is lower than the target, said so', lo.good && /400 under the 2,600 target/.test(lo.text), lo.text);
+  check('weekly: weight falling on a recomp = a deficit, with its size and the target', bd.verdict === 'below' && !ld.good && /under maintenance/.test(ld.text) && /Aim for the full 2,600/.test(ld.text), ld.text);
+}
 // double progression with sets to failure
 import { addLoadDue } from '../src/model.js';
 const pe9 = { reps: '8-12', rpe: 9 }, pe10 = { reps: '10-15', rpe: 10 };
@@ -124,7 +144,7 @@ import { reviewExercise, reviewSession, sessionReviewHtml, joinReview, loadStep,
     { date: D(5), items: [{ kcal: 900, p: 40 }] }, { date: D(3), items: [{ kcal: 2200, p: 120 }], workouts: [{ kind: 'walk', min: 25 }, { kind: 'golf', min: 120 }] },
     { date: T0, items: [{ kcal: 600, p: 30 }] }, { date: D(20), workouts: [{ kind: 'gym', ex: [{ n: 'Incline DB bench', sets: [{ kg: 30, r: 8 }] }] }] }] };
   const F = weeklyFacts(wk, T0), H = weeklyHtml(F);
-  check('weekly: away days and today left out of food; sessions planned scale with the days away', F.logged === 2 && F.open === 4 && F.away === 2 && Math.round(F.kcal) === 2100 && F.want === 4 && F.gym === 1 && F.cardioMin === 25 && F.ups.join() === 'Incline DB bench' && /Get to 4 sessions/.test(H.focus) && /Away/.test(H.stats), JSON.stringify({ l: F.logged, o: F.open, a: F.away, k: F.kcal, w: F.want, f: H.focus }));
+  check('weekly: away days and today left out of food; sessions planned scale with the days away', F.logged === 2 && F.open === 4 && F.away === 2 && Math.round(F.kcal) === 2100 && F.want === 4 && F.gym === 1 && F.cardioMin === 25 && F.ups.map(u => u.n).join() === 'Incline DB bench' && /Incline DB bench 30×8 → 32×8/.test(H.good) && /Get to 4 sessions/.test(H.focus) && /Away/.test(H.stats), JSON.stringify({ l: F.logged, o: F.open, a: F.away, k: F.kcal, w: F.want, f: H.focus }));
   check('weekly: golf is reported as light activity, not cardio (23 Nov 2026)', F.cardioMin === 25 && F.cardioN === 1 && F.lightN === 1 && F.lightMin === 120 && /1 light cardio, 120 min/.test(H.stats || JSON.stringify(H)), JSON.stringify({ c: F.cardioMin, n: F.cardioN, l: F.lightN, lm: F.lightMin }));
 }
 // 14 Nov 2026: steps from the Shortcut (made-up counts)

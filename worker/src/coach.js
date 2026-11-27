@@ -40,7 +40,7 @@ import { awayOn } from './extras.js';
 /* Light activity (23 Nov 2026): golf, e.g. two hours at the driving range. Measured at 2.3-2.6 MET (Wolkodoff
    2024, range practice), under the 3.0 that counts as moderate, so it is shown and reported but never counted as
    cardio: an hour would otherwise cover 40% of the 150-minute week. */
-export const LIGHT = ['golf'];
+export const LIGHT = ['golf'];   // light by kind; the band of any session now comes from model.js cardioIntensity (27 Nov 2026)
 
 export const loadStep = n => /\bdb\b|dumbbell/i.test(n) ? 2 : /\bleg\b|machine|deck|smith|squat|deadlift/i.test(n) ? 5 : /cable|push.?down|pull.?down|pullover|face pull|rope|curl|lateral|crunch/i.test(n) ? 2.5 : 5;
 const range = reps => { const m = String(reps || '').match(/(\d+)\s*[-–]\s*(\d+)/); return m ? [+m[1], +m[2]] : null; };
@@ -146,13 +146,13 @@ export const joinReview = (H, note, next) => [H.head + '\n' + H.sum, H.lines.joi
 
 /* A short opening in plain words. Claude gets the worked-out lines and nothing else, and is told to add no
    numbers of its own. Returns '' on any failure: the review never depends on it. */
-export async function coachNote(env, kind, facts) {
+export async function coachNote(env, kind, facts, systemOverride) {
   if (!env.ANTHROPIC_API_KEY) return '';
   try {
     // 15 Nov 2026: the note is now the coach's feedback at the bottom of the message (Sam: "the actual coach's
     // feedback… concise, but with the necessary detail so it's worthwhile")
     const system = `You are Sam's strength coach, writing your feedback at the bottom of a ${kind} in a Telegram message; the numbers are listed above it, so don't repeat them line by line. British English. Three or four short sentences, plain text only (no markdown, no lists, no emoji): how it went overall, what stood out (good and bad), the reasoning behind the main next targets, and anything to change (rest, load, form, order). Honest, direct and encouraging, like a good coach. Use ONLY the facts given: never state a number, load or target that is not in them, and never contradict them. Sam's aim is muscle growth with strength going up session to session.`;
-    const t = await claude(env, { model: env.MODEL_FAST || 'claude-haiku-5-5', system, max_tokens: 700, budget: 12000, messages: [{ role: 'user', content: facts.replace(/<[^>]+>/g, '') }] });
+    const t = await claude(env, { model: env.MODEL_FAST || 'claude-haiku-5-5', system: systemOverride || system, max_tokens: 700, budget: 12000, messages: [{ role: 'user', content: facts.replace(/<[^>]+>/g, '') }] });
     return finishNote(t);
   } catch { return ''; }
 }
@@ -166,53 +166,5 @@ export function finishNote(t) {
   return s.length <= 1400 ? s : '';
 }
 
-/* ---------- the weekly review: the seven days ending on `end` (sent on Sunday evening) ---------- */
-export function weeklyFacts(ctx, end) {
-  const from = addDays(end, -6), prevFrom = addDays(from, -7), T = targets(ctx, end), td = today();
-  const inWk = d => d >= from && d <= end, days = ctx.days.filter(d => inWk(d.date));
-  /* 15 Nov 2026 (Sam: the week's average food was 2,119 because a holiday day and an unfinished day counted).
-     Food counts only days that are over and not away: away days are holidays, and today is still being eaten
-     (the review goes out at 19:00 on Sunday). Gym sessions planned scale down by the days away. */
-  const wkDays = Array.from({ length: 7 }, (_, i) => addDays(from, i)), away = wkDays.filter(d => awayOn(ctx, d)), open = wkDays.filter(d => !awayOn(ctx, d) && d < td);
-  const food = days.filter(d => open.includes(d.date)).map(d => ({ d, t: dayTotals(d) })).filter(x => x.t && x.t.kcal != null && !x.t.void && !x.t.partial);
-  const tots = food.map(x => x.t);
-  const ws = allWorkouts(ctx.days).filter(w => inWk(w.date)), gym = ws.filter(w => w.kind === 'gym'), other = ws.filter(w => w.kind !== 'gym' && !LIGHT.includes(w.kind)), light = ws.filter(w => LIGHT.includes(w.kind));
-  const wl = weighins(ctx.days).filter(x => x.w), wNow = wl.some(x => inWk(x.date)) ? rollAvg(wl, end, 'w') : null, wPrev = rollAvg(wl, addDays(end, -7), 'w');
-  // lifts: the first set of each exercise this week against the last time it was done before this week
-  const before = { ...ctx, days: ctx.days.filter(d => d.date < from) }, ups = [], downs = [], seen = new Set();
-  for (const w of gym.slice().reverse()) for (const e of (w.ex || [])) {
-    const k = normName(e.n); if (seen.has(k)) continue; seen.add(k);
-    const p = lastPerf(before.days, e.n), a = e1(p?.sets?.[0]), b = e1(e.sets?.[0]); if (a == null || b == null) continue;
-    if (b > a * 1.005) ups.push(e.n); else if (b < a * 0.995) downs.push(e.n);
-  }
-  const want = ctx.plan?.perWeek ? Math.floor(ctx.plan.perWeek * (7 - away.length) / 7) : null;
-  return { from, end, T, open: open.length, away: away.length, awayFrom: away[0], awayTo: away[away.length - 1], logged: tots.length,
-    hit: T.ok ? food.filter(x => { const t = targets(ctx, x.d.date); return t.ok && x.t.p >= t.protein - 0.5; }).length : null, kcal: mean(tots.map(t => t.kcal)), prot: mean(tots.map(t => t.p)),
-    gym: gym.length, want, codes: gym.map(w => w.planCode || w.label || 'gym').reverse(), cardioMin: other.reduce((a, w) => a + (+w.min || 0), 0), cardioN: other.length, lightN: light.length, lightMin: light.reduce((a, w) => a + (+w.min || 0), 0),
-    steps: mean(days.filter(d => d.steps != null && d.stepsAt !== d.date).map(d => +d.steps)), stepDays: days.filter(d => d.steps != null && d.stepsAt !== d.date).length,
-    wNow, wPrev: wNow != null ? wPrev : null, weighed: wl.filter(x => inWk(x.date)).length, ups, downs, lifts: seen.size, prevFrom };
-}
-export function weeklyHtml(F) {
-  const good = [], fix = [];
-  if (F.want != null) (F.gym >= F.want ? good : fix).push(F.gym >= F.want ? `Trained ${F.gym} times (plan: ${F.want}–${F.want + 1} a week)` : `${F.gym} gym session${F.gym === 1 ? '' : 's'} against ${F.want}–${F.want + 1} planned`);
-  if (F.ups.length) good.push(`${F.ups.length} lift${F.ups.length === 1 ? '' : 's'} up on last time: ${F.ups.slice(0, 4).map(esc).join(', ')}`);
-  if (F.open && F.logged >= F.open - 1) good.push(`Food logged on ${F.logged} of ${F.open} days`); else if (F.open) fix.push(`Food logged on ${F.logged} of ${F.open} days: the targets are only as good as the log`);
-  if (F.hit != null && F.logged) (F.hit >= Math.max(1, F.logged - 1) ? good : fix).push(`Protein floor (${F.T.protein} g) hit on ${F.hit} of ${F.logged} logged days`);
-  if (!F.weighed) fix.push('No weigh-in this week: Mon, Wed and Fri mornings keep the trend honest');
-  if (F.downs.length && !F.ups.length) fix.push(`${F.downs.length} lift${F.downs.length === 1 ? '' : 's'} down on last time`);
-  const focus = F.want != null && F.gym < F.want ? `Get to ${F.want} sessions: the plan only works at its frequency.`
-    : F.hit != null && F.logged && F.hit < F.logged - 1 ? `Protein: ${F.T.protein} g every day. Front-load it: 40 g by lunch makes the floor easy.`
-    : F.open && F.logged < F.open - 1 ? 'Log every day, even roughly.' : F.ups.length ? 'Same again: one more rep or the next load on every first set.' : 'One more rep on the first set of each lift.';
-  const stats = [`🏋️ <b>${F.gym}</b> gym${F.codes.length ? ' (' + F.codes.map(esc).join(', ') + ')' : ''}${F.cardioN ? ` · ${F.cardioN} cardio or sport${F.cardioMin ? ', ' + fmt(F.cardioMin) + ' min' : ''}` : ''}${F.lightN ? ` · ${F.lightN} light cardio${F.lightMin ? ', ' + fmt(F.lightMin) + ' min (not counted)' : ''}` : ''}`,
-    F.logged ? `🍽 <b>${fmt(F.kcal)}</b> kcal · <b>${fmt(F.prot)}</b> g protein a day${F.T.ok ? ` (targets ${fmt(F.T.kcal)} / ${F.T.protein})` : ''}` : '🍽 Nothing complete logged',
-    F.away ? `🏝 Away ${F.away === 1 ? dLong(F.awayFrom) : dLong(F.awayFrom) + ' – ' + dLong(F.awayTo)}: not counted` : '',
-    F.steps != null ? `👟 <b>${fmt(F.steps)}</b> steps a day (${F.stepDays} day${F.stepDays === 1 ? '' : 's'} counted)` : '',
-    F.wNow != null ? `⚖️ <b>${fmt(F.wNow, 2)} kg</b> 7-day avg${F.wPrev != null ? ` (${F.wNow - F.wPrev >= 0 ? '+' : '−'}${fmt(Math.abs(F.wNow - F.wPrev), 2)} kg on the week before)` : ''}` : ''].filter(Boolean);
-  return { head: `📊 <b>Your week</b> · ${dLong(F.from)} – ${dLong(F.end)}`, stats: stats.join('\n'), good: good.length ? '✅ <b>Went well</b>\n' + good.map(x => '• ' + x).join('\n') : '', fix: fix.length ? '🛠 <b>To improve</b>\n' + fix.map(x => '• ' + x).join('\n') : '', focus };
-}
-// the coach's note and the focus sit at the bottom in a quote block, as in the session review
-export const joinWeekly = (H, note) => [H.head, H.stats, H.good, H.fix, `<blockquote>🧭 <b>Coach</b>${note ? '\n' + esc(note) : ''}\n🎯 <b>Next week:</b> ${H.focus}</blockquote>`].filter(Boolean).join('\n\n');
-export async function weeklyReview(env, ctx, end) {
-  const H = weeklyHtml(weeklyFacts(ctx, end));
-  return joinWeekly(H, await coachNote(env, 'weekly review', [H.stats, H.good, H.fix, 'Focus: ' + H.focus].join('\n').replace(/<[^>]+>/g, '')));
-}
+/* the weekly review moved to weekly.js (27 Nov 2026); re-exported here for the callers and tests that import it from coach.js */
+export { weeklyFacts, weeklyHtml, joinWeekly, weeklyReview } from './weekly.js';
